@@ -54,6 +54,9 @@
 
       # Edit current directory
       e = "nvim .";
+
+      # System switch
+      os = "nh os switch .";
     };
   };
 
