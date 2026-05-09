@@ -7,9 +7,7 @@ Hosts are named after Owl genera to reflect the system's identity (Observation, 
 
 | Hostname | Hardware | Architecture | Role | Vibe |
 | :--- | :--- | :--- | :--- | :--- |
-| **Athene** | Lenovo Ideapad 130-15AST | `x86_64-linux` | Workstation | *The Little Owl* - Compact, grounded, wise observer. |
-| **Tyto** | Lenovo Yoga (Future) | `x86_64-linux` | Workstation | *The Barn Owl* - Widespread, highly adaptable daily driver. |
-| **Strix** | Oracle Ampere A1 (Future) | `aarch64-linux` | Server | *The Earless Owl* - Silent, powerful, operates in the dark (Cloud). |
+| **Otus** | Lenovo IdeaPad Slim 1-14AST-05 | `x86_64-linux` | Workstation | *The Scops Owl* - Small, well-camouflaged, highly adaptable. |
 
 ## 📂 Directory Layout
 
@@ -18,7 +16,7 @@ The project follows a **System-Centric** layout, separating hardware (Hosts) fro
 ```text
 ~/git/sober-nix/
 ├── hosts/              # 🖥️ Hardware-specific entry points
-│   └── athene/         # Lenovo Ideapad 130-15AST
+│   └── otus/           # Lenovo IdeaPad Slim 1-14AST-05
 ├── modules/            # 🧱 Reusable logic "Bricks"
 │   ├── core/           # System-wide foundational settings
 │   ├── home/           # User-space configs (Firefox, Nvim, Sway, Shell)
