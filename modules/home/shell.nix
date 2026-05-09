@@ -51,6 +51,9 @@
 
       # Replace cat with bat
       cat = "bat";
+
+      # Edit current directory
+      e = "nvim .";
     };
   };
 
