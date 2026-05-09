@@ -219,7 +219,7 @@
         ];
         "custom/vpn" = {
           format = "󰖂 {}";
-          exec = "ip link show wg-US-FREE-1 > /dev/null 2>&1 && echo '{"text": "ON", "tooltip": "VPN: Active - '"$(curl -s https://ifconfig.me)"'"}' || echo '{"text": "OFF", "tooltip": "VPN: Inactive"}'";
+          exec = "ip link show wg-US-FREE-1 > /dev/null 2>&1 && echo '{\"text\": \"ON\", \"tooltip\": \"VPN: Active - '\"$(curl -s https://ifconfig.me)\"'\"}' || echo '{\"text\": \"OFF\", \"tooltip\": \"VPN: Inactive\"}'";
           interval = 5;
           return-type = "json";
           on-click = "nmcli connection up id wg-US-FREE-1";
