@@ -1,90 +1,44 @@
 # home/features/youtube.nix
-{
-  config,
-  pkgs,
-  lib,
-  ...
-}:
+{ config, pkgs, lib, ... }:
 
+let
+  csvData = builtins.readFile ./subscriptions.csv;
+  lines = lib.splitString "\n" csvData;
+  # Skip header and filter empty lines
+  entries = lib.filter (l: l != "" && !lib.hasPrefix "Channel Id" l) lines;
+  
+  toNewsboatUrl = line:
+    let
+      parts = lib.splitString "," line;
+      id = lib.head parts;
+    in "https://www.youtube.com/feeds/videos.xml?channel_id=${id}";
+in
 {
-  # Ensure these packages are available for the youtube workflow
-  home.packages = with pkgs; [
-    yt-dlp # For fetching video info and streams
-    jq # Useful for parsing JSON, e.g., finding channel IDs
-    chafa # For displaying image thumbnails in newsboat (optional)
-  ];
+  home.packages = with pkgs; [ yt-dlp jq chafa ];
 
   programs.newsboat = {
     enable = true;
-    urls = [
-      # Al Jazeera English
-      {
-        url = "https://www.youtube.com/feeds/videos.xml?channel_id=UCO3pA7nshlI86HscS8UvLhA";
-        tags = [
-          "news"
-          "live"
-        ];
-      }
-      # Yahoo Finance
-      {
-        url = "https://www.youtube.com/feeds/videos.xml?channel_id=UC0X6e_p5n_0W25m_6_v8Hcg";
-        tags = [
-          "finance"
-          "live"
-        ];
-      }
-      # Bloomberg
-      {
-        url = "https://www.youtube.com/feeds/videos.xml?channel_id=UCIALMKvObZNtJ6AmdCLP7Lg";
-        tags = [
-          "finance"
-          "news"
-        ];
-      }
-      # Your existing channel
-      {
-        url = "https://www.youtube.com/feeds/videos.xml?channel_id=UClx2N7nQJ0k2S3rJ7P25W6A";
-        tags = [ "tech" ];
-      }
-    ];
-
+    urls = builtins.map (l: { url = toNewsboatUrl l; }) entries;
     extraConfig = ''
-      macro a set browser "${pkgs.mpv}/bin/mpv https://www.youtube.com/c/aljazeeraenglish/live" ; open-in-browser ; set browser "${pkgs.mpv}/bin/mpv"
-      macro b set browser "${pkgs.mpv}/bin/mpv https://www.youtube.com/watch?v=dp8PhLsUcFE" ; open-in-browser ; set browser "${pkgs.mpv}/bin/mpv"
-      macro f set browser "${pkgs.mpv}/bin/mpv https://www.youtube.com/c/YahooFinance/live" ; open-in-browser ; set browser "${pkgs.mpv}/bin/mpv"
       color listnormal         color253 default
       color listfocus          color234 color111 bold
       color listnormal_unread  color147 default  bold
       color listfocus_unread   color234 color147 bold
       color info               color222 color235
       color article            color253 default
-
-      # Navigation
       bind-key j down
       bind-key k up
     '';
   };
 
-  # Optional: Define XDG Base Directory Specification
-  # This is good practice for managing dotfiles
-  xdg.enable = true;
-  xdg.dataHome = "${config.home.homeDirectory}/.local/share";
-  xdg.configHome = "${config.home.homeDirectory}/.config";
-  xdg.cacheHome = "${config.home.homeDirectory}/.cache";
-
   programs.mpv = {
     enable = true;
     config = {
-      # Use Hardware Acceleration for the AMD A-series APU
       hwdec = "vaapi";
       vo = "gpu";
       gpu-context = "wayland";
       gpu-api = "opengl";
-
-      # Force format using standard quotes
       ytdl-format = "bestvideo[height<=1080][vcodec^=avc1]+bestaudio/best";
-
-      # Performance settings for low-end
       cache = "yes";
       demuxer-max-bytes = "50MiB";
       demuxer-max-back-bytes = "25MiB";
@@ -105,7 +59,4 @@
     #EXTINF:-1,DW News
     https://www.youtube.com/@dwnews/live
   '';
-  home.shellAliases = {
-    tv = "mpv --playlist=$HOME/.config/mpv/livestreams.m3u";
-  };
 }
