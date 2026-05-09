@@ -57,24 +57,6 @@
             }
           ];
         };
-        athene = nixpkgs.lib.nixosSystem {
-          inherit system;
-
-          specialArgs = { inherit inputs user; };
-
-          modules = [
-            ./hosts/athene/hardware-configuration.nix
-            ./hosts/athene/default.nix
-
-            home-manager.nixosModules.home-manager
-            {
-              home-manager.useGlobalPkgs = true;
-              home-manager.useUserPackages = true;
-              home-manager.extraSpecialArgs = { inherit inputs user; };
-              home-manager.users.${user} = import ./users/${user}/workstation.nix;
-            }
-          ];
-        };
       };
       # --- The DevShell for repo maintenance ---
       devShells.${system}.default = pkgs.mkShell {
