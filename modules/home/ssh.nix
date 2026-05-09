@@ -8,6 +8,7 @@
     extraConfig = ''
       AddKeysToAgent yes
       IgnoreUnknown UseKeychain
+      IdentityAgent ~/.ssh/agent.sock
     '';
 
     # Define your specific host aliases (MatchBlocks)
@@ -17,13 +18,6 @@
         user = "git";
         identityFile = "~/.ssh/id_ed25519_github_michaelssingh_athene";
       };
-
-      # # Example for a future SOBER server or GCP instance
-      # "sober-prod" = {
-      #   hostname = "35.x.x.x"; # Your GCP IP later
-      #   user = "michael";
-      #   forwardAgent = true;
-      # };
     };
   };
 }
