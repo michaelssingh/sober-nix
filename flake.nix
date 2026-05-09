@@ -71,6 +71,7 @@
           gh # GitHub CLI
           git # Git for version control
           nixfmt-rfc-style # Keep the config pretty
+          openssl # Required by ani-cli
         ];
 
         shellHook = ''
