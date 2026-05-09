@@ -1,0 +1,6 @@
+keys:
+  - &otus age15a2v7jlflgcp3a0jqvq4dxjd9t9n89uc9t0tdf0v4w7nxkhn2gxqspx9g3
+creation_rules:
+  - path_regex: secrets/.*\.yaml$
+    key_groups:
+    - age: [*otus]
