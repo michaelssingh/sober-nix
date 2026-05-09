@@ -53,11 +53,11 @@ in
     vo=gpu
     gpu-context=wayland
     gpu-api=opengl
-    ytdl-format=bestvideo[height<=1080][vcodec^=avc1]+bestaudio/best
+    ytdl-format=bestvideo[height<=720][vcodec^=avc1]+bestaudio/best
     cache=yes
-    demuxer-max-bytes=50MiB
-    demuxer-max-back-bytes=25MiB
-    demuxer-readahead-secs=20
+    demuxer-max-bytes=150MiB
+    demuxer-max-back-bytes=75MiB
+    demuxer-readahead-secs=30
     profile=fast
   '';
 
