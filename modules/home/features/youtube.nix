@@ -1,20 +1,31 @@
 # home/features/youtube.nix
-{ config, pkgs, lib, ... }:
+{
+  config,
+  pkgs,
+  lib,
+  ...
+}:
 
 let
   csvData = builtins.readFile ./subscriptions.csv;
   lines = lib.splitString "\n" csvData;
   # Skip header and filter empty lines
-  entries = lib.filter (l: l != "" && !lib.hasPrefix "Channel Id" l) lines;
-  
-  toNewsboatUrl = line:
+  entries = builtins.tail lines;
+
+  toNewsboatUrl =
+    line:
     let
       parts = lib.splitString "," line;
       id = lib.head parts;
-    in "https://www.youtube.com/feeds/videos.xml?channel_id=${id}";
+    in
+    "https://www.youtube.com/feeds/videos.xml?channel_id=${id}";
 in
 {
-  home.packages = with pkgs; [ yt-dlp jq chafa ];
+  home.packages = with pkgs; [
+    yt-dlp
+    jq
+    chafa
+  ];
 
   programs.newsboat = {
     enable = true;
