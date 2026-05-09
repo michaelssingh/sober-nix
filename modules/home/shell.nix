@@ -35,8 +35,11 @@
     '';
     functions = {
       bw-ssh-init = ''
+        argparse 'i/item=' -- $argv
+        or return
+        set -l item_name (or $argv[1] "GitHub")
         export BW_SESSION=$(bw unlock --raw)
-        bw get item "GitHub" --fields "ssh-key" | ssh-add -
+        bw get item "$item_name" --fields "ssh-key" | ssh-add -
       '';
     };
     shellAliases = {
