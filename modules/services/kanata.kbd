@@ -1,0 +1,136 @@
+;; Lenovo 130-15AST Simplified Core Config
+;; Finalized 72-Key Logic: 13 | 14 | 14 | 13 | 12 | 6
+
+(defsrc
+  esc  f1   f2   f3   f4   f5   f6   f7   f8   f9   f10  f11  f12
+  grv  1    2    3    4    5    6    7    8    9    0    -    =   bspc 
+  tab  q    w    e    r    t    y    u    i    o    p    [    ]    \
+  caps a    s    d    f    g    h    j    k    l    ;    '    ret
+  lsft z    x    c    v    b    n    m    ,    .    /    rsft
+  lctl lmet lalt           spc            ralt rctl
+)
+
+(defvar
+  tap 200 
+  hold 200 
+)
+
+(defalias
+  ;; Essential: Caps is Escape on tap, Control on hold
+  cap (tap-hold-press 200 200 esc lctl)
+  
+  ;; Home Row Simlayers
+  f_mode (tap-hold $tap $hold f (layer-toggle f-mode))
+  d_mode (tap-hold $tap $hold d (layer-toggle d-mode))
+  s_mode (tap-hold $tap $hold s (layer-toggle s-mode))
+  a_mode (tap-hold $tap $hold a (layer-toggle a-mode))
+  q_mode (tap-hold $tap $hold q (layer-toggle q-mode))
+  w_mode (tap-hold $tap $hold w (layer-toggle w-mode))
+  e_mode (tap-hold $tap $hold e (layer-toggle e-mode))
+  r_mode (tap-hold $tap $hold r (layer-toggle r-mode))
+  c_mode (tap-hold $tap $hold c (layer-toggle c-mode))
+  v_mode (tap-hold $tap $hold v (layer-toggle v-mode))
+
+  sft_sl (tap-hold-press $tap $hold / rsft)
+  del_ln_b (macro S-home bspc)
+  del_ln_f (macro S-end del)
+)
+
+(deflayer default
+  esc   f1      f2      f3      f4      f5      f6   f7   f8   f9   f10  f11  f12
+  grv   1       2       3       4       5       6    7    8    9    0    -       =       XX
+  tab   @q_mode @w_mode @e_mode @r_mode t       y    u    i    o    p    [       ]       \
+  @cap  @a_mode @s_mode @d_mode @f_mode g       h    j    k    l    ;    '       lmet
+  lsft  z       x       @c_mode @v_mode b       n    m    ,    .    @sft_sl rsft
+  lctl  lmet    lalt            spc             ralt rctl
+)
+
+(deflayer f-mode
+  _    _    _    _    _    _    _    _    _    _    _    _    _
+  _    _    _    _    _    _    _    _    _    _    _    _    _    _
+  _    _    _    _    _    _    _    S-[  S-]  S-1  _    [    ]    _
+  _    _    _    _    _    _    _    S-9  S-0  S-/  _    _    _
+  _    _    _    _    _    _    _    {    }    S-4  _    _
+  _    _    _              _              _    _
+)
+
+(deflayer d-mode
+  _    _    _    _    _    _    _    _    _    _    _    _    _
+  _    _    _    _    _    _    _    _    _    _    _    _    _    _
+  _    _    _    _    _    _    _    S-,  S-.  S-3  _    _    _    _
+  _    _    _    _    _    _    _    S-=  -    =    _    _    _
+  _    _    _    _    _    _    _    S-8  /    S-5  _    _
+  _    _    _              _              _    _
+)
+
+(deflayer s-mode
+  _    _    _    _    _    _    _    _    _    _    _    _    _
+  _    _    _    _    _    _    _    _    _    _    _    _    _    _
+  _    _    _    _    _    _    _    '    S-'  grv  _    _    _    _
+  _    _    _    _    _    _    _    ,    .    S-7  _    _    _
+  _    _    _    _    _    _    _    ;    S-;  S-grv _   _
+  _    _    _              _              _    _
+)
+
+(deflayer a-mode
+  _    _    _    _    _    _    _    _    _    _    _    _    _
+  _    _    _    _    _    _    _    _    _    _    _    _    _    _
+  _    _    _    _    _    _    _    tab  tab  _    _    _    _    _
+  _    _    _    _    _    _    left down up   rght _    _    _
+  _    _    _    _    _    _    ret  pgdn pgup _    _    _
+  _    _    _              _              _    _
+)
+
+(deflayer r-mode
+  _    _    _    _    _    _    _    _    _    _    _    _    _
+  _    _    _    _    _    _    _    _    _    _    _    _    _    _
+  _    _    _    _    _    _    _    bspc del  _    _    _    _    _
+  _    _    _    _    _    _    C-bspc C-bspc C-del C-del _ _ _
+  _    _    _    _    _    _    @del_ln_b @del_ln_f _ _ _ _
+  _    _    _              _              _    _
+)
+
+(deflayer e-mode
+  _    _    _    _    _    _    _    _    _    _    _    _    _
+  _    _    _    _    _    _    _    _    _    _    _    _    _    _
+  _    _    _    _    _    _    _    left rght _    _    _    _    _
+  _    _    _    _    _    _    home C-left C-rght end _  _    _
+  _    _    _    _    _    _    ret  ret  _    _    _    _
+  _    _    _              _              _    _
+)
+
+(deflayer w-mode
+  _    _    _    _    _    _    _    _    _    _    _    _    _
+  _    _    _    _    _    _    _    _    _    _    _    _    _    _
+  _    _    _    _    _    _    _    S-left S-rght _ _    _    _    _
+  _    _    _    _    _    _    S-home S-C-left S-C-rght S-end _ _ _
+  _    _    _    _    _    _    _    _    _    _    _    _
+  _    _    _              _              _    _
+)
+
+(deflayer q-mode
+  _    _    _    _    _    _    _    _    _    _    _    _    _
+  _    _    _    _    _    _    _    _    _    _    _    _    _    _
+  _    _    _    _    _    _    _    A-left A-rght f2 f4  _    _    _
+  _    _    _    _    _    _    C-pgup C-pgdn f11  _    _    _   _
+  _    _    _    _    _    _    _    _    _    _    _    _
+  _    _    _              _              _    _
+)
+
+(deflayer v-mode
+  _    _    _    _    _    _    _    _    _    _    _    _    _
+  _    _    _    _    _    _    _    _    _    _    _    _    _    _
+  _    _    _    _    _    _    _    bspc 7    8    9    S-=  _    _
+  _    _    _    _    _    _    .    4    5    6    _    _    _
+  _    _    _    _    _    _    0    1    2    3    ret  _
+  _    _    _              _              _    _
+)
+
+(deflayer c-mode
+  _    _    _    _    _    _    _    _    _    _    _    _    _
+  _    _    _    _    _    _    _    _    _    _    _    _    _    _
+  _    _    _    _    _    _    _    S-6  _    _    _    _    _    _
+  _    _    _    _    _    _    _    S-\  S-2  _    _    _    _
+  _    _    _    _    _    _    \    S--  _    _    _    _
+  _    _    _              _              _    _
+)

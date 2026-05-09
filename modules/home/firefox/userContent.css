@@ -1,0 +1,91 @@
+/* home/firefox/userContent.css */
+
+/* ==========================================================================
+   DOMAIN 1: THE SHELL (Library, Menus, Header)
+   Target: play.google.com & books.google.com
+   ========================================================================== */
+@-moz-document domain("play.google.com"), domain("books.google.com") {
+
+    /* --- 1. Global Backgrounds --- */
+    html, body, .mat-app-background, gpb-library-home {
+        background-color: #1a1b26 !important;
+        color: #c0caf5 !important;
+    }
+
+    /* --- 2. The Header --- */
+    header#gb, .gb_Ha, .gb_Td {
+        background-color: #16161e !important;
+        border-bottom: 1px solid #101014 !important;
+        box-shadow: none !important;
+    }
+
+    /* --- 3. The Search Bar --- */
+    form.gb_Fd, .gb_Fd {
+        background-color: #24283b !important;
+        border: 1px solid #414868 !important;
+    }
+    input.gb_ze { color: #c0caf5 !important; }
+    .gb_Fd button svg { fill: #7aa2f7 !important; }
+
+    /* --- 4. Text & Icons --- */
+    h1, h2, h3, .gb_pd, .gb_ke, #main-title { color: #7aa2f7 !important; }
+    .gb_1c svg, .gb_Vc svg { fill: #7aa2f7 !important; color: #7aa2f7 !important; }
+
+    /* --- 5. THE MISSING PIECE: Buttons (Shelves, Recent, etc.) --- */
+    /* Your source uses .gb_Wa for white buttons and .gb_Ua for gray ones */
+    .gb_Wa, .gb_Ua, .gb_Va, button, [role="button"] {
+        background-color: #24283b !important; /* Storm Dark */
+        color: #c0caf5 !important;
+        border: 1px solid #414868 !important;
+    }
+    
+    /* Hover state for buttons */
+    .gb_Wa:hover, .gb_Ua:hover, button:hover {
+        background-color: #292e42 !important; 
+    }
+
+    /* --- 6. Dropdown Menus (The "White Box") --- */
+    /* Your source confirms .gb_ma is the popup container */
+    .gb_ma, .goog-menu, .goog-menuitem, .gb_nc {
+        background-color: #16161e !important;
+        border: 1px solid #7aa2f7 !important; /* Blue border to make it pop */
+        color: #c0caf5 !important;
+    }
+    
+    /* Hover effects for menu items */
+    .goog-menuitem:hover, .gb_nc:hover, .gb_ma a:hover {
+        background-color: #292e42 !important; 
+    }
+}
+
+/* ==========================================================================
+   DOMAIN 2: THE READER (The Book Content)
+   Target: googleusercontent.com (Served inside the iframe)
+   ========================================================================== */
+@-moz-document domain("googleusercontent.com") {
+
+    /* --- 1. Background Wrapper --- */
+    body, html, #reader_container, .bg-fl {
+        background-color: #16161e !important;
+        color: #c0caf5 !important;
+    }
+
+    /* --- 2. The White Strip Fix --- */
+    /* Hides the vertical spacers that sometimes appear white */
+    .shim, .flow-specific-content, .scroll-pane {
+        background-color: #16161e !important;
+        border: none !important;
+    }
+
+    /* --- 3. Page Inversion (Scanned Books) --- */
+    /* Turns white pages dark */
+    img, canvas, .page-image {
+        filter: invert(90%) hue-rotate(180deg) brightness(85%) contrast(100%) !important;
+    }
+    
+    /* --- 4. Text Selection --- */
+    ::selection {
+        background-color: #bb9af7 !important;
+        color: #1a1b26 !important;
+    }
+}
