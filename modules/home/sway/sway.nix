@@ -205,25 +205,33 @@
           "sway/mode"
         ];
         modules-center = [ "clock" ];
-        modules-right = [ "custom/vpn",
+        modules-right = [
           "cpu"
           "temperature"
           "memory"
           "disk"
           "backlight"
           "pulseaudio"
+          "custom/vpn"
           "network"
           "battery"
           "tray"
         ];
+        "custom/vpn" = {
+          format = "󰖂 {}";
+          exec = "ip link show wg-US-FREE-1 > /dev/null 2>&1 && echo '{"text": "ON", "tooltip": "VPN: Active - '"$(curl -s https://ifconfig.me)"'"}' || echo '{"text": "OFF", "tooltip": "VPN: Inactive"}'";
+          interval = 5;
+          return-type = "json";
+          on-click = "nmcli connection up id wg-US-FREE-1";
+          on-click-right = "nmcli connection down id wg-US-FREE-1";
+        };
         disk = {
           interval = 30;
           format = "󰋊 {percentage_used}%";
           path = "/";
         };
         temperature = {
-          thermal-zone = 2;
-          hwmon-path = "/sys/class/hwmon/hwmon2/temp1_input";
+          hwmon-path = "/sys/class/hwmon/hwmon3/temp1_input";
           critical-threshold = 80;
           format-critical = "{icon} {temperatureC}°C";
           format = "{icon} {temperatureC}°C";
@@ -262,10 +270,10 @@
           on-click = "pavucontrol";
         };
         network = {
-          format-wifi = "  {essid}";
+          format-wifi = "  {essid} ({signalStrength}%)";
           format-ethernet = "󰈀 {ifname}";
           format-disconnected = "⚠ Disconnected";
-          tooltip-format = "{ifname} via {gwaddr} ";
+          tooltip-format = "{ifname} via {gwaddr} \nLocal IP: {ipaddr}\nExternal IP: {gwaddr}";
           on-click = "foot -e nmtui";
         };
         cpu = {
