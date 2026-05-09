@@ -32,14 +32,14 @@
     in
     {
       nixosConfigurations = {
-        ast05 = nixpkgs.lib.nixosSystem {
+        otus = nixpkgs.lib.nixosSystem {
           inherit system;
 
           specialArgs = { inherit inputs user; };
 
           modules = [
-            ./hosts/ast05/hardware-configuration.nix
-            ./hosts/ast05/default.nix
+            ./hosts/otus/hardware-configuration.nix
+            ./hosts/otus/default.nix
 
             {
               nixpkgs.overlays = [
