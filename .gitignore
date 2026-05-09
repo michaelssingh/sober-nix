@@ -7,3 +7,9 @@ result-*
 
 # Secret files (if you use them later)
 .env
+
+# Secrets
+*.agekey
+secrets/*.yaml
+!secrets/*.enc.yaml
+.sops.yaml
