@@ -205,7 +205,7 @@
           "sway/mode"
         ];
         modules-center = [ "clock" ];
-        modules-right = [
+        modules-right = [ "custom/vpn",
           "cpu"
           "temperature"
           "memory"
