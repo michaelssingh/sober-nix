@@ -42,11 +42,12 @@
     aichat
     gemini-cli
     himalaya
-    hydroxide
-    
+    flyctl
+
     (pkgs.writeShellScriptBin "ani-cli" ''
       ${pkgs.bash}/bin/bash ${inputs.ani-cli}/ani-cli "$@"
     '')
+    ];
   ];
 
   # Configuration for aichat

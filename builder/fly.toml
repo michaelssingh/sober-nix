@@ -1,0 +1,16 @@
+app = "sober-builder"
+primary_region = "ewr"
+
+[build]
+dockerfile = "Dockerfile"
+
+[mounts]
+source = "nix_store"
+destination = "/nix/store"
+
+[[services]]
+protocol = "tcp"
+internal_port = 22
+[[services.ports]]
+handlers = ["ssh"]
+port = 22
