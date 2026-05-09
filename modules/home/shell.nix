@@ -125,13 +125,4 @@
     fastfetch # System info (optional, fun)
     bitwarden-cli # Bitwarden CLI
   ];
-
-  # SSH Agent for Bitwarden
-  programs.ssh = {
-    enable = true;
-    extraConfig = ''
-      Host *
-        IdentityAgent ~/.ssh/agent.sock
-    '';
-  };
 }
