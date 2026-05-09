@@ -78,18 +78,17 @@
       # Use Hardware Acceleration for the AMD A-series APU
       hwdec = "vaapi";
       vo = "gpu";
-      gpu-context = "wayland"; # Use "x11" if you are using i3 instead of Sway
+      gpu-context = "wayland";
+      gpu-api = "opengl";
 
-      # Force 480p and H.264 (avc1)
-      # This is the most efficient format for your specific CPU
-      ytdl-format = "bestvideo[height<=480][vcodec^=avc1]+bestaudio/best[ext=m4a]/best[height<=480]";
+      # Force format using standard quotes
+      ytdl-format = "bestvideo[height<=1080][vcodec^=avc1]+bestaudio/best";
 
-      # Modern cache settings (cache-initial and cache-secs are obsolete)
-      cache = true;
+      # Performance settings for low-end
+      cache = "yes";
       demuxer-max-bytes = "50MiB";
+      demuxer-max-back-bytes = "25MiB";
       demuxer-readahead-secs = 20;
-
-      # Performance profile
       profile = "fast";
     };
     scripts = [ pkgs.mpvScripts.mpv-playlistmanager ];
