@@ -31,6 +31,7 @@ in
     enable = true;
     urls = builtins.map (l: { url = toNewsboatUrl l; }) entries;
     extraConfig = ''
+      browser "${pkgs.mpv}/bin/mpv %u"
       color listnormal         color253 default
       color listfocus          color234 color111 bold
       color listnormal_unread  color147 default  bold
