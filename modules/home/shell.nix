@@ -42,6 +42,9 @@
 
       # Replace cat with bat
       cat = "bat";
+
+      # Bitwarden SSH init
+      bw-ssh-init = "export BW_SESSION=$(bw unlock --raw) && bw get item 'GitHub' --fields 'ssh-key' | ssh-add -";
     };
   };
 
