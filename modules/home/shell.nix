@@ -7,6 +7,9 @@
 
     interactiveShellInit = ''
       set fish_greeting # Disable greeting
+      # --- Start SSH Agent ---
+      if not set -q SSH_AUTH_SOCK; eval (ssh-agent -c); end
+      
       # --- 1. Tokyonight Fish Color Palette ---
       set -g fish_color_normal "#c0caf5"
       set -g fish_color_command "#7dcfff"
