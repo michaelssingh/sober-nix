@@ -45,20 +45,21 @@ in
 
   programs.mpv = {
     enable = true;
-    config = {
-      hwdec = "vaapi";
-      vo = "gpu";
-      gpu-context = "wayland";
-      gpu-api = "opengl";
-      ytdl-format = "bestvideo[height<=1080][vcodec^=avc1]+bestaudio/best";
-      cache = "yes";
-      demuxer-max-bytes = "50MiB";
-      demuxer-max-back-bytes = "25MiB";
-      demuxer-readahead-secs = 20;
-      profile = "fast";
-    };
     scripts = [ pkgs.mpvScripts.mpv-playlistmanager ];
   };
+
+  home.file.".config/mpv/mpv.conf".text = ''
+    hwdec=vaapi
+    vo=gpu
+    gpu-context=wayland
+    gpu-api=opengl
+    ytdl-format=bestvideo[height<=1080][vcodec^=avc1]+bestaudio/best
+    cache=yes
+    demuxer-max-bytes=50MiB
+    demuxer-max-back-bytes=25MiB
+    demuxer-readahead-secs=20
+    profile=fast
+  '';
 
   home.file.".config/mpv/livestreams.m3u".text = ''
     #EXTM3U
