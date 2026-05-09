@@ -8,7 +8,6 @@
     ../../modules/home/theme.nix
     ../../modules/home/sway/sway.nix
     ../../modules/home/firefox/firefox.nix
-    ../../modules/home/email.nix
   ];
 
   # GUI-Only Packages
