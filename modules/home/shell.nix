@@ -38,9 +38,12 @@
     '';
     functions = {
       bw-ssh-init = ''
-        set -l item_name (or $argv[1] "GitHub")
+        if test (count $argv) -eq 0
+          echo "Usage: bw-ssh-init <item_name>"
+          return 1
+        end
         export BW_SESSION=$(bw unlock --raw)
-        bw get item "$item_name" --raw | jq -r '.notes' | ssh-add -
+        bw get item "$argv[1]" --raw | jq -r '.notes' | ssh-add -
       '';
     };
     shellAliases = {
