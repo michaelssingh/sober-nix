@@ -33,6 +33,12 @@
       # Tab through completions instead of just listing them
       set -g fish_complete_path $fish_complete_path /etc/fish/completions
     '';
+    functions = {
+      bw-ssh-init = ''
+        export BW_SESSION=$(bw unlock --raw)
+        bw get item "GitHub" --fields "ssh-key" | ssh-add -
+      '';
+    };
     shellAliases = {
       # Replace standard ls with eza
       ls = "eza";
@@ -42,9 +48,6 @@
 
       # Replace cat with bat
       cat = "bat";
-
-      # Bitwarden SSH init
-      bw-ssh-init = "export BW_SESSION=$(bw unlock --raw) && bw get item 'GitHub' --fields 'ssh-key' | ssh-add -";
     };
   };
 
