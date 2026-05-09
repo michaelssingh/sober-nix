@@ -11,8 +11,10 @@
   };
 
   config = lib.mkIf config.sober.services.protonvpn.enable {
-    environment.systemPackages = with pkgs; [
-      protonvpn-gui
-    ];
+    # environment.systemPackages = with pkgs; [
+    #   protonvpn-gui
+    # ];
+
+    networking.networkmanager.enable = true;
   };
 }

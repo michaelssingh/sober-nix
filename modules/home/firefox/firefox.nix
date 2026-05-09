@@ -46,6 +46,7 @@ in
         "browser.sessionstore.max_tabs_undo" = 5;
         "browser.cache.memory.enable" = true;
         "browser.cache.memory.max_entry_size" = 5120;
+        "browser.startup.homepage" = "https://sober.fyi";
       };
 
       # This pulls in the file we just created!
