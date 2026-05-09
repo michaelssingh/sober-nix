@@ -41,6 +41,7 @@
 
     aichat
     gemini-cli
+    himalaya
     
     (pkgs.writeShellScriptBin "ani-cli" ''
       ${pkgs.bash}/bin/bash ${inputs.ani-cli}/ani-cli "$@"
