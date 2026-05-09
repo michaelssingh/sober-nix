@@ -1,0 +1,46 @@
+/* --- userChrome.css --- */
+
+/* Tokyo Night Colors */
+:root {
+  --tn-bg: #1a1b26;
+  --tn-url-bg: #24283b;
+  --tn-accent: #7aa2f7;
+  --tn-text: #c0caf5;
+}
+
+/* Tokyo Night Styling for URL bar */
+#urlbar-background {
+  background-color: var(--tn-url-bg) !important;
+  border: 1px solid var(--tn-accent) !important;
+  border-radius: 4px !important;
+}
+
+#urlbar-input {
+  color: var(--tn-text) !important;
+}
+
+/* Toolbar styling */
+#nav-bar, #TabsToolbar {
+  background-color: var(--tn-bg) !important;
+  box-shadow: none !important;
+}
+
+/* Tab bar styling */
+.tab-background[selected="true"] {
+  background-color: var(--tn-url-bg) !important;
+}
+
+.tab-label {
+  color: var(--tn-text) !important;
+}
+
+/* Hide back/forward when disabled */
+#back-button[disabled="true"], 
+#forward-button[disabled="true"] {
+  display: none !important;
+}
+
+/* Toolbar buttons color */
+.toolbarbutton-1 {
+  fill: var(--tn-accent) !important;
+}

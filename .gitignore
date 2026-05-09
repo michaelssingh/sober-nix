@@ -1,0 +1,9 @@
+# Direnv cache
+.direnv/
+
+# Result symlinks from nix builds
+result
+result-*
+
+# Secret files (if you use them later)
+.env
