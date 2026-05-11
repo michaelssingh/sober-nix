@@ -7,9 +7,7 @@
 
     interactiveShellInit = ''
       set fish_greeting # Disable greeting
-      # --- Start SSH Agent ---
-      if not set -q SSH_AUTH_SOCK; eval (ssh-agent -c); end
-      
+
       # --- 1. Tokyonight Fish Color Palette ---
       set -g fish_color_normal "#c0caf5"
       set -g fish_color_command "#7dcfff"
@@ -38,12 +36,27 @@
     '';
     functions = {
       bw-ssh-init = ''
-        if test (count $argv) -eq 0
-          echo "Usage: bw-ssh-init <item_name>"
+        set -q BW_SESSION; or set -gx BW_SESSION (bw unlock --raw)
+        bw get item "$argv[1]" --raw | jq -r '.sshKey.privateKey' | ssh-add -
+      '';
+      yt-search = ''
+        if test -z "$argv"
+          echo "Usage: yt-search <query>"
           return 1
         end
-        export BW_SESSION=$(bw unlock --raw)
-        bw get item "$argv[1]" --raw | jq -r '.notes' | ssh-add -
+        
+        set -l query (string join " " $argv)
+        
+        # Fetch results and let fzf handle selection
+        set -l selection (yt-dlp --get-title --get-id --skip-download "ytsearch10:$query" | \
+          paste - - | \
+          awk -F'\t' '{print $1 " | " $2}' | \
+          fzf --delimiter=' | ' --with-nth=1 --height=40% --reverse)
+        
+        if test -n "$selection"
+          set -l id (string split "|" $selection)[2] | string trim
+          mpv "https://www.youtube.com/watch?v=$id"
+        end
       '';
     };
     shellAliases = {

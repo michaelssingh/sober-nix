@@ -197,7 +197,7 @@
     enable = true;
     settings = [
       {
-        layer = "top";
+        layer = "bottom";
         height = 30;
         position = "top";
         modules-left = [
@@ -206,24 +206,24 @@
         ];
         modules-center = [ "clock" ];
         modules-right = [
-          "cpu"
           "temperature"
+          "cpu"
           "memory"
           "disk"
           "backlight"
           "pulseaudio"
-          "custom/vpn"
           "network"
+          "custom/vpn"
           "battery"
           "tray"
         ];
         "custom/vpn" = {
           format = "󰖂 {}";
-          exec = "ip link show wg-US-FREE-1 > /dev/null 2>&1 && echo '{\"text\": \"ON\", \"tooltip\": \"VPN: Active - '\"$(curl -s https://ifconfig.me)\"'\"}' || echo '{\"text\": \"OFF\", \"tooltip\": \"VPN: Inactive\"}'";
+          exec = "ip link show wg0 > /dev/null 2>&1 && echo '{\"text\": \"ON\", \"tooltip\": \"VPN: Active - '\"$(curl -s https://ifconfig.me)\"'\"}' || echo '{\"text\": \"OFF\", \"tooltip\": \"VPN: Inactive\"}'";
           interval = 5;
           return-type = "json";
-          on-click = "nmcli connection up id wg-US-FREE-1";
-          on-click-right = "nmcli connection down id wg-US-FREE-1";
+          on-click = "systemctl start wg-quick-wg0";
+          on-click-right = "systemctl stop wg-quick-wg0";
         };
         disk = {
           interval = 30;
