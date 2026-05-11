@@ -3,6 +3,7 @@
 {
   imports = [
     ./networking.nix
+    ./time.nix
   ];
 
   # --- 1. NIX SETTINGS (The Engine) ---
@@ -33,13 +34,6 @@
   # Use the faster dbus-broker
   services.dbus.implementation = "broker";
 
-  # Process prioritization
-  services.ananicy = {
-    enable = true;
-    package = pkgs.ananicy-cpp;
-    rulesProvider = pkgs.ananicy-rules-cachyos;
-  };
-
   # Distribute interrupts
   services.irqbalance.enable = true;
 
@@ -67,14 +61,16 @@
     htop
   ];
 
-  # --- 3. SECURE DNS ---
-  services.resolved = {
-    enable = true;
-    dnssec = "true";
-    domains = [ "~." ];
-    dnsovertls = "opportunistic";
-    extraConfig = ''
-      DNS=9.9.9.9#dns.quad9.net 149.112.112.112#dns.quad9.net 1.1.1.1#cloudflare-dns.com 1.0.0.1#cloudflare-dns.com
-    '';
-  };
+  # --- 4. BOOT OPTIMIZATIONS ---
+  boot.loader.timeout = 0;
+  boot.initrd.systemd.enable = true;
+  boot.kernelParams = [
+    "quiet"
+    "splash"
+    "pci=noaer"
+    "udev.log_level=3"
+    "rd.udev.log_level=3"
+    "mitigations=off"
+  ];
+  systemd.services.NetworkManager-wait-online.enable = false;
 }

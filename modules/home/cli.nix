@@ -43,6 +43,7 @@
     gemini-cli
     himalaya
     flyctl
+    hydroxide
 
     (pkgs.writeShellScriptBin "ani-cli" ''
       ${pkgs.bash}/bin/bash ${inputs.ani-cli}/ani-cli "$@"
