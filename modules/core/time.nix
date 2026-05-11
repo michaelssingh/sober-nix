@@ -44,40 +44,5 @@ in
         driftfile /var/lib/chrony/chrony.drift
       '';
     };
-
-    # fake-hwclock: Save/restore time to handle battery resets (1999)
-    # Restores early in boot so logs/services have a semi-sane time.
-    systemd.services.fake-hwclock = {
-      description = "Restore / save the current clock";
-      wantedBy = [ "sysinit.target" ];
-      before = [ "sysinit.target" "systemd-fsck-root.service" "chronyd.service" ];
-      conflicts = [ "shutdown.target" ];
-      serviceConfig = {
-        Type = "oneshot";
-        RemainAfterExit = true;
-        ExecStart = "${pkgs.fake-hwclock}/bin/fake-hwclock load";
-        ExecStop = "${pkgs.fake-hwclock}/bin/fake-hwclock save";
-      };
-    };
-
-    # Periodically save the clock to minimize time loss on power failure
-    systemd.timers.fake-hwclock-save = {
-      description = "Periodically save the current clock";
-      wantedBy = [ "timers.target" ];
-      timerConfig.OnCalendar = "hourly";
-    };
-
-    systemd.services.fake-hwclock-save = {
-      description = "Save the current clock";
-      serviceConfig = {
-        Type = "oneshot";
-        ExecStart = "${pkgs.fake-hwclock}/bin/fake-hwclock save";
-      };
-    };
-
-    # Ensure chrony starts after fake-hwclock has restored the time
-    systemd.services.chronyd.after = [ "fake-hwclock.service" ];
-
-    environment.systemPackages = [ pkgs.fake-hwclock ];
   };
 }
