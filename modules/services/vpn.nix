@@ -48,11 +48,12 @@ in
     };
 
     # Mask Hostname in DHCP requests to landlord's router
-    networking.networkmanager.extraConfig = ''
-      [connection]
-      ipv4.dhcp-send-hostname=false
-      ipv6.dhcp-send-hostname=false
-    '';
+    networking.networkmanager.settings = {
+      connection = {
+        "ipv4.dhcp-send-hostname" = false;
+        "ipv6.dhcp-send-hostname" = false;
+      };
+    };
 
     environment.systemPackages = [ pkgs.wireguard-tools ];
   };
