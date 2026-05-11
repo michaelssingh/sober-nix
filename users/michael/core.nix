@@ -2,11 +2,11 @@
 
 {
   imports = [
-    # ../../modules/home/ssh.nix
+    ../../modules/home/ssh.nix
     ../../modules/home/cli.nix
-    ../../modules/home/features/youtube.nix
     ../../modules/home/shell.nix
     ../../modules/home/nvim/nvim.nix
+    ../../modules/home/features/youtube.nix
   ];
 
   programs.git = {

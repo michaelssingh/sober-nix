@@ -8,7 +8,7 @@
 
 let
   csvData = builtins.readFile ./subscriptions.csv;
-  lines = lib.splitString "\n" csvData;
+  lines = lib.filter (l: l != "") (lib.splitString "\n" csvData);
   # Skip header and filter empty lines
   entries = builtins.tail lines;
 
@@ -25,6 +25,7 @@ in
     yt-dlp
     jq
     chafa
+    fzf
   ];
 
   programs.newsboat = {

@@ -1,6 +1,5 @@
 {
   pkgs,
-  inputs,
   user,
   ...
 }:
@@ -8,14 +7,12 @@
 {
   imports = [
     ./hardware-configuration.nix
-
     ../../modules/core
-
     ../../modules/roles/workstation
-
     ../../modules/services/kanata.nix
     ../../modules/services/greetd.nix
-    ../../modules/services/protonvpn.nix
+    ../../modules/core/perf-lowend.nix
+    ../../modules/services/vpn.nix
   ];
 
   home-manager.backupFileExtension = "backup";
@@ -24,7 +21,9 @@
   # Turn on the keyboard remapper
   sober.services.kanata.enable = true;
   # Secure networking with a VPN
-  sober.services.protonvpn.enable = true;
+  sober.services.vpn.enable = true;
+  # Low-end hardware optimizations
+  sober.core.perf.lowend.enable = true;
 
   # --- Bootloader ---
   boot.loader.systemd-boot.enable = true;
@@ -32,6 +31,9 @@
 
   # --- Networking ---
   sober.core.networking.mac-rotation.enable = true;
+  sober.core.networking.secure-dns.enable = true;
+  sober.core.networking.firewall.enable = true;
+
   networking = {
     hostName = "otus";
     networkmanager = {
@@ -44,24 +46,8 @@
     "amd_iommu=on"
     "ivrs_ioapic[4]=00:14.0"
     "ivrs_ioapic[5]=00:00.2"
-    "pci=noaer"
-    "quiet"
-    "splash"
-    "mitigations=off" # RAW SPEED: Disable security patches (Spectre/Meltdown)
   ];
 
-  # --- Optimization (The "A9" Tuning) ---
-  boot.kernelPackages = pkgs.linuxPackages_xanmod;
-  swapDevices = [ ];
-  zramSwap = {
-    enable = true;
-    algorithm = "zstd";
-    memoryPercent = 100;
-    priority = 100;
-  };
-  hardware.cpu.amd.updateMicrocode = pkgs.lib.mkDefault true;
-  services.fstrim.enable = pkgs.lib.mkDefault true;
-  powerManagement.cpuFreqGovernor = "performance";
   # --- User ---
   programs.fish.enable = true;
   programs.dconf.enable = true;
@@ -122,26 +108,6 @@
     };
   };
 
-  # fonts.packages = with pkgs; [
-  #   terminus_font
-  #   inter
-  #
-  #   nerd-fonts.symbols-only
-  #   noto-fonts-color-emoji
-  #   font-awesome
-  #
-  #   nerd-fonts.jetbrains-mono
-  # ];
-  #
-  # fonts.fontconfig.allowBitmaps = true;
-  #
-  # fonts.fontconfig.defaultFonts = {
-  #   monospace = [
-  #     "Terminus"
-  #     "Nerd Font Symbols Only"
-  #   ];
-  #   emoji = [ "Noto Color Emoji" ];
-  # };
   # --- System State ---
   system.stateVersion = "25.11";
 }

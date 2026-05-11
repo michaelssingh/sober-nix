@@ -1,16 +1,20 @@
 app = "sober-builder"
-primary_region = "ewr"
+primary_region = "iad"
 
 [build]
-dockerfile = "Dockerfile"
+  dockerfile = "Dockerfile"
 
 [mounts]
-source = "nix_store"
-destination = "/nix/store"
+  source = "nix_data"
+  destination = "/var/lib/nix_persist"
 
 [[services]]
-protocol = "tcp"
-internal_port = 22
-[[services.ports]]
-handlers = ["ssh"]
-port = 22
+  protocol = "tcp"
+  internal_port = 22
+  [[services.ports]]
+    port = 22
+
+[vm]
+  cpu_kind = "shared"
+  cpus = 2
+  memory_mb = 4096  # Builders need RAM for high-density compilation
