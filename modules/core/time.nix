@@ -42,9 +42,6 @@ in
 
         # Save drift information
         driftfile /var/lib/chrony/chrony.drift
-
-        # Enable RTC sync (updates the kernel's 11-minute sync)
-        rtcsync
       '';
     };
 
