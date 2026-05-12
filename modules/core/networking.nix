@@ -8,7 +8,7 @@
   options = {
     sober.core.networking = {
       mac-rotation.enable = lib.mkEnableOption "MAC Address Rotation/Randomization" // {
-        default = true;
+        default = false;
       };
       firewall.enable = lib.mkOption {
         type = lib.types.bool;
@@ -16,7 +16,7 @@
         description = "Whether to enable the firewall.";
       };
       secure-dns.enable = lib.mkEnableOption "DNS-over-TLS and DNSSEC via systemd-resolved" // {
-        default = true;
+        default = false;
       };
     };
   };
@@ -46,22 +46,28 @@
     })
     (lib.mkIf config.sober.core.networking.firewall.enable {
       networking.firewall.enable = true;
+      networking.firewall.trustedInterfaces = [
+        "tailscale0"
+      ];
+
+      services.tailscale.enable = true;
+
       networking.nftables = {
         enable = true;
-        ruleset = 
+        ruleset =
           let
-            vpnEnabled = config.sober.services.vpn.enable;
-            vpnInterface = config.sober.services.vpn.interface;
-            vpnEndpoint = config.sober.services.vpn.endpoint;
+            trustedInterfaces = config.networking.firewall.trustedInterfaces;
+            trustedRules = lib.concatMapStringsSep "\n                " (iface: "iifname \"${iface}\" accept") trustedInterfaces;
+            trustedOutputRules = lib.concatMapStringsSep "\n                " (iface: "oifname \"${iface}\" accept") trustedInterfaces;
           in
           ''
             table inet filter {
               chain input {
                 type filter hook input priority filter;
-                ${lib.optionalString vpnEnabled "policy drop;"}
+                policy accept;
                 
                 iifname "lo" accept
-                ${lib.optionalString vpnEnabled "iifname \"${vpnInterface}\" accept"}
+                ${trustedRules}
                 
                 # Stealth mode: drop ICMP echo requests
                 ip protocol icmp icmp type echo-request drop
@@ -77,18 +83,12 @@
 
               chain output {
                 type filter hook output priority filter;
-                ${lib.optionalString vpnEnabled "policy drop;"}
+                policy accept;
 
                 oifname "lo" accept
-                ${lib.optionalString vpnEnabled "oifname \"${vpnInterface}\" accept"}
-
-                ${lib.optionalString vpnEnabled ''
-                  # Killswitch: Allow traffic to VPN endpoint only
-                  ip daddr ${vpnEndpoint} udp dport 51820 accept
-                  
-                  # Allow DHCP
-                  udp dport 67-68 accept
-                ''}
+                ${trustedOutputRules}
+                udp dport 53 accept
+                tcp dport 53 accept
 
                 # Allow existing connections
                 ct state established,related accept

@@ -15,7 +15,11 @@
       "flakes"
     ];
 
-    # Speed up downloads
+    # Security: Only allow root and our main user to use remote builders
+    trusted-users = [ "root" "michael" ];
+
+    # Optimizations
+
     substituters = [
       "https://cache.nixos.org?priority=10"
       "https://nix-community.cachix.org"

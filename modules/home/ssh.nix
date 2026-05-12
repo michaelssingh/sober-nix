@@ -2,14 +2,11 @@
 {
   programs.ssh = {
     enable = true;
-    enableDefaultConfig = false;
 
     matchBlocks = {
       "*" = {
         extraOptions = {
           AddKeysToAgent = "yes";
-          IgnoreUnknown = "UseKeychain";
-          IdentityAgent = "~/.ssh/agent.sock";
         };
       };
 
@@ -17,8 +14,15 @@
         hostname = "github.com";
         user = "git";
       };
+
+      "sober-builder.internal" = {
+        hostname = "sober-builder.internal";
+        port = 2222;
+        user = "root";
+      };
     };
   };
 
+  # Use the systemd-managed ssh-agent
   services.ssh-agent.enable = true;
 }
