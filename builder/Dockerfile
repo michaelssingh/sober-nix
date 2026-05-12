@@ -1,37 +1,25 @@
-FROM nixos/nix:latest
+FROM fedora:latest
 
-# 1. Install OpenSSH and the MOUNT command (util-linux)
-RUN nix-env -iA \
-    nixpkgs.openssh \
-    nixpkgs.bash \
-    nixpkgs.coreutils \
-    nixpkgs.util-linux
+# 1. Install necessary packages
+RUN dnf install -y openssh-server xz curl procps-ng sudo && dnf clean all
 
-# 2. Create the missing 'sshd' user for privilege separation
-RUN echo "sshd:x:74:74:Privilege-separated SSH:/var/empty:/sbin/nologin" >> /etc/passwd && \
-    echo "sshd:x:74:" >> /etc/group && \
-    mkdir -p /var/empty && \
-    chmod 555 /var/empty
+# 2. Install Nix using the Determinate Systems installer
+# We use the multi-user installer and tell it not to use init systems since this is a container.
+RUN curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix | sh -s -- install linux \
+    --init none \
+    --no-confirm
 
-# 3. Setup SSH directories and keys
-RUN mkdir -p /var/run/sshd /root/.ssh /etc/ssh && \
-    chmod 700 /root/.ssh && \
-    /root/.nix-profile/bin/ssh-keygen -A
+# 3. Setup SSH Configuration
+# We use port 2222 internally to avoid collision with Fly's proxy on port 22
+RUN sed -i 's/^#Port 22/Port 2222/' /etc/ssh/sshd_config && \
+    sed -i 's/^#PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config && \
+    sed -i 's/^#PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config && \
+    mkdir -p /var/run/sshd && \
+    chmod 0755 /var/run/sshd
 
-# 4. Inject your Public Key
-COPY id_ed25519.pub /root/.ssh/authorized_keys
-RUN chmod 600 /root/.ssh/authorized_keys
+# 4. Add Entrypoint Script
+COPY builder/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
-# 5. SSH Configuration
-RUN echo "PermitRootLogin yes" > /etc/ssh/sshd_config && \
-    echo "PasswordAuthentication no" >> /etc/ssh/sshd_config
-
-# 6. Nix Builder Configuration
-RUN echo "trusted-users = root" >> /etc/nix/nix.conf && \
-    echo "experimental-features = nix-command flakes" >> /etc/nix/nix.conf
-
-COPY start.sh /start.sh
-RUN chmod +x /start.sh
-
-EXPOSE 22
-ENTRYPOINT ["/bin/sh", "/start.sh"]
+EXPOSE 2222
+ENTRYPOINT ["/entrypoint.sh"]

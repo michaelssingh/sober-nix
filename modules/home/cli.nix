@@ -40,7 +40,7 @@
     nh # Nix Helper
 
     aichat
-    gemini-cli
+    # gemini-cli
     himalaya
     flyctl
     hydroxide

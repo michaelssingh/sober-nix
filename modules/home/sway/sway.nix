@@ -179,7 +179,7 @@
         font = "FiraCode Nerd Font Mono:size=11";
       };
       colors = {
-        # alpha = 0.9;
+        alpha = 0.9;
         background = "1a1b26";
         foreground = "c0caf5";
         regular0 = "15161e";
@@ -194,164 +194,165 @@
     };
   };
   programs.waybar = {
-    enable = true;
-    settings = [
-      {
-        layer = "bottom";
-        height = 30;
-        position = "top";
-        modules-left = [
-          "sway/workspaces"
-          "sway/mode"
+  enable = true;
+  settings = [
+    {
+      layer = "bottom";
+      height = 30;
+      position = "top";
+      modules-left = [
+        "sway/workspaces"
+        "sway/mode"
+      ];
+      modules-center = [ "clock" ];
+      modules-right = [
+        "temperature"
+        "cpu"
+        "memory"
+        "disk"
+        "backlight"
+        "pulseaudio"
+        "network"
+        "custom/vpn"
+        "battery"
+        "tray"
+      ];
+      "custom/vpn" = {
+        format = "󰖂 {}";
+        exec = "ip link show wg0 > /dev/null 2>&1 && echo '{\"text\": \"ON\", \"tooltip\": \"VPN: Active - '\"$(curl -s https://ifconfig.me)\"'\"}' || echo '{\"text\": \"OFF\", \"tooltip\": \"VPN: Inactive\"}'";
+        interval = 5;
+        return-type = "json";
+        on-click = "systemctl start wg-quick-wg0";
+        on-click-right = "systemctl stop wg-quick-wg0";
+      };
+      disk = {
+        interval = 30;
+        format = "󰋊 {percentage_used}%";
+        path = "/";
+      };
+      temperature = {
+        hwmon-path = "/sys/class/hwmon/hwmon3/temp1_input";
+        critical-threshold = 80;
+        format-critical = "{icon} {temperatureC}°C";
+        format = "{icon} {temperatureC}°C";
+        format-icons = [
+          ""
+          ""
+          ""
         ];
-        modules-center = [ "clock" ];
-        modules-right = [
-          "temperature"
-          "cpu"
-          "memory"
-          "disk"
-          "backlight"
-          "pulseaudio"
-          "network"
-          "custom/vpn"
-          "battery"
-          "tray"
+      };
+      backlight = {
+        format = "{icon} {percent}%";
+        format-icons = [
+          ""
+          ""
+          ""
+          ""
+          ""
+          ""
+          ""
+          ""
+          ""
         ];
-        "custom/vpn" = {
-          format = "󰖂 {}";
-          exec = "ip link show wg0 > /dev/null 2>&1 && echo '{\"text\": \"ON\", \"tooltip\": \"VPN: Active - '\"$(curl -s https://ifconfig.me)\"'\"}' || echo '{\"text\": \"OFF\", \"tooltip\": \"VPN: Inactive\"}'";
-          interval = 5;
-          return-type = "json";
-          on-click = "systemctl start wg-quick-wg0";
-          on-click-right = "systemctl stop wg-quick-wg0";
-        };
-        disk = {
-          interval = 30;
-          format = "󰋊 {percentage_used}%";
-          path = "/";
-        };
-        temperature = {
-          hwmon-path = "/sys/class/hwmon/hwmon3/temp1_input";
-          critical-threshold = 80;
-          format-critical = "{icon} {temperatureC}°C";
-          format = "{icon} {temperatureC}°C";
-          format-icons = [
-            ""
-            ""
-            ""
+        on-scroll-up = "brightnessctl set 1%+";
+        on-scroll-down = "brightnessctl set 1%-";
+      };
+      pulseaudio = {
+        format = "{icon} {volume}%";
+        format-muted = "󰝟";
+        format-icons = {
+          default = [
+            "󰕿"
+            "󰖀"
+            "󰕾"
           ];
         };
-        backlight = {
-          format = "{icon} {percent}%";
-          format-icons = [
-            ""
-            ""
-            ""
-            ""
-            ""
-            ""
-            ""
-            ""
-            ""
-          ];
-          on-scroll-up = "brightnessctl set 1%+";
-          on-scroll-down = "brightnessctl set 1%-";
+        on-click = "pavucontrol";
+      };
+      network = {
+        format-wifi = "  {essid} ({signalStrength}%)";
+        format-ethernet = "󰈀 {ifname}";
+        format-disconnected = "⚠ Disconnected";
+        tooltip-format = "{ifname} via {gwaddr} \nLocal IP: {ipaddr}\nExternal IP: {gwaddr}";
+        on-click = "foot -e nmtui";
+      };
+      cpu = {
+        format = "󰍛 {usage}%";
+        interval = 10;
+      };
+      memory = {
+        format = "󰘚 {percentage}%";
+        interval = 10;
+      };
+      clock = {
+        format = "  {:%H:%M  |  %d %b}";
+        tooltip-format = "<big>{:%Y %B}</big>\n<tt><small>{calendar}</small></tt>";
+      };
+      battery = {
+        states = {
+          warning = 30;
+          critical = 15;
         };
-        pulseaudio = {
-          format = "{icon} {volume}%";
-          format-muted = "󰝟";
-          format-icons = {
-            default = [
-              "󰕿"
-              "󰖀"
-              "󰕾"
-            ];
-          };
-          on-click = "pavucontrol";
-        };
-        network = {
-          format-wifi = "  {essid} ({signalStrength}%)";
-          format-ethernet = "󰈀 {ifname}";
-          format-disconnected = "⚠ Disconnected";
-          tooltip-format = "{ifname} via {gwaddr} \nLocal IP: {ipaddr}\nExternal IP: {gwaddr}";
-          on-click = "foot -e nmtui";
-        };
-        cpu = {
-          format = "󰍛 {usage}%";
-          interval = 10;
-        };
-        memory = {
-          format = "󰘚 {percentage}%";
-          interval = 10;
-        };
-        clock = {
-          format = "  {:%H:%M  |  %d %b}";
-          tooltip-format = "<big>{:%Y %B}</big>\n<tt><small>{calendar}</small></tt>";
-        };
-        battery = {
-          states = {
-            warning = 30;
-            critical = 15;
-          };
-          format = "{icon} {capacity}%";
-          format-charging = "󰂄 {capacity}%";
-          format-plugged = " {capacity}%";
-          format-alt = "{icon} {time}";
-          format-icons = [
-            "󰁺"
-            "󰁻"
-            "󰁼"
-            "󰁽"
-            "󰁾"
-            "󰁿"
-            "󰂀"
-            "󰂁"
-            "󰂂"
-            "󰁹"
-          ];
-        };
-      }
-    ];
-    style = ''
-      * {
-        border: none;
-        border-radius: 0;
-        font-family: "JetBrainsMono Nerd Font";
-        font-size: 13px;
-        min-height: 0;
-      }
-      window#waybar {
-        background: rgba(26, 27, 38, 0.95);
-        color: #c0caf5;
-      }
-      #workspaces button {
-        padding: 0 5px;
-        color: #565f89;
-      }
-      #workspaces button.focused {
-        color: #bb9af7;
-      }
-      #workspaces button.urgent {
-        color: #f7768e;
-      }
-      #cpu, #temperature, #memory, #disk, #backlight, #pulseaudio, #network, #battery, #tray {
-        padding: 0 10px;
-        margin: 4px 2px;
-        background: #24283b;
-        border-radius: 4px;
-      }
-      #cpu { color: #7aa2f7; }
-      #temperature { color: #f7768e; }
-      #memory { color: #bb9af7; }
-      #disk { color: #9ece6a; }
-      #backlight { color: #e0af68; }
-      #pulseaudio { color: #7aa2f7; }
-      #network { color: #9ece6a; }
-      #battery { color: #e0af68; }
-      #clock { color: #c0caf5; background: transparent; }
-      #battery { color: #e0af68; }
-      #battery.charging { color: #9ece6a; }
-      #battery.warning:not(.charging) { color: #f7768e; }
-    '';
+        format = "{icon} {capacity}%";
+        format-charging = "󰂄 {capacity}%";
+        format-plugged = " {capacity}%";
+        format-alt = "{icon} {time}";
+        format-icons = [
+          "󰁺"
+          "󰁻"
+          "󰁼"
+          "󰁽"
+          "󰁾"
+          "󰁿"
+          "󰂀"
+          "󰂁"
+          "󰂂"
+          "󰁹"
+        ];
+      };
+    }
+  ];
+  style = ''
+    * {
+      border: none;
+      border-radius: 0;
+      font-family: "JetBrainsMono Nerd Font";
+      font-size: 13px;
+      min-height: 0;
+    }
+    window#waybar {
+      background: rgba(26, 27, 38, 0.95);
+      color: #c0caf5;
+    }
+    #workspaces button {
+      padding: 0 5px;
+      color: #565f89;
+    }
+    #workspaces button.focused {
+      color: #bb9af7;
+    }
+    #workspaces button.urgent {
+      color: #f7768e;
+    }
+    #cpu, #temperature, #memory, #disk, #backlight, #pulseaudio, #network, #battery, #tray {
+      padding: 0 10px;
+      margin: 4px 2px;
+      background: #24283b;
+      border-radius: 4px;
+    }
+    #cpu { color: #7aa2f7; }
+    #temperature { color: #f7768e; }
+    #memory { color: #bb9af7; }
+    #disk { color: #9ece6a; }
+    #backlight { color: #e0af68; }
+    #pulseaudio { color: #7aa2f7; }
+    #network { color: #9ece6a; }
+    #battery { color: #e0af68; }
+    #clock { color: #c0caf5; background: transparent; }
+    #battery { color: #e0af68; }
+    #battery.charging { color: #9ece6a; }
+    #battery.warning:not(.charging) { color: #f7768e; }
+  '';
   };
+
 }
