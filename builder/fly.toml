@@ -8,13 +8,16 @@ primary_region = "iad"
   source = "nix_data"
   destination = "/var/lib/nix_persist"
 
-[[services]]
-  protocol = "tcp"
-  internal_port = 22
-  [[services.ports]]
-    port = 22
-
 [vm]
   cpu_kind = "shared"
   cpus = 2
-  memory_mb = 4096  # Builders need RAM for high-density compilation
+  memory_mb = 4096
+
+[[services]]
+  protocol = "tcp"
+  internal_port = 2222
+  auto_stop_machines = true
+  auto_start_machines = true
+  min_machines_running = 0
+  [[services.ports]]
+    port = 22

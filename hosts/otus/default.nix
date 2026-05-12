@@ -12,16 +12,24 @@
     ../../modules/services/kanata.nix
     ../../modules/services/greetd.nix
     ../../modules/core/perf-lowend.nix
+    ../../modules/services/nix-remote-builder.nix
+    ../../modules/services/fly-wireguard.nix
     ../../modules/services/vpn.nix
   ];
 
   home-manager.backupFileExtension = "backup";
 
   # --- ENABLE FEATURES ---
+  # Remote Nix Builders
+  sober.services.nix-remote-builder.enable = true;
+  # Fly.io Private Network
+  sober.services.fly-wireguard.enable = true;
+
   # Turn on the keyboard remapper
   sober.services.kanata.enable = true;
   # Secure networking with a VPN
   sober.services.vpn.enable = true;
+  sober.services.vpn.killswitch = false;
   # Low-end hardware optimizations
   sober.core.perf.lowend.enable = true;
 
@@ -33,6 +41,11 @@
   sober.core.networking.mac-rotation.enable = true;
   sober.core.networking.secure-dns.enable = true;
   sober.core.networking.firewall.enable = true;
+
+  programs.nh = {
+    enable = true;
+    flake = "/home/michael/git/sober-nix";
+  };
 
   networking = {
     hostName = "otus";

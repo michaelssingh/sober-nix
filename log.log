@@ -1,0 +1,3 @@
+sober-nix ❯ nixos-rebuild switch --rollback                               on  main [!+?] via ❄️ impure (sober-nix-dev-env) 
+warning: error: unable to download 'https://channels.nixos.org/flake-registry.json': Timeout was reached (28) Resolving timed out after 15000 milliseconds; retrying in 317 ms
+                                                                                                                        sober-nix ❯ nixos-rebuild switch --rollback

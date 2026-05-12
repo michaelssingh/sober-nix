@@ -72,6 +72,20 @@
           git # Git for version control
           nixfmt-rfc-style # Keep the config pretty
           openssl # Required by ani-cli
+          dmidecode # Hardware info
+          pciutils # PCI bus info
+          usbutils # USB bus info
+          smartmontools # Storage health checks
+          btop # Resource monitoring
+          iotop # Disk I/O monitoring
+          iproute2 # Networking
+          tcpdump # Packet capture
+          nmap # Network audit
+          ripgrep # Search
+          fd # Find files
+          jq # JSON processing
+          dig
+          powertop # Power management
         ];
 
         shellHook = ''
