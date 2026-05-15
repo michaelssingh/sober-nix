@@ -17,8 +17,8 @@ RUN sed -i 's/^#Port 22/Port 2222/' /etc/ssh/sshd_config && \
     mkdir -p /var/run/sshd && \
     chmod 0755 /var/run/sshd
 
-# 4. Add Entrypoint Script
-COPY builder/entrypoint.sh /entrypoint.sh
+# 5. Add Entrypoint Script
+COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
 EXPOSE 2222
