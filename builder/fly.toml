@@ -2,7 +2,7 @@ app = "sober-builder"
 primary_region = "iad"
 
 [build]
-  dockerfile = "Dockerfile"
+  dockerfile = "builder/Dockerfile"
 
 [mounts]
   source = "nix_data"
