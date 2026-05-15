@@ -1,4 +1,4 @@
-{ pkgs, ... }:
+{ pkgs, config, ... }:
 
 {
   imports = [
@@ -7,6 +7,7 @@
     ../../modules/home/shell.nix
     ../../modules/home/nvim/nvim.nix
     ../../modules/home/features/youtube.nix
+    ../../modules/home/features/blogs.nix
   ];
 
   programs.git = {
@@ -28,5 +29,8 @@
 
   home.username = "michael";
   home.homeDirectory = "/home/michael";
+  home.sessionVariables = {
+    FLAKE = "${config.home.homeDirectory}/git/sober-nix";
+  };
   home.stateVersion = "25.11";
 }

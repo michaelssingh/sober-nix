@@ -15,11 +15,6 @@
       url = "github:marcinjahn/gemini-cli.nvim";
       flake = false;
     };
-
-    ani-cli = {
-      url = "github:pystardust/ani-cli";
-      flake = false;
-    };
   };
 
   outputs =
