@@ -7,18 +7,14 @@
 }:
 
 let
-  csvData = builtins.readFile ./subscriptions.csv;
-  lines = lib.filter (l: l != "") (lib.splitString "\n" csvData);
-  # Skip header and filter empty lines
-  entries = builtins.tail lines;
+  subscriptions = import ./subscriptions.nix;
 
   toNewsboatUrl =
-    line:
-    let
-      parts = lib.splitString "," line;
-      id = lib.head parts;
-    in
-    "https://www.youtube.com/feeds/videos.xml?channel_id=${id}";
+    entry:
+    {
+      url = "https://www.youtube.com/feeds/videos.xml?channel_id=${entry.id}";
+      inherit (entry) tags;
+    };
 in
 {
   home.packages = with pkgs; [
@@ -30,9 +26,24 @@ in
 
   programs.newsboat = {
     enable = true;
-    urls = builtins.map (l: { url = toNewsboatUrl l; }) entries;
+    urls = builtins.map toNewsboatUrl (lib.toList subscriptions);
     extraConfig = ''
-      browser "${pkgs.mpv}/bin/mpv %u"
+      # Default browser: w3m
+      browser "${pkgs.w3m}/bin/w3m %u"
+
+      # Macro 'm' to enqueue video in mpv
+      # Sets browser temporarily to mpv-queue, opens, then reverts
+      macro m set browser "mpv-queue %u" ; open-in-browser ; set browser "${pkgs.w3m}/bin/w3m %u"
+      
+      # Macro 'A' to queue all unread articles (YouTube only)
+      macro A print-unread | queue-unread
+
+      # Bindings
+      bind-key o open-in-browser
+
+      # Highlight Shorts (orange) - using link URL match
+      highlight-article "link =~ \"shorts\"" color208 default
+
       color listnormal         color253 default
       color listfocus          color234 color111 bold
       color listnormal_unread  color147 default  bold
@@ -42,9 +53,7 @@ in
       bind-key j down
       bind-key k up
     '';
-  };
-
-  programs.mpv = {
+    };  programs.mpv = {
     enable = true;
     scripts = [ pkgs.mpvScripts.mpv-playlistmanager ];
   };
@@ -60,17 +69,5 @@ in
     demuxer-max-back-bytes=75MiB
     demuxer-readahead-secs=30
     profile=fast
-  '';
-
-  home.file.".config/mpv/livestreams.m3u".text = ''
-    #EXTM3U
-    #EXTINF:-1,Al Jazeera English
-    https://www.youtube.com/c/aljazeeraenglish/live
-    #EXTINF:-1,Bloomberg Technology
-    https://www.youtube.com/@markets/live
-    #EXTINF:-1,Yahoo Finance
-    https://www.youtube.com/c/yahoofinance/live
-    #EXTINF:-1,DW News
-    https://www.youtube.com/@dwnews/live
   '';
 }

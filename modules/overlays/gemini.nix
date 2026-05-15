@@ -1,29 +1,26 @@
 { inputs }:
 final: prev: {
-  gemini-cli = final.buildNpmPackage {
+  gemini-cli = final.stdenv.mkDerivation {
     pname = "gemini-cli";
-    version = "0.41.2";
+    version = "0.42.0";
 
-    src = final.fetchFromGitHub {
-      owner = "google-gemini";
-      repo = "gemini-cli";
-      rev = "v0.41.2";
-      hash = "sha256-4jwEviWYzan97pVn0RWfWU4XS8c27L4ZJUwa2iGlFxY=";
+    # Download the pre-built package from NPM registry
+    src = final.fetchurl {
+      url = "https://registry.npmjs.org/@google/gemini-cli/-/gemini-cli-0.42.0.tgz";
+      hash = "sha256-yAnc0NaKyfEF6It5YGm5R8tDTWhgrErP3zBL2n/TCo8=";
     };
 
-    npmDepsHash = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
+    nativeBuildInputs = [ final.makeWrapper ];
 
-    # Disable integration tests during build to save time/resources
-    makeCacheWritable = true;
-    npmBuildFlags = [ "--" "--skip-tests" ];
+    dontUnpack = true;
 
-    # Fedora base on the builder might need these
-    nativeBuildInputs = [ final.python3 final.pkg-config ];
+    installPhase = ''
+      mkdir -p $out/lib/node_modules/gemini-cli
+      tar -xzf $src --strip-components=1 -C $out/lib/node_modules/gemini-cli
 
-    meta = {
-      description = "Official Gemini CLI";
-      homepage = "https://github.com/google-gemini/gemini-cli";
-      license = final.lib.licenses.asl20;
-    };
+      mkdir -p $out/bin
+      makeWrapper ${final.nodejs}/bin/node $out/bin/gemini-cli \
+        --add-flags "$out/lib/node_modules/gemini-cli/bundle/gemini.js"
+    '';
   };
 }

@@ -32,7 +32,7 @@ in
       
       buildMachines = [
         {
-          hostName = "sober-builder.internal:2222";
+          hostName = "sober-builder.internal";
           sshUser = "root";
           system = "x86_64-linux";
           protocol = "ssh-ng";
