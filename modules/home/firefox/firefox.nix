@@ -7,6 +7,8 @@ in
   programs.firefox = {
     enable = true;
 
+    nativeMessagingHosts = [ pkgs.ff2mpv-rust ];
+
     policies = {
       DisableTelemetry = true;
       ExtensionSettings =

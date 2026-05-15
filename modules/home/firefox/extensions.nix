@@ -14,4 +14,8 @@
   # Dictionary Anywhere
   "{e90f5de4-8510-4515-9f67-3b6654e1e8c2}" =
     "https://addons.mozilla.org/firefox/downloads/latest/dictionary-anywhere/latest.xpi";
+
+  # ff2mpv
+  "ff2mpv@yuvallanger.github.com" =
+    "https://addons.mozilla.org/firefox/downloads/latest/ff2mpv/latest.xpi";
 }
