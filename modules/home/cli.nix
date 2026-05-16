@@ -73,6 +73,9 @@
       
       echo '{ "command": ["loadfile", "'"$1"'", "append-play"] }' | ${pkgs.socat}/bin/socat - "$SOCKET"
     '')
+    (pkgs.writeShellScriptBin "ani-cli" ''
+      ${pkgs.bash}/bin/bash ${inputs.ani-cli}/ani-cli "$@"
+    '')
     pkgs.socat
     pkgs.w3m
     pkgs.chafa
