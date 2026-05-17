@@ -5,7 +5,6 @@
     ./core.nix
 
     # Workstation only modules
-    ../../modules/home/theme.nix
     ../../modules/home/sway
     ../../modules/home/firefox/firefox.nix
     ../../modules/home/email.nix

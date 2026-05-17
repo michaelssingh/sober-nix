@@ -97,3 +97,21 @@ in
 
       # 3. Simplify Waybar (Reference variables)
       bars = [ { command = "${pkgs.waybar}/bin/waybar"; } ];
+      startup = [
+        { command = "swaymsg workspace number 1"; }
+      ];
+    };
+
+    extraConfig = ''
+      title_align center
+
+      output * bg ${./../bg.jpg} fill
+      for_window [app_id="foot"] hints none
+      default_border  pixel 1
+      default_floating_border pixel 1
+      gaps inner 0
+      gaps outer 0
+      for_window [app_id="waybar"] floating_disable
+    '';
+  };
+}
