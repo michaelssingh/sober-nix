@@ -1,5 +1,21 @@
 {
   "nodes": {
+    "ani-cli": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1777645919,
+        "narHash": "sha256-OyCKDN89sBz59+3JncMDyNOq8UMqqjara+A0Owo3oko=",
+        "owner": "pystardust",
+        "repo": "ani-cli",
+        "rev": "6803b8a15faafa41cb79271e9a4f7f9c70a53651",
+        "type": "github"
+      },
+      "original": {
+        "owner": "pystardust",
+        "repo": "ani-cli",
+        "type": "github"
+      }
+    },
     "gemini-nvim": {
       "flake": false,
       "locked": {
@@ -55,6 +71,7 @@
     },
     "root": {
       "inputs": {
+        "ani-cli": "ani-cli",
         "gemini-nvim": "gemini-nvim",
         "home-manager": "home-manager",
         "nixpkgs": "nixpkgs"
