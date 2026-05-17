@@ -5,7 +5,7 @@
   ...
 }:
 let
-  theme = import ../../theme.nix;
+  theme = import ../../../core/theme.nix;
 in
 {
   wayland.windowManager.sway = {

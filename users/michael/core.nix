@@ -2,13 +2,13 @@
 
 {
   imports = [
-    ../../modules/home/ssh.nix
-    ../../modules/home/cli.nix
-    ../../modules/home/shell.nix
-    ../../modules/home/nvim/nvim.nix
+    ../../modules/home/core/ssh.nix
+    ../../modules/home/core/cli.nix
+    ../../modules/home/core/shell.nix
+    ../../modules/home/core/nvim/nvim.nix
     ../../modules/home/features/youtube.nix
     ../../modules/home/features/blogs.nix
-    ../../modules/home/mpv
+    ../../modules/home/features/mpv
   ];
 
   programs.git = {
