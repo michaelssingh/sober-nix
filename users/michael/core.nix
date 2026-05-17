@@ -8,6 +8,7 @@
     ../../modules/home/nvim/nvim.nix
     ../../modules/home/features/youtube.nix
     ../../modules/home/features/blogs.nix
+    ../../modules/home/mpv
   ];
 
   programs.git = {
