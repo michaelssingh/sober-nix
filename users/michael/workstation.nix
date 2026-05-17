@@ -5,9 +5,9 @@
     ./core.nix
 
     # Workstation only modules
-    ../../modules/home/sway
-    ../../modules/home/firefox/firefox.nix
-    ../../modules/home/email.nix
+    ../../modules/home/desktop/sway
+    ../../modules/home/desktop/firefox/firefox.nix
+    ../../modules/home/core/email.nix
   ];
 
   # GUI-Only Packages
