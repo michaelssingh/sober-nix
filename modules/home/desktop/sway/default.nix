@@ -2,6 +2,8 @@
 {
   imports = [
     ./components/main.nix
+    ./components/terminal.nix
+    ./components/launcher.nix
     ../waybar.nix
   ];
 
