@@ -33,8 +33,15 @@
         temperature = { hwmon-path = "$SOBER_WAYBAR_TEMP_PATH"; format = " {temperatureC}°C"; };
         pulseaudio = { format = "{icon} {volume}%"; format-icons = { default = ["󰕿" "󰖀" "󰕾"]; }; };
         backlight = { format = "{icon} {percent}%"; format-icons = ["" "" "" "" "" "" "" "" ""]; };
-        network = { format-wifi = " "; format-ethernet = "󰈀"; };
-        clock = { format = " {:%H:%M | %d %b}"; };
+        network = { 
+          format-wifi = " "; 
+          format-ethernet = "󰈀"; 
+          tooltip-format = "{essid} ({signalStrength}%) | IP: {ipaddr}";
+        };
+        clock = { 
+          format = " {:%H:%M | %d %b}"; 
+          tooltip-format = "<big>{:%Y %B}</big>\n<tt><small>{calendar}</small></tt>";
+        };
         battery = { format = "{icon} {capacity}%"; format-icons = ["󰁺" "󰁻" "󰁼" "󰁽" "󰁾" "󰁿" "󰂀" "󰂁" "󰂂" "󰁹"]; };
       }
     ];
