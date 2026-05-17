@@ -66,18 +66,18 @@
   programs.dconf.enable = true;
 
   # System-wide SSH config for the Nix daemon (KISS)
-  # # This fixes the port mapping and host key issues for the background builder.
-  # programs.ssh.extraConfig = ''
-  #   Host sober-builder.internal
-  #     Port 2222
-  #     User root
-  #     StrictHostKeyChecking no
-  #     UserKnownHostsFile /dev/null
-  # '';
-  #
-  # # Bridge the user's SSH agent to the Nix daemon
-  # # This allows the daemon to use keys loaded via 'bw-ssh-init'.
-  # systemd.services.nix-daemon.serviceConfig.Environment = [ "SSH_AUTH_SOCK=/run/user/1001/ssh-agent" ];
+  # This fixes the port mapping and host key issues for the background builder.
+  programs.ssh.extraConfig = ''
+    Host sober-builder.internal
+      Port 2222
+      User root
+      StrictHostKeyChecking no
+      UserKnownHostsFile /dev/null
+  '';
+
+  # Bridge the user's SSH agent to the Nix daemon
+  # This allows the daemon to use keys loaded via 'bw-ssh-init'.
+  systemd.services.nix-daemon.serviceConfig.Environment = [ "SSH_AUTH_SOCK=/run/user/1000/ssh-agent" ];
 
   users.users.${user} = {
     isNormalUser = true;
