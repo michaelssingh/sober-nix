@@ -79,24 +79,12 @@
     pkgs.socat
     pkgs.w3m
     pkgs.chafa
+    pkgs.ani-skip
   ];
 
   home.file.".w3m/config".text = ''
     ext_image_viewer 1
     external_image_viewer ${pkgs.chafa}/bin/chafa
     extbrowser ${pkgs.firefox}/bin/firefox %s
-  '';
-
-
-  # Configuration for aichat
-  xdg.configFile."aichat/config.yaml".text = ''
-    model: gemini:gemini-2.5-flash
-    clients:
-      - type: gemini
-        api_key: "***REDACTED***"
-    # Define your persona here
-    roles:
-      - name: assistant
-        prompt: "Act as a Senior Systems Engineering Research Assistant. Zero Fluff, Technical Precision, Recursive Definition, Logical Rationale, Verifiable Sourcing."
   '';
 }
