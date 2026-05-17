@@ -61,8 +61,13 @@
     "ivrs_ioapic[5]=00:00.2"
   ];
 
-  # --- User ---
-  programs.fish.enable = true;
+  # --- Waybar Hardware Settings ---
+  # Hardware-specific paths for monitoring
+  # Change these if the hardware environment changes
+  environment.variables = {
+    SOBER_WAYBAR_TEMP_PATH = "/sys/class/hwmon/hwmon3/temp1_input";
+    SOBER_WAYBAR_DISK_PATH = "/";
+  };
   programs.dconf.enable = true;
 
   # System-wide SSH config for the Nix daemon (KISS)
