@@ -272,3 +272,4 @@ vim.keymap.set("n", "<leader>p", ":pu<CR>", { desc = "Paste Below (Force Line)" 
 vim.keymap.set("n", "<leader>P", ":pu!<CR>", { desc = "Paste Above (Force Line)" })
 -- Gemini CLI Toggle
 vim.keymap.set('n', '<leader>ag', '<cmd>Gemini toggle<cr>', { desc = "Toggle Gemini Agent" })
+vim.keymap.set('v', '<leader>aq', '<cmd>Gemini ask<cr>', { desc = "Ask Gemini [Query]" })
