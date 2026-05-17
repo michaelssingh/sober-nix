@@ -9,55 +9,43 @@
         position = "top";
         modules-left = [ "sway/workspaces" "sway/mode" ];
         modules-center = [ "clock" ];
-        modules-right = [
-          "temperature" "cpu" "memory" "disk" "backlight" "pulseaudio" "network" "custom/vpn" "battery" "tray"
-        ];
-        
+        modules-right = [ "group/system" "group/media" "network" "custom/vpn" "battery" "tray" ];
+
+        "group/system" = {
+          orientation = "horizontal";
+          modules = [ "cpu" "memory" "disk" "temperature" ];
+          drawer = { transition-duration = 300; children-class = "not-visible"; };
+        };
+        "group/media" = {
+          orientation = "horizontal";
+          modules = [ "pulseaudio" "backlight" ];
+          drawer = { transition-duration = 300; };
+        };
+
         "custom/vpn" = {
           format = "󰖂 {}";
-          exec = "ip link show wg0 > /dev/null 2>&1 && echo '{\"text\": \"ON\", \"tooltip\": \"VPN: Active - '\"$(curl -s https://ifconfig.me)\"'\"}' || echo '{\"text\": \"OFF\", \"tooltip\": \"VPN: Inactive\"}'";
+          exec = "ip link show wg0 > /dev/null 2>&1 && echo 'ON' || echo 'OFF'";
           interval = 5;
-          return-type = "json";
-          on-click = "systemctl start wg-quick-wg0";
-          on-click-right = "systemctl stop wg-quick-wg0";
         };
-        disk = {
-          interval = 30;
-          format = "󰋊 {percentage_used}%";
-          path = "$SOBER_WAYBAR_DISK_PATH";
-        };
-        temperature = {
-          hwmon-path = "$SOBER_WAYBAR_TEMP_PATH";
-          critical-threshold = 80;
-          format = " {temperatureC}°C";
-        };
-        backlight = {
-          format = "{icon} {percent}%";
-          format-icons = [ "" "" "" "" "" "" "" "" "" ];
-          on-scroll-up = "brightnessctl set 1%+";
-          on-scroll-down = "brightnessctl set 1%-";
-        };
-        pulseaudio = {
-          format = "{icon} {volume}%";
-          format-muted = "󰝟";
-          format-icons = { default = [ "󰕿" "󰖀" "󰕾" ]; };
-          on-click = "pavucontrol";
-        };
-        network = {
-          format-wifi = "  {essid} ({signalStrength}%)";
-          format-ethernet = "󰈀 {ifname}";
-          format-disconnected = "⚠ Disconnected";
-          on-click = "foot -e nmtui";
-        };
-        cpu = { format = "󰍛 {usage}%"; interval = 10; };
-        memory = { format = "󰘚 {percentage}%"; interval = 10; };
-        clock = { format = "  {:%H:%M  |  %d %b}"; };
-        battery = {
-          states = { warning = 30; critical = 15; };
-          format = "{icon} {capacity}%";
-          format-icons = [ "󰁺" "󰁻" "󰁼" "󰁽" "󰁾" "󰁿" "󰂀" "󰂁" "󰂂" "󰁹" ];
-        };
+        cpu = { format = "󰍛 {usage}%"; };
+        memory = { format = "󰘚 {percentage}%"; };
+        disk = { format = "󰋊 {percentage_used}%"; path = "$SOBER_WAYBAR_DISK_PATH"; };
+        temperature = { hwmon-path = "$SOBER_WAYBAR_TEMP_PATH"; format = " {temperatureC}°C"; };
+        pulseaudio = { format = "{icon} {volume}%"; format-icons = { default = ["󰕿" "󰖀" "󰕾"]; }; };
+        backlight = { format = "{icon} {percent}%"; format-icons = ["" "" "" "" "" "" "" "" ""]; };
+        network = { format-wifi = " "; format-ethernet = "󰈀"; };
+        clock = { format = " {:%H:%M | %d %b}"; };
+        battery = { format = "{icon} {capacity}%"; format-icons = ["󰁺" "󰁻" "󰁼" "󰁽" "󰁾" "󰁿" "󰂀" "󰂁" "󰂂" "󰁹"]; };
       }
     ];
+    style = ''
+      * { border: none; border-radius: 0; font-family: "JetBrainsMono Nerd Font"; font-size: 13px; }
+      window#waybar { background: #1a1b26; color: #c0caf5; }
+      #workspaces button { color: #565f89; padding: 0 5px; }
+      #workspaces button.focused { color: #bb9af7; }
+      #cpu, #memory, #disk, #temperature, #pulseaudio, #backlight, #network, #battery, #tray {
+        padding: 0 8px; color: #c0caf5;
+      }
+    '';
   };
 }
