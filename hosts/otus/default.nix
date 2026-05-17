@@ -55,6 +55,8 @@
     };
   };
 
+  programs.fish.enable = true;
+
   boot.kernelParams = [
     "amd_iommu=on"
     "ivrs_ioapic[4]=00:14.0"
