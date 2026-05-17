@@ -1,32 +1,16 @@
-{ pkgs, ... }:
-
 {
-  # --- Cursor ---
-  home.pointerCursor = {
-    package = pkgs.simp1e-cursors;
-    name = "Simp1e-Tokyo-Night";
-    size = 24;
-    gtk.enable = true;
-    x11.enable = true;
-  };
-
-  # --- GTK Theme ---
-  gtk = {
-    enable = true;
-    theme = {
-      name = "TokyoNight-Dark";
-      package = pkgs.tokyonight-gtk-theme;
-    };
-    iconTheme = {
-      name = "Papirus-Dark";
-      package = pkgs.papirus-icon-theme;
-    };
-  };
-
-  # --- Qt Theme (Optional but recommended for uniform look) ---
-  qt = {
-    enable = true;
-    platformTheme.name = "gtk";
-    style.name = "gtk2";
+  # Tokyo Night Palette
+  colors = {
+    background = "#1a1b26";
+    foreground = "#c0caf5";
+    black = "#15161e";
+    red = "#f7768e";
+    green = "#9ece6a";
+    yellow = "#e0af68";
+    blue = "#7aa2f7";
+    magenta = "#bb9af7";
+    cyan = "#7dcfff";
+    white = "#a9b1d6";
+    comment = "#565f89";
   };
 }
