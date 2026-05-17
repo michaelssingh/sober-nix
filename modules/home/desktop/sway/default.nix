@@ -2,6 +2,7 @@
 {
   imports = [
     ./components/main.nix
+    ../waybar.nix
   ];
 
   # --- Packages needed for Sway ---
