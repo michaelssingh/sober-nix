@@ -12,6 +12,8 @@
 
   # GUI-Only Packages
   home.packages = with pkgs; [
+    foot
+    fuzzel
     zoom-us
     (pkgs.zathura.override {
       useMupdf = true;
