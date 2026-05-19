@@ -63,6 +63,13 @@
           ];
         };
       };
+      homeConfigurations = {
+        server = home-manager.lib.homeManagerConfiguration {
+          inherit pkgs;
+          extraSpecialArgs = { inherit inputs user; };
+          modules = [ ./users/${user}/server.nix ];
+        };
+      };
       # --- The DevShell for repo maintenance ---
       devShells.${system}.default = pkgs.mkShell {
         name = "sober-nix-dev";
