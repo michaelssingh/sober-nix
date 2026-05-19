@@ -80,7 +80,15 @@
     pkgs.w3m
     pkgs.chafa
     pkgs.ani-skip
-    pkgs.senpai
+    (pkgs.senpai.overrideAttrs (oldAttrs: rec {
+      version = "0.4.1";
+      src = pkgs.fetchFromGitHub {
+        owner = "delthas";
+        repo = "senpai";
+        rev = "v${version}";
+        sha256 = "1d16wbqm3hrydcb0308mg5cvgzz85vqq1bnwx0ly4647fr3f21wp";
+      };
+    }))
   ];
 
   home.file.".w3m/config".text = ''
