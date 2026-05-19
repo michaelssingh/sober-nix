@@ -80,6 +80,7 @@
     pkgs.w3m
     pkgs.chafa
     pkgs.ani-skip
+    pkgs.senpai
   ];
 
   home.file.".w3m/config".text = ''
