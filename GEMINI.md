@@ -11,7 +11,7 @@
 - **What to update**: Any significant change to the system's "mental model" (e.g., new helper functions, modified data structures, or altered build flows).
 
 ## Build & Validation
-- **Verification**: Use `nixos-rebuild build --flake . --build-host sober-builder.internal` for all configuration validations.
+- **Verification**: Use `nixos-rebuild build --flake . --build-host sober-services.internal` for all configuration validations.
 - **Validation**: Never consider a task complete without a successful build on the remote host.
 
 ## Git & Branching Strategy

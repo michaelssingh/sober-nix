@@ -75,7 +75,7 @@
   # System-wide SSH config for the Nix daemon (KISS)
   # This fixes the port mapping and host key issues for the background builder.
   programs.ssh.extraConfig = ''
-    Host sober-builder.internal
+    Host sober-services.internal
       Port 2222
       User root
       StrictHostKeyChecking no

@@ -15,8 +15,8 @@
         user = "git";
       };
 
-      "sober-builder.internal" = {
-        hostname = "sober-builder.internal";
+      "sober-services.internal" = {
+        hostname = "sober-services.internal";
         port = 2222;
         user = "root";
       };
