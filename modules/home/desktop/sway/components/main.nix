@@ -18,6 +18,9 @@ in
           repeat_delay = "300";
           repeat_rate = "35";
         };
+        "type:touchpad" = {
+          tap = "enabled";
+        };
       };
 
       seat.seat0.xcursor_theme = "Simp1e-Tokyo-Night 24";
