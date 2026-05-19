@@ -124,7 +124,7 @@
       e = "nvim .";
 
       # System switch
-      os = "nh os switch .";
+      os = "nh os switch $FLAKE";
     };
   };
 
