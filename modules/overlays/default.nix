@@ -17,5 +17,15 @@
       };
       vendorHash = "sha256-CjvvVFjYRlykZwEqHtuD9qc/MsHZsJtKy2G6e2N7K0M=";
     });
+
+    senpai = prev.senpai.overrideAttrs (oldAttrs: rec {
+      version = "0.4.1";
+      src = final.fetchFromGitHub {
+        owner = "delthas";
+        repo = "senpai";
+        rev = "v${version}";
+        sha256 = "1d16wbqm3hrydcb0308mg5cvgzz85vqq1bnwx0ly4647fr3f21wp";
+      };
+    });
   };
 }
