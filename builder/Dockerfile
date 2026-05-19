@@ -17,11 +17,12 @@ RUN sed -i 's/^#Port 22/Port 2222/' /etc/ssh/sshd_config && \
     mkdir -p /var/run/sshd && \
     chmod 0755 /var/run/sshd
 
-# 4. Install Soju IRC Bouncer
+# 4. Install Home Manager and Soju
 RUN . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh && \
-    nix profile install nixpkgs#soju
+    nix profile install nixpkgs#home-manager nixpkgs#soju
 
-# 5. Add Entrypoint Script
+# 5. Add Repository and Entrypoint Script
+COPY . /repo
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
