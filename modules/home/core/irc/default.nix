@@ -8,6 +8,6 @@
     address irc+insecure://sober-services.internal:6697
     nickname init_
     username init
-    password "dT4d8y3Tz*kavNrmue4YzDsX3^VdU%9UA%8U"
+    password "pineapple"
   '';
 }
