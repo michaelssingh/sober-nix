@@ -7,8 +7,6 @@
     
     address ircs://libera.chat:6697
     nickname init
-    
-    # CertFP authentication
-    tls-cert %h/senpai/certs/libera.pem
+    password "dT4d8y3Tz*kavNrmue4YzDsX3^VdU%9UA%8U"
   '';
 }
