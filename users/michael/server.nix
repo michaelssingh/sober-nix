@@ -3,6 +3,7 @@
 {
   imports = [
     ./core.nix # <--- INHERITS THE BASE
+    ../../modules/home/features/soju.nix
   ];
 
   # Server specific tools?
