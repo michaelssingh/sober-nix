@@ -9,5 +9,8 @@
     nickname init_
     username init
     password "dT4d8y3Tz*kavNrmue4YzDsX3^VdU%9UA%8U"
+
+    # Auto-join channels (Note: Remove this once migrated to Soju bouncer)
+    channel "#nixos #linux #c ##anime ##rust #clojure #go #lobsters ##chat ##programming"
   '';
 }
