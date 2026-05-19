@@ -45,6 +45,10 @@
   programs.nh = {
     enable = true;
     flake = "/home/michael/git/sober-nix";
+    clean = {
+      enable = true;
+      extraArgs = "--keep-since 3d --keep 3";
+    };
   };
 
   networking = {
