@@ -48,6 +48,11 @@ EOF
 
 /nix/var/nix/profiles/default/bin/nix-daemon &
 
-# 5. Start SSHD in foreground
+# 5. Start Soju in background
+echo "💬 Starting Soju Bouncer..."
+mkdir -p /var/lib/nix_persist/soju
+/nix/var/nix/profiles/default/bin/soju -listen irc+insecure://0.0.0.0:6697 -db sqlite3:///var/lib/nix_persist/soju/soju.db &
+
+# 6. Start SSHD in foreground
 echo "📡 Starting SSHD on port 2222 (mapped to 22)..."
 exec /usr/sbin/sshd -D -e

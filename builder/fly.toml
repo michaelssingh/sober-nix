@@ -1,4 +1,4 @@
-app = "sober-builder"
+app = "sober-services"
 primary_region = "iad"
 
 [build]

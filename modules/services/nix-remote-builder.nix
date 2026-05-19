@@ -7,11 +7,11 @@ in
   # --- Documentation ---
   # This module is DORMANT by default. 
   # When 'enable = false', no configuration is applied, and no connections are attempted.
-  # When 'enable = true', it configures the local Nix daemon to offload builds to 'sober-builder'.
+  # When 'enable = true', it configures the local Nix daemon to offload builds to 'sober-services'.
 
   options = {
     sober.services.nix-remote-builder = {
-      enable = lib.mkEnableOption "Remote Nix Builders (Fly.io/Sober-Builder)";
+      enable = lib.mkEnableOption "Remote Nix Builders (Fly.io/Sober-Services)";
     };
   };
 
@@ -20,7 +20,7 @@ in
     assertions = [
       {
         assertion = config.sober.services.fly-wireguard.enable;
-        message = "Remote builders require Fly.io WireGuard to be enabled for secure connectivity to 'sober-builder.internal'.";
+        message = "Remote builders require Fly.io WireGuard to be enabled for secure connectivity to 'sober-services.internal'.";
       }
     ];
 
@@ -32,7 +32,7 @@ in
       
       buildMachines = [
         {
-          hostName = "sober-builder.internal";
+          hostName = "sober-services.internal";
           sshUser = "root";
           system = "x86_64-linux";
           protocol = "ssh-ng";
