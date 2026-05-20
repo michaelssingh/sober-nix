@@ -6,16 +6,10 @@
     viAlias = true;
     vimAlias = true;
     extraPackages = with pkgs; [
-      nixd
-      lua-language-server
       ripgrep
       fd
     ];
     plugins = with pkgs.vimPlugins; [
-      (pkgs.vimUtils.buildVimPlugin {
-        name = "gemini-cli-nvim";
-        src = inputs.gemini-nvim;
-      })
       nvim-lspconfig
       nvim-autopairs
       nvim-web-devicons
@@ -32,9 +26,6 @@
         p.vim
         p.bash
         p.markdown
-        p.c
-        p.go
-        p.rust
       ]))
       tokyonight-nvim
       telescope-nvim
