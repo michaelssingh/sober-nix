@@ -41,19 +41,15 @@
   # Distribute interrupts
   services.irqbalance.enable = true;
 
-  # Prevent system freezes when RAM is full (very likely on 4GB)
+  # earlyoom to prevent system freezes
   services.earlyoom = {
     enable = true;
     freeMemThreshold = 5;
     freeSwapThreshold = 5;
   };
 
-  # Automatic Garbage Collection (Keep disk clean)
-  nix.gc = {
-    automatic = true;
-    dates = "weekly";
-    options = "--delete-older-than 7d";
-  };
+  # Automatic Garbage Collection (Disabled in favor of nh in hosts/otus/default.nix)
+  nix.gc.automatic = false;
 
   # --- 3. UNIVERSAL PACKAGES (Root Tools) ---
   # Tools you need available even if you break your user config

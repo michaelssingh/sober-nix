@@ -1,6 +1,7 @@
 { pkgs, inputs, ... }:
 
 {
+  imports = [ ./dev.nix ];
 
   # --- Terminal Multiplexer (Zellij) ---
   programs.zellij = {
@@ -51,6 +52,7 @@
     nh # Nix Helper
 
     gemini-cli
+    antigravity
     himalaya
     flyctl
     hydroxide
@@ -81,8 +83,8 @@
     pkgs.chafa
     pkgs.ani-skip
     pkgs.senpai
-  ];
-
+    pkgs.harper
+    ];
   home.file.".w3m/config".text = ''
     ext_image_viewer 1
     external_image_viewer ${pkgs.chafa}/bin/chafa

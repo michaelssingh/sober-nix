@@ -23,4 +23,10 @@ final: prev: {
         --add-flags "$out/lib/node_modules/gemini-cli/bundle/gemini.js"
     '';
   };
+
+  antigravity = prev.antigravity.overrideAttrs (old: {
+    meta = old.meta // {
+      license = final.lib.licenses.unfree;
+    };
+  });
 }

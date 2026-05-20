@@ -7,6 +7,12 @@
         dpi-aware = "yes";
         font = "FiraCode Nerd Font Mono:size=11";
       };
+      url = {
+        launch = "xdg-open \${url}";
+        label-letters = "sadfjkl;egetwrasdf";
+        osc8-underline = "url-mode";
+        protocols = "http, https, ftp, ftps, file, gemini, gopher";
+      };
       colors = {
         alpha = 0.9;
         background = "1a1b26";

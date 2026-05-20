@@ -99,6 +99,9 @@
           end
         end
       '';
+      os = ''
+        nh os switch $argv /home/michael/git/sober-nix
+      '';
     };
     shellAliases = {
       # Replace standard ls with eza
@@ -122,9 +125,6 @@
 
       # Edit current directory
       e = "nvim .";
-
-      # System switch
-      os = "nh os switch ${argv:-$FLAKE}";
     };
   };
 
