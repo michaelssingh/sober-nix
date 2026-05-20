@@ -57,6 +57,10 @@ export USER=root
 export HOME=/root
 export LOGNAME=root
 export NIXPKGS_ALLOW_UNFREE=1
+
+# Remove manual soju if it exists to avoid conflicts with declarative home-manager
+/nix/var/nix/profiles/default/bin/nix profile remove '.*soju.*' || true
+
 /nix/var/nix/profiles/default/bin/home-manager switch --flake /repo#server --impure
 
 # 6. Start processes
