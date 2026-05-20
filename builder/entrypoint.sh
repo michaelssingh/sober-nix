@@ -63,7 +63,22 @@ export NIXPKGS_ALLOW_UNFREE=1
 
 /nix/var/nix/profiles/default/bin/home-manager switch --flake /repo#server --impure
 
-# 6. Start processes
+# 6. Set default shell to fish
+echo "🐚 Setting default shell to fish..."
+FISH_PATH="/root/.nix-profile/bin/fish"
+if [ -x "$FISH_PATH" ]; then
+    if ! grep -q "$FISH_PATH" /etc/shells; then
+        echo "$FISH_PATH" >> /etc/shells
+    fi
+    # Use usermod if available, otherwise fallback to editing /etc/passwd directly
+    if command -v usermod >/dev/null; then
+        usermod -s "$FISH_PATH" root
+    else
+        sed -i "s|^root:x:0:0:root:/root:/bin/bash|root:x:0:0:root:/root:$FISH_PATH|" /etc/passwd
+    fi
+fi
+
+# 7. Start processes
 echo "📡 Starting SSHD on port 2222 (mapped to 22)..."
 /usr/sbin/sshd -e &
 
