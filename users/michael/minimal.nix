@@ -10,6 +10,8 @@
     ../../modules/home/core/tmux.nix
   ];
 
+  nixpkgs.config.allowUnfree = true;
+
   programs.git = {
     enable = true;
 
