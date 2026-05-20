@@ -17,11 +17,19 @@
       set -g renumber-windows on
       set -g set-clipboard on
 
+      # Ensure mouse events are passed to applications
+      set -g mouse on
+
+      # OSC 8 Passthrough & Hyperlink Support
+      set -as terminal-features ",foot:hyperlinks"
+      set -as terminal-overrides ",foot:HLS=\E]8;%p1%s;%p2%s\E\\"
+      set -g default-terminal "foot"
+
       # Status bar - simple, clean, Tokyonight inspired
       set -g status-style "bg=#1a1b26,fg=#c0caf5"
       set -g status-left " #S "
       set -g status-right " %H:%M "
-      
+
       set -g window-status-current-style "bg=#7aa2f7,fg=#1a1b26"
       set -g window-status-current-format " #I:#W "
       set -g window-status-format " #I:#W "
