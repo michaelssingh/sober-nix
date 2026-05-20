@@ -38,10 +38,9 @@ in
     # 2. Provision network
     ${pkgs.soju}/bin/sojuctl -config ${config.home.homeDirectory}/.config/soju/config user run init network create -addr irc.libera.chat -name libera 2>&1 | grep -v "already exists" || true
 
-    # 3. Ensure Authentication and CertFP are configured
+    # 3. Ensure Authentication is configured
     # We update these every time to ensure they match the declarative config
     ${pkgs.soju}/bin/sojuctl -config ${config.home.homeDirectory}/.config/soju/config user run init network update -name libera -user "init" -pass "dT4d8y3Tz*kavNrmue4YzDsX3^VdU%9UA%8U" -sasl plain || true
-    ${pkgs.soju}/bin/sojuctl -config ${config.home.homeDirectory}/.config/soju/config user run init certfp generate libera 2>&1 | grep -v "already exists" || true
 
     # Stop temporary soju if we started it
     if [ "$started_soju" = true ]; then
