@@ -23,7 +23,7 @@ RUN . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh && \
 
 # 5. Add Repository and Entrypoint Script
 COPY . /repo
-COPY entrypoint.sh /entrypoint.sh
+COPY builder/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
 EXPOSE 2222
