@@ -32,17 +32,21 @@ in
       done
     fi
 
-    # 1. Provision user
-    ${pkgs.soju}/bin/sojuctl -config ${config.home.homeDirectory}/.config/soju/config user create -username init -password "pineapple" || true
+    # 1. Provision user (only if missing)
+    if ! ${pkgs.soju}/bin/sojuctl -config ${config.home.homeDirectory}/.config/soju/config user list | grep -q "^init$"; then
+      echo "👤 Creating bouncer user 'init'..."
+      ${pkgs.soju}/bin/sojuctl -config ${config.home.homeDirectory}/.config/soju/config user create -username init -password "pineapple"
+    fi
 
-    # 2. Provision network (Basic setup)
-    ${pkgs.soju}/bin/sojuctl -config ${config.home.homeDirectory}/.config/soju/config user run init network create -addr irc.libera.chat -name libera || true
+    # 2. Provision network (only if missing)
+    if ! ${pkgs.soju}/bin/sojuctl -config ${config.home.homeDirectory}/.config/soju/config user run init network list | grep -q " libera$"; then
+      echo "🌐 Adding 'libera' network..."
+      ${pkgs.soju}/bin/sojuctl -config ${config.home.homeDirectory}/.config/soju/config user run init network create -addr irc.libera.chat -name libera
+    fi
 
-    # 3. Configure Authentication on Libera
-    # Use SASL PLAIN with provided credentials
-    ${pkgs.soju}/bin/sojuctl -config ${config.home.homeDirectory}/.config/soju/config user run init network update -name libera -user "init" -pass "dT4d8y3Tz*kavNrmue4YzDsX3^VdU%9UA%8U" -sasl plain || true
-    
-    # Still generate CertFP for future use if desired
+    # 3. Ensure Authentication and CertFP are configured
+    # We update these every time to ensure they match the declarative config
+    ${pkgs.soju}/bin/sojuctl -config ${config.home.homeDirectory}/.config/soju/config user run init network update -name libera -user "init" -pass "dT4d8y3Tz*kavNrmue4YzDsX3^VdU%9UA%8U" -sasl plain
     ${pkgs.soju}/bin/sojuctl -config ${config.home.homeDirectory}/.config/soju/config user run init certfp generate -network libera || true
 
     # Stop temporary soju if we started it
