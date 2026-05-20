@@ -151,11 +151,58 @@ require('nvim-treesitter.configs').setup({
   },
 })
 
--- 5. LSP Setup
+-- 5. LSP & Autocompletion Setup
 local lspconfig = require('lspconfig')
+local cmp = require('cmp')
+local luasnip = require('luasnip')
+
+-- Add capabilities for nvim-cmp
+local capabilities = require('cmp_nvim_lsp').default_capabilities()
+
+-- Autocompletion Setup
+cmp.setup({
+  snippet = {
+    expand = function(args)
+      luasnip.lsp_expand(args.body)
+    end,
+  },
+  mapping = cmp.mapping.preset.insert({
+    ['<C-b>'] = cmp.mapping.scroll_docs(-4),
+    ['<C-f>'] = cmp.mapping.scroll_docs(4),
+    ['<C-Space>'] = cmp.mapping.complete(),
+    ['<C-e>'] = cmp.mapping.abort(),
+    ['<CR>'] = cmp.mapping.confirm({ select = true }), -- Accept currently selected item. Set `select` to `false` to only confirm explicitly selected items.
+    ['<Tab>'] = cmp.mapping(function(fallback)
+      if cmp.visible() then
+        cmp.select_next_item()
+      elseif luasnip.expand_or_jumpable() then
+        luasnip.expand_or_jump()
+      else
+        fallback()
+      end
+    end, { 'i', 's' }),
+    ['<S-Tab>'] = cmp.mapping(function(fallback)
+      if cmp.visible() then
+        cmp.select_prev_item()
+      elseif luasnip.jumpable(-1) then
+        luasnip.jump(-1)
+      else
+        fallback()
+      end
+    end, { 'i', 's' }),
+  }),
+  sources = cmp.config.sources({
+    { name = 'nvim_lsp' },
+    { name = 'luasnip' },
+  }, {
+    { name = 'buffer' },
+    { name = 'path' },
+  })
+})
 
 -- Go Setup (Added for SOBER VPN Manager)
 lspconfig.gopls.setup({
+  capabilities = capabilities,
   settings = {
     gopls = {
       analyses = {
@@ -167,8 +214,19 @@ lspconfig.gopls.setup({
   },
 })
 
+-- Rust Setup
+lspconfig.rust_analyzer.setup({
+  capabilities = capabilities,
+})
+
+-- C/C++ Setup
+lspconfig.clangd.setup({
+  capabilities = capabilities,
+})
+
 -- Clean Lua Setup
 lspconfig.lua_ls.setup({
+  capabilities = capabilities,
   settings = {
     Lua = {
       runtime = { version = 'LuaJIT' },
@@ -184,6 +242,7 @@ lspconfig.lua_ls.setup({
 
 -- Clean Nix Setup
 lspconfig.nixd.setup({
+  capabilities = capabilities,
   settings = {
     nixd = {
       formatting = { command = { "nixfmt" } },
@@ -206,7 +265,23 @@ for type, icon in pairs(signs) do
   vim.fn.sign_define(hl, { text = icon, texthl = hl, numhl = hl })
 end
 
--- 7. Keybindings
+-- 7. Keybindings & Plugin Extensions
+-- Telescope Setup
+require('telescope').setup({
+  extensions = {
+    fzf = {
+      fuzzy = true,
+      override_generic_sorter = true,
+      override_file_sorter = true,
+      case_mode = "smart_case",
+    }
+  }
+})
+require('telescope').load_extension('fzf')
+
+-- Gemini Setup
+require('gemini').setup({})
+
 local builtin = require('telescope.builtin')
 vim.keymap.set('n', '<leader>ff', builtin.find_files, { desc = "Find Files" })
 vim.keymap.set('n', '<leader>fg', builtin.live_grep, { desc = "Live Grep" })
@@ -240,7 +315,7 @@ end, { desc = "Reload Config + LSP" })
 vim.keymap.set("n", "<leader>rs", ":LspRestart<CR>", { desc = "Restart LSP" })
 -- 8. Autocommands (Auto-format)
 vim.api.nvim_create_autocmd("BufWritePre", {
-  pattern = { "*.nix", "*.lua", "*.css", "*.go" },
+  pattern = { "*.nix", "*.lua", "*.css", "*.go", "*.rs", "*.c", "*.h" },
   callback = function()
     vim.lsp.buf.format()
   end,
