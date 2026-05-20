@@ -51,10 +51,6 @@ EOF
 # Wait for daemon
 sleep 2
 
-# Cleanup old generations to free space
-echo "🧹 Cleaning up Nix store to free space..."
-/nix/var/nix/profiles/default/bin/nix-collect-garbage -d || true
-
 # 5. Activate Home Manager configuration
 echo "🏠 Activating Home Manager configuration..."
 export USER=root
