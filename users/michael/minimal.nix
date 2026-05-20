@@ -29,8 +29,6 @@
     };
   };
 
-  home.username = "michael";
-  home.homeDirectory = "/home/michael";
   home.sessionVariables = {
     FLAKE = "${config.home.homeDirectory}/git/sober-nix";
   };
