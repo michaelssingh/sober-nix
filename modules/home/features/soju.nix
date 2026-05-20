@@ -15,7 +15,7 @@
 
     # Start soju temporarily if not running
     started_soju=false
-    if ! pgrep -x soju > /dev/null; then
+    if ! ${pkgs.procps}/bin/pgrep -x soju > /dev/null; then
       ${pkgs.soju}/bin/soju -config ${config.home.homeDirectory}/.config/soju/config &
       SOJU_PID=$!
       started_soju=true
@@ -28,7 +28,7 @@
 
     # Provision user and network
     ${pkgs.soju}/bin/sojuctl -config ${config.home.homeDirectory}/.config/soju/config user create -username init -password "pineapple" || true
-    ${pkgs.soju}/bin/sojuctl -config ${config.home.homeDirectory}/.config/soju/config user run init network create -addr irc.libera.chat -name libera -sasl external || true
+    ${pkgs.soju}/bin/sojuctl -config ${config.home.homeDirectory}/.config/soju/config user run init network create -addr irc.libera.chat -name libera || true
     ${pkgs.soju}/bin/sojuctl -config ${config.home.homeDirectory}/.config/soju/config user run init certfp generate -network libera || true
 
     # Stop temporary soju if we started it

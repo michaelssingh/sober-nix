@@ -10,6 +10,10 @@
     ../../modules/home/core/tmux.nix
   ];
 
+  home.packages = with pkgs; [
+    procps
+  ];
+
   nixpkgs.config.allowUnfree = true;
 
   programs.git = {
