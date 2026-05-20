@@ -1,6 +1,9 @@
 { pkgs, ... }:
 
 {
+  home.username = "root";
+  home.homeDirectory = "/root";
+
   imports = [
     ./minimal.nix # <--- INHERITS THE BASE
     ../../modules/home/features/soju.nix
