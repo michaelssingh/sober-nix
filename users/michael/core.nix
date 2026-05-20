@@ -1,6 +1,9 @@
 { pkgs, ... }:
 
 {
+  home.username = "michael";
+  home.homeDirectory = "/home/michael";
+
   imports = [
     ./minimal.nix
 
