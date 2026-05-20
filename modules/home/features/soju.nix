@@ -38,14 +38,12 @@ in
     # 2. Provision network (Basic setup)
     ${pkgs.soju}/bin/sojuctl -config ${config.home.homeDirectory}/.config/soju/config user run init network create -addr irc.libera.chat -name libera || true
 
-    # 3. Enable CertFP (SASL EXTERNAL)
-    # Generate the certificate for the network
-    ${pkgs.soju}/bin/sojuctl -config ${config.home.homeDirectory}/.config/soju/config user run init certfp generate -network libera || true
+    # 3. Configure Authentication on Libera
+    # Use SASL PLAIN with provided credentials
+    ${pkgs.soju}/bin/sojuctl -config ${config.home.homeDirectory}/.config/soju/config user run init network update -name libera -user "init" -pass "dT4d8y3Tz*kavNrmue4YzDsX3^VdU%9UA%8U" -sasl plain || true
     
-    # Update network to use the certificate for SASL EXTERNAL
-    # Note: 'external' is a value for the -sasl flag in recent soju versions, 
-    # but some versions might require setting it via 'network update'
-    ${pkgs.soju}/bin/sojuctl -config ${config.home.homeDirectory}/.config/soju/config user run init network update -name libera -sasl external || true
+    # Still generate CertFP for future use if desired
+    ${pkgs.soju}/bin/sojuctl -config ${config.home.homeDirectory}/.config/soju/config user run init certfp generate -network libera || true
 
     # Stop temporary soju if we started it
     if [ "$started_soju" = true ]; then
