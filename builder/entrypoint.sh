@@ -29,6 +29,11 @@ PostDown = iptables -D FORWARD -i wg-sober -j ACCEPT; iptables -t nat -D POSTROU
 [Peer]
 PublicKey = mLpRrytjze69fuDpFkxwmYmB5ZBHyJKizfos9jyKWAM=
 AllowedIPs = 10.13.13.2/32
+
+[Peer]
+# Otus Client
+PublicKey = omRwjAHUZSgObSn6tCA3UCfKRVwv63NRYGABnyKHdQA=
+AllowedIPs = 10.13.13.2/32
 EOF
 
 wg-quick up wg-sober
