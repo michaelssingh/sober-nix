@@ -18,6 +18,7 @@
     ../../modules/services/sober-vpn.nix
     ../../modules/services/fly-wireguard.nix
     ../../modules/services/vpn.nix
+    ../../modules/services/sober-vpn-client.nix
   ];
 
   home-manager.backupFileExtension = "backup";
@@ -29,6 +30,8 @@
   sober.services.fly-wireguard.enable = true;
   # Fly VPN
   sober.services.sober-vpn.enable = false;
+  # Sober VPN Client
+  sober.services.sober-vpn-client.enable = true;
   # Secure networking with a VPN
   sober.services.vpn.enable = true;
   sober.services.vpn.killswitch = false;
