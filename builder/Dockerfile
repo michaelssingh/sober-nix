@@ -1,7 +1,7 @@
 FROM fedora:latest
 
 # 1. Update base image and install necessary packages
-RUN dnf upgrade --refresh -y && dnf install -y openssh-server xz curl procps-ng sudo && dnf clean all
+RUN dnf upgrade --refresh -y && dnf install -y openssh-server xz curl procps-ng sudo wireguard-tools wireguard-go iproute iptables git && dnf clean all
 
 # 2. Install Nix using the Determinate Systems installer
 # We use the multi-user installer and tell it not to use init systems since this is a container.

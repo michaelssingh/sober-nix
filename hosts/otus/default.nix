@@ -1,6 +1,8 @@
 {
   pkgs,
+  lib,
   user,
+  inputs,
   ...
 }:
 
@@ -13,6 +15,7 @@
     ../../modules/services/greetd.nix
     ../../modules/core/perf-lowend.nix
     ../../modules/services/nix-remote-builder.nix
+    ../../modules/services/sober-vpn.nix
     ../../modules/services/fly-wireguard.nix
     ../../modules/services/vpn.nix
   ];
@@ -24,12 +27,23 @@
   sober.services.nix-remote-builder.enable = true;
   # Fly.io Private Network
   sober.services.fly-wireguard.enable = true;
-
-  # Turn on the keyboard remapper
-  sober.services.kanata.enable = true;
+  # Fly VPN
+  sober.services.sober-vpn.enable = false;
   # Secure networking with a VPN
   sober.services.vpn.enable = true;
   sober.services.vpn.killswitch = false;
+
+  # Transmission
+  services.transmission.enable = true;
+  services.transmission.package = inputs.nixpkgs-pinned.legacyPackages.${pkgs.system}.transmission_4;
+  services.transmission.settings.download-dir = "/home/michael/torrents/download";
+  services.transmission.settings.watch-dir = "/home/michael/torrents/watch";
+  services.transmission.settings.watch-dir-enabled = true;
+
+  # Turn on the keyboard remapper
+
+  sober.services.kanata.enable = true;
+
   # Low-end hardware optimizations
   sober.core.perf.lowend.enable = true;
 
@@ -76,19 +90,46 @@
   };
   programs.dconf.enable = true;
 
-  # System-wide SSH config for the Nix daemon (KISS)
-  # This fixes the port mapping and host key issues for the background builder.
+  # nixbuild.net
   programs.ssh.extraConfig = ''
     Host sober-services.internal
       Port 2222
       User root
       StrictHostKeyChecking no
       UserKnownHostsFile /dev/null
+
+    Host eu.nixbuild.net
+      PubkeyAcceptedKeyTypes ssh-ed25519
+      ServerAliveInterval 60
+      RequestTTY no
+      Compression yes
+      ControlMaster auto
+      ControlPath ~/.ssh/master-%r@%h:%p
+      ControlPersist 10m
   '';
+
+  programs.ssh.knownHosts = {
+    nixbuild = {
+      hostNames = [ "eu.nixbuild.net" ];
+      publicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPIQCZc54poJ8vqawd8TraNryQeJnvH1eLpIDgbiqymM";
+    };
+  };
+
+  nix = {
+    distributedBuilds = true;
+    buildMachines = [
+      {
+        hostName = "eu.nixbuild.net";
+        system = "x86_64-linux";
+        maxJobs = 100;
+        supportedFeatures = [ "benchmark" "big-parallel" ];
+      }
+    ];
+  };
 
   # Bridge the user's SSH agent to the Nix daemon
   # This allows the daemon to use keys loaded via 'bw-ssh-init'.
-  systemd.services.nix-daemon.serviceConfig.Environment = [ "SSH_AUTH_SOCK=/run/user/1000/ssh-agent" ];
+  systemd.services.nix-daemon.serviceConfig.Environment = [ "SSH_AUTH_SOCK=/run/user/1001/ssh-agent" ];
 
   users.users.${user} = {
     isNormalUser = true;
@@ -147,5 +188,7 @@
   };
 
   # --- System State ---
+  # Force rebuild
+  nixpkgs.config.allowUnfree = true;
   system.stateVersion = "25.11";
 }

@@ -18,3 +18,9 @@ primary_region = "iad"
   internal_port = 2222
   [[services.ports]]
     port = 22
+
+[[services]]
+  protocol = "udp"
+  internal_port = 51820
+  [[services.ports]]
+    port = 51820
