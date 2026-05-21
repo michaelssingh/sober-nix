@@ -14,7 +14,7 @@
       
       # --- Community ---
       { url = "https://news.ycombinator.com/rss"; tags = [ "tech" "community" "news" ]; }
-      { url = "https://lobste.rs/t/distributed,systems.rss"; tags = [ "tech" "distributed-systems" "community" ]; }
+      { url = "https://lobste.rs/rss"; tags = [ "tech" "distributed-systems" "community" ]; }
 
       # --- Systems / Engineering / Nix ---
       { url = "https://nixos.org/blog/announcements-rss.xml"; tags = [ "tech" "nix" ]; }

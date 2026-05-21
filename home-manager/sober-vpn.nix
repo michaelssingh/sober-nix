@@ -30,18 +30,4 @@
     address = [ "10.13.13.1/24" ];
     networkConfig.IPForward = "yes";
   };
-
-  # Handle NAT/Masquerading via nftables (modern iptables)
-  networking.nftables = {
-    enable = true;
-    ruleset = ''
-      table ip nat {
-        chain postrouting {
-          type nat hook postrouting priority srcnat;
-          policy accept;
-          oifname "eth0" masquerade
-        }
-      }
-    '';
-  };
 }
