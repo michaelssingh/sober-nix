@@ -4,16 +4,41 @@ set -e
 echo "🚀 Starting Fedora-based Nix Builder..."
 
 # 1. Setup Persistent Storage (OverlayFS for Nix)
-# We use the /nix from the image as the base, and store changes in the volume.
 mkdir -p /var/lib/nix_persist/nix_upper /var/lib/nix_persist/nix_work
 echo "📦 Mounting persistent Nix store..."
 mount -t overlay overlay -o lowerdir=/nix,upperdir=/var/lib/nix_persist/nix_upper,workdir=/var/lib/nix_persist/nix_work /nix
 
-# 2. Setup Authorized Keys for Root
+# 2. WireGuard Setup
+echo "🛡️ Configuring WireGuard..."
+sysctl -w net.ipv4.ip_forward=1
+sysctl -w net.ipv6.conf.all.forwarding=1
+mkdir -p /dev/net
+if [ ! -c /dev/net/tun ]; then
+    mknod /dev/net/tun c 10 200
+fi
+
+# Write config dynamically
+cat <<EOF > /etc/wireguard/wg-sober.conf
+[Interface]
+Address = 10.13.13.1/24
+ListenPort = 51820
+PrivateKey = 0DGVDVBobtwR3yoX290O0naF1Wswmi2pbwJmnSV9L2w=
+PostUp = iptables -A FORWARD -i wg-sober -j ACCEPT; iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
+PostDown = iptables -D FORWARD -i wg-sober -j ACCEPT; iptables -t nat -D POSTROUTING -o eth0 -j MASQUERADE
+
+[Peer]
+PublicKey = mLpRrytjze69fuDpFkxwmYmB5ZBHyJKizfos9jyKWAM=
+AllowedIPs = 10.13.13.2/32
+EOF
+
+wg-quick up wg-sober
+
+# 3. Setup Authorized Keys for Root
 mkdir -p /root/.ssh
 echo "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAPGyqlLfLc3PTAQ00M2fg4kaEnoOkmMfECNGOQo/2FI" > /root/.ssh/authorized_keys
 chmod 700 /root/.ssh
 chmod 600 /root/.ssh/authorized_keys
+
 
 # 2. Persistent SSH Host Keys
 # Fly microVMs lose files in /etc on restart. We persist keys to our volume.
