@@ -1,11 +1,6 @@
 { pkgs, ... }:
 
 {
-  # WireGuard configuration for Sober VPN Server
-  programs.wireguard = {
-    enable = true;
-  };
-
   # Using systemd-managed network-online and networking for the interface
   # We use systemd.network for a declarative approach
   systemd.network.netdevs."10-wg-sober" = {
