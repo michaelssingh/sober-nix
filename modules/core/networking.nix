@@ -46,11 +46,6 @@
     })
     (lib.mkIf config.sober.core.networking.firewall.enable {
       networking.firewall.enable = true;
-      networking.firewall.trustedInterfaces = [
-        "tailscale0"
-      ];
-
-      services.tailscale.enable = true;
 
       networking.nftables = {
         enable = true;
