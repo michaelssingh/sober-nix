@@ -1,0 +1,371 @@
+[4msenpai[24m(1)          General Commands Manual         [4msenpai[24m(1)
+
+[1mNAME[0m
+       senpai - your everyday IRC student
+
+[1mSYNOPSIS[0m
+       [1msenpai [22m[options...]
+
+[1mOPTIONS[0m
+       [1m-config [22m<path>
+           Use a different path for the configuration file.
+
+       [1m-nickname [22m<nickname>
+           Advanced.  Nick name to connect as. Overrides the
+           configuration item of the same name.
+
+       [1m-debug[0m
+           Advanced. Show all IRC messages that are received
+           from/sent to the server.
+
+       [1m-version[0m
+           Display version info.
+
+[1mDESCRIPTION[0m
+       senpai is an IRC client made for bouncers.   It  sup‐
+       ports the newest IRC extensions, such as:
+
+       •   [4mCHATHISTORY[24m,  senpai  fetches  history  from  the
+           server instead of keeping logs,
+       •   [4m@+typing[24m, senpai shows when others are  typing  a
+           message,
+       •   [4mBOUNCER[24m,  senpai connects to all your networks at
+           once automatically,
+       •   [4mSEARCH[24m,  senpai  can  search   messages   quickly
+           server-side,
+       •   [4mFILEHOST[24m, senpai can upload files to the bouncer,
+       •   and more to come!
+
+[1mCONFIGURATION[0m
+       senpai searches for it in the following location:
+
+           $XDG_CONFIG_HOME/senpai/senpai.scfg
+
+       If  unset,  $XDG_CONFIG_HOME defaults to [1m~/.config [22mor
+       the platform's equivalent
+
+       For information about the configuration  format,  see
+       [1msenpai[22m(5).
+
+       If the configuration file does not exist, a setup as‐
+       sistant will create one for you.
+
+[1mUSER INTERFACE[0m
+       The  user  interface  of  senpai  consists of several
+       parts.
+
+       On the left, the [1mbuffer list[22m, shows joined  channels.
+       The  special  buffer [1mhome [22mis where server notices are
+       shown. The list can be  put  on  the  bottom  of  the
+       screen  with  a  configuration option. Buffers can be
+       closed with the mouse middle click, or the [4mpart[24m  com‐
+       mand.
+
+       On  the  right, the [1mmember list[22m, shows members joined
+       to the current channel.
+
+       On the bottom, the [1minput field [22mis where you  type  in
+       messages  or  commands  (see  [1mCOMMANDS[22m).  By default,
+       when you type a message, senpai will inform others in
+       the channel that you are typing.
+
+       On the row above, the [1mstatus line [22m(or... just a  line
+       if  nothing  is happening...) is where typing indica‐
+       tors are shown (e.g. "dan- is typing...").
+
+       Finally, the message [1mtimeline  [22mis  displayed  on  the
+       rest of the screen.
+
+       senpai supports the mouse almost everywhere (clicking
+       on  nicks,  buffers, members, links; resizing panels;
+       and features "buttons"). On supported terminals,  the
+       cursor  will  turn  into a hand when over a clickable
+       element.
+
+[1mSELECTING TEXT[0m
+       In order to select text  with  a  mouse,  hold  SHIFT
+       while  clicking  and dragging the mouse. [1mClicking and[0m
+       [1mdragging without holding SHIFT will not work, as sen‐[0m
+       [1mpai eats these events for eg selecting channels.[0m
+
+[1mOPENING LINKS[0m
+       In order to open links, refer to your  terminal  man‐
+       ual.  On  most  terminals,  opening  links is done by
+       holding CTRL, or SHIFT, while clicking the  link.  On
+       the  [1mfoot  [22mterminal,  links can be opened by pressing
+       CTRL+SHIFT+O.
+
+       A simple left click with no modifiers will make  sen‐
+       pai  try to preview the link, or open it. In order to
+       skip the preview, open the link with a  modifier,  as
+       specified above, instead of an unmodified left click.
+
+[1mKEYBOARD SHORTCUTS[0m
+       [1mCTRL-A[0m
+           Move  the  cursor  to  the beginning of the input
+           field.
+
+       [1mCTRL-E[0m
+           Move the cursor to the end of the input field.
+
+       [1mCTRL-C[0m
+           Clear input line, or prepare for exit  by  adding
+           /exit to input line.
+
+       [1mCTRL-F[0m
+           Prepare for search: add /search to input line.
+
+       [1mCTRL-K[0m
+           Prepare  for  jumping to a buffer: add /buffer to
+           input line.
+
+       [1mCTRL-U[22m, [1mPgUp[0m
+           Go up in the timeline.
+
+       [1mCTRL-D[22m, [1mPgDown[0m
+           Go down in the timeline.
+
+       [1mCTRL-N[22m, [1mALT-RIGHT[0m
+           Go to the next buffer.
+
+       [1mCTRL-P[22m, [1mALT-LEFT[0m
+           Go to the previous buffer.
+
+       [1mSHIFT-RIGHT[0m
+           Go to the next unread buffer.
+
+       [1mSHIFT-LEFT[0m
+           Go to the previous unread buffer.
+
+       [1mALT-HOME[0m
+           Go to the first buffer.
+
+       [1mALT-END[0m
+           Go to the last buffer.
+
+       [1mALT-P[0m
+           Go to the previous highlight
+
+       [1mALT-N[0m
+           Go to the next highlight, or to the (most recent)
+           end of the timeline if there is none.
+
+       [1mALT-{1..9}[0m
+           Go to buffer by index.
+
+       [1mUP[22m, [1mDOWN[22m, [1mLEFT[22m, [1mRIGHT[22m, [1mHOME[22m, [1mEND[22m, [1mBACKSPACE[22m, [1mDELETE[0m
+           Edit the text in the input field.
+
+       [1mENTER[0m
+           Sends the contents of the input field.
+
+       [1mTAB[0m
+           Open the auto-completion dialog. Choose auto-com‐
+           pletion item with [1mUP [22mand  [1mDOWN[22m,  then  press  [1mTAB[0m
+           again to confirm.
+
+       [1mCTRL-L[0m
+           Refresh the window.
+
+       [1mF7[0m
+           Show/hide the vertical channel list.
+
+       [1mF8[0m
+           Show/hide the vertical member list.
+
+[1mCOMMANDS[0m
+       If  you  type  and  send a message that starts with a
+       slash ([1m/[22m), it will instead be interpreted as  a  com‐
+       mand:
+
+           /[4mname[24m argument1 argument2...
+
+       [4mname[24m is matched case-insensitively.  It can be one of
+       the following:
+
+       [1mHELP [22m[search]
+           Show  the  list  of  command  (or a commands that
+           match the given search terms).
+
+       [1mJOIN [22m<channel>
+           Join the given channel.
+
+       [1mPART [22m[channel] [reason]
+           Part the given channel, defaults to  the  current
+           one if omitted.
+
+       [1mQUIT [22m[reason]
+           Quits senpai.
+
+       [1mMOTD[0m
+           Show the message of the day (MOTD).
+
+       [1mNAMES[0m
+           Show  the  member  list  of  the current channel.
+           Powerlevels (such as [4m@[24m for "operator", or  [4m+[24m  for
+           "voice") are shown in green.
+
+       [1mTOPIC [22m[topic]
+           If  [4mtopic[24m  is omitted, show the topic of the cur‐
+           rent channel and, if available,  the  person  who
+           set it and the time when it has been set.
+
+           Otherwise,  change the topic of the current chan‐
+           nel to [4mtopic[24m.
+
+       [1mMUTE[0m
+           Mute the current  channel.  This  prevents  being
+           distracted from new messages on unimportant chan‐
+           nels.
+
+           This  moves the channel to the end of the server,
+           and greys its name out so that  new  messages  do
+           not change its color in the list. Highlights will
+           still send a notification.
+
+       [1mUNMUTE[0m
+           Unmute the current channel. See [1mMUTE[22m.
+
+       [1mPIN[0m
+           Pin  the  current channel. This moves the channel
+           to the start of the buffer list.
+
+       [1mUNPIN[0m
+           Unpin the current channel. See [1mPIN[22m.
+
+       [1mMSG [22m<target> <content>
+           Send [4mcontent[24m to [4mtarget[24m.
+
+       [1mREPLY [22m<content>
+           Reply to the last person who sent a private  mes‐
+           sage.
+
+       [1mME [22m<content>
+           Send  a  message  prefixed with your nick (a user
+           action). If sent from home,  reply  to  the  last
+           person who sent a private message.
+
+       [1mNP[0m
+           Send the current song that is being played on the
+           system. Uses DBus/MPRIS internally.
+
+       [1mUPLOAD [22m<file path>
+           Upload a local file to the bouncer.
+
+       [1mQUOTE [22m<raw message>
+           Send [4mraw[24m [4mmessage[24m verbatim.
+
+       [1mLIST [22m[pattern]
+           List  public  channels,  optionally  matching the
+           specified pattern.
+
+       [1mBUFFER [22m<index|name>
+           Switch to the buffer at the  [4mindex[24m  position,  or
+           containing [4mname[24m. The buffer list will be filtered
+           according  to  the passed name; entering the com‐
+           mand will select the first buffer in the list.
+
+       [1mWHOIS [22m<nickname>
+           Get information about someone who is connected.
+
+       [1mWHOWAS [22m<nickname>
+           Get information  about  someone  who  is  discon‐
+           nected.
+
+       [1mNICK [22m<nickname>
+           Change your nickname.
+
+       [1mOPER [22m<username> <password>
+           Log in to an operator account.
+
+       [1mMODE [22m<nick/channel> <flags> [args]
+           Change channel or user modes.
+
+       [1mINVITE [22m<nick> [channel]
+           Invite  [4mnick[24m  to  [4mchannel[24m (the current channel if
+           not given).
+
+       [1mKICK [22m<nick> [channel] [message]
+           Eject [4mnick[24m from [4mchannel[24m (the current  channel  if
+           not given) with an optional kick message/reason.
+
+       [1mBAN [22m<nick> [channel]
+           Ban [4mnick[24m from entering [4mchannel[24m (the current chan‐
+           nel if not given).
+
+       [1mUNBAN [22m<nick> [channel]
+           Allow  [4mnick[24m  to  enter [4mchannel[24m again (the current
+           channel if not given).
+
+       [1mSEARCH [22m<text>
+           Search messages matching the given text,  in  the
+           current channel or server. This opens a temporary
+           list, which can be closed with the escape key.
+
+       [1mAWAY [22m[message]
+           Mark yourself as away, with an optional away mes‐
+           sage.
+
+       [1mBACK[0m
+           Mark yourself as back from being away.
+
+       [1mVERSION [22m[target]
+           Query the server software version.
+
+       [1mADMIN [22m[target]
+           Query the server administrative information.
+
+       [1mLUSERS[0m
+           Query the server user information.
+
+       [1mTIME [22m[target]
+           Query the server local time.
+
+       [1mINFO[0m
+           Query server information.
+
+       [1mLINKS[0m
+           Query the servers of the network.
+
+       [1mSHRUG[0m
+           Send  a  shrug  emoji  to  the  current  channel.
+           ¯\_(ツ)_/¯
+
+       [1mTABLEFLIP[0m
+           Send a table flip emoji to the  current  channel.
+           (╯°□°)╯︵ ┻━┻
+
+       [1mSTATS [22m<query> [target]
+           Query server statistics (advanced).
+
+       [1mCONNECT [22m<target server> [<port> [remote server]]
+           Connect a server to the network (advanced).
+
+       [1mSQUIT [22m<server> [comment]
+           Disconnects a server from the network (advanced).
+
+       [1mKILL [22m<nick> [message]
+           Eject someone from the server (advanced).
+
+       [1mREHASH[0m
+           Make  the  server  reload  its configuration (ad‐
+           vanced).
+
+       [1mRESTART[0m
+           Make the server restart (advanced).
+
+       [1mWALLOPS [22m[text]
+           Broadcast a message to all users (advanced).
+
+[1mSEE ALSO[0m
+       [1msenpai[22m(5)
+
+[1mAUTHORS[0m
+       Creator/Sensei: Hubert Hirtz <hubert@hirtzfr.eu>!
+       Current maintainer: delthas <delthas@dille.cc>.
+       Sources          are           available           at
+       <https://git.sr.ht/~delthas/senpai>.
+       Patches  are  welcome  by  email at <~delthas/senpai-
+       dev@lists.sr.ht>.
+
+                         1980-01-01                [4msenpai[24m(1)

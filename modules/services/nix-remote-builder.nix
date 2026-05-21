@@ -34,10 +34,10 @@ in
         {
           hostName = "sober-services.internal";
           sshUser = "root";
-          system = "x86_64-linux";
+          system = config.nixpkgs.hostPlatform.system;
           protocol = "ssh-ng";
           maxJobs = 8;
-          speedFactor = 10; # Much higher than default (1) to prefer this machine
+          speedFactor = 1; # Reduced to be lower than nixbuild.net (default 1)
           supportedFeatures = [ "nixos-test" "benchmark" "big-parallel" "kvm" ];
           mandatoryFeatures = [ ];
         }

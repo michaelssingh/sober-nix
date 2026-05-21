@@ -1,4 +1,4 @@
-{ pkgs, ... }:
+{ pkgs, inputs, ... }:
 
 {
   imports = [
@@ -8,6 +8,8 @@
     ../../modules/home/desktop/sway
     ../../modules/home/desktop/firefox/firefox.nix
     ../../modules/home/core/email.nix
+    ../../modules/home/core/aerc.nix
+    ../../modules/home/core/neomutt.nix
   ];
 
   # GUI-Only Packages
@@ -15,12 +17,16 @@
     foot
     fuzzel
     zoom-us
-    (pkgs.zathura.override {
-      useMupdf = true;
-    })
+    aerc
+    neomutt
+    (inputs.nixpkgs-pinned.legacyPackages.${pkgs.system}.transmission_4)
+    stig
   ];
   programs.zathura = {
     enable = true;
+    package = pkgs.zathura.override {
+      plugins = [ pkgs.zathuraPkgs.zathura_djvu pkgs.zathuraPkgs.zathura_pdf_mupdf ];
+    };
     options = {
       # Tokyonight Storm Palette
       default-bg = "#24283b";
