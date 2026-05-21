@@ -20,6 +20,10 @@
       url = "github:pystardust/ani-cli";
       flake = false;
     };
+
+    nixpkgs-pinned = {
+      url = "github:nixos/nixpkgs/4a3fc4cf736b7d2d288d7a8bf775ac8d4c0920b4";
+    };
   };
 
   outputs =
@@ -31,15 +35,12 @@
     }@inputs:
     let
       user = "michael";
-      system = "x86_64-linux";
-      pkgs = nixpkgs.legacyPackages.${system};
+      pkgs = nixpkgs.legacyPackages."x86_64-linux";
       overlays = import ./modules/overlays { inherit inputs; };
     in
     {
       nixosConfigurations = {
         otus = nixpkgs.lib.nixosSystem {
-          inherit system;
-
           specialArgs = { inherit inputs user; };
 
           modules = [
@@ -71,8 +72,8 @@
         };
       };
       # --- The DevShell for repo maintenance ---
-      devShells.${system}.default = pkgs.mkShell {
-        name = "sober-nix-dev";
+      devShells."x86_64-linux".default = pkgs.mkShell {
+        name = "dev";
 
         nativeBuildInputs = with pkgs; [
           gh # GitHub CLI
@@ -94,10 +95,6 @@
           dig
           powertop # Power management
         ];
-
-        shellHook = ''
-          echo "❄️ SOBER Systems Development Environment Loaded"
-        '';
       };
     };
 }

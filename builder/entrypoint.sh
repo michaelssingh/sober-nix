@@ -6,12 +6,22 @@ echo "🚀 Starting Fedora-based Nix Builder..."
 # 1. Setup Persistent Storage (OverlayFS for Nix)
 # We use the /nix from the image as the base, and store changes in the volume.
 mkdir -p /var/lib/nix_persist/nix_upper /var/lib/nix_persist/nix_work
-# We must move the existing /nix content to a temporary location if the volume is empty,
-# or just overlay directly if we want to keep the image's nix as the lower layer.
 echo "📦 Mounting persistent Nix store..."
 mount -t overlay overlay -o lowerdir=/nix,upperdir=/var/lib/nix_persist/nix_upper,workdir=/var/lib/nix_persist/nix_work /nix
 
-# 2. Setup Authorized Keys for Root
+# 2. Sync Repository
+REPO_DIR="/var/lib/nix_persist/repo"
+mkdir -p $REPO_DIR
+if [ ! -d "$REPO_DIR/.git" ]; then
+    echo "⬇️ Cloning repository..."
+    git clone https://github.com/michaels-sober/sober-nix.git $REPO_DIR
+else
+    echo "🔄 Pulling latest changes..."
+    cd $REPO_DIR
+    git pull
+fi
+
+# 3. Setup Authorized Keys for Root
 mkdir -p /root/.ssh
 echo "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAPGyqlLfLc3PTAQ00M2fg4kaEnoOkmMfECNGOQo/2FI" > /root/.ssh/authorized_keys
 chmod 700 /root/.ssh
@@ -61,7 +71,7 @@ export NIXPKGS_ALLOW_UNFREE=1
 # Remove manual soju if it exists to avoid conflicts with declarative home-manager
 /nix/var/nix/profiles/default/bin/nix profile remove '.*soju.*' || true
 
-/nix/var/nix/profiles/default/bin/home-manager switch --flake /repo#server --impure
+/nix/var/nix/profiles/default/bin/home-manager switch --flake $REPO_DIR#server --impure
 
 # 6. Set default shell to fish
 echo "🐚 Setting default shell to fish..."

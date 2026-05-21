@@ -1,21 +1,22 @@
 { inputs, ... }:
 {
   # This 'additions' overlay adds new packages not in nixpkgs
-  additions = final: prev: import ./gemini.nix { inherit inputs; } final prev;
+  additions = final: prev: 
+    import ./gemini.nix { inherit inputs; } final prev;
 
   # This 'modifications' overlay changes existing packages
   modifications = final: prev: {
     # Example: pinning an existing package to a specific version
     # coreutils = prev.coreutils.override { ... };
     hydroxide = prev.hydroxide.overrideAttrs (old: rec {
-      version = "0.2.31";
+      version = "0.2.32";
       src = final.fetchFromGitHub {
         owner = "emersion";
         repo = "hydroxide";
         rev = "v${version}";
-        sha256 = "sha256-92eyt+s+kEXRuIXPRmbIQG5Mth7wJFCruqTN3wL5DhI=";
+        sha256 = "sha256-3cSJkNTD5+L3VXO5I/1xo1tp9+H4/Z/tc2f8B63lGrc=";
       };
-      vendorHash = "sha256-CjvvVFjYRlykZwEqHtuD9qc/MsHZsJtKy2G6e2N7K0M=";
+      vendorHash = "sha256-BIHvURCgqEzhl4NsVB7vBwLqMPxkM3CQgHmIcSTdOE4=";
     });
   };
 }

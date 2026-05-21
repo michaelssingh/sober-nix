@@ -7,6 +7,7 @@
   imports = [
     ./minimal.nix # <--- INHERITS THE BASE
     ../../modules/home/features/soju.nix
+    ../../home-manager/sober-vpn.nix
   ];
 
   # Server specific tools?

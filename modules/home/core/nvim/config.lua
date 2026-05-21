@@ -152,12 +152,21 @@ require('nvim-treesitter.configs').setup({
 })
 
 -- 5. LSP & Autocompletion Setup
-local lspconfig = require('lspconfig')
 local cmp = require('cmp')
 local luasnip = require('luasnip')
 
 -- Add capabilities for nvim-cmp
 local capabilities = require('cmp_nvim_lsp').default_capabilities()
+
+-- Helper to setup servers adhering to lspconfig standards
+local function setup_server(name, config)
+  local lspconfig = require('lspconfig')
+  if lspconfig[name] then
+    lspconfig[name].setup(config)
+  else
+    vim.notify("LSP server " .. name .. " is not supported by lspconfig", vim.log.levels.ERROR)
+  end
+end
 
 -- Autocompletion Setup
 cmp.setup({
@@ -201,7 +210,7 @@ cmp.setup({
 })
 
 -- Go Setup (Added for SOBER VPN Manager)
-lspconfig.gopls.setup({
+setup_server('gopls', {
   capabilities = capabilities,
   settings = {
     gopls = {
@@ -215,17 +224,17 @@ lspconfig.gopls.setup({
 })
 
 -- Rust Setup
-lspconfig.rust_analyzer.setup({
+setup_server('rust_analyzer', {
   capabilities = capabilities,
 })
 
 -- C/C++ Setup
-lspconfig.clangd.setup({
+setup_server('clangd', {
   capabilities = capabilities,
 })
 
 -- Clean Lua Setup
-lspconfig.lua_ls.setup({
+setup_server('lua_ls', {
   capabilities = capabilities,
   settings = {
     Lua = {
@@ -241,7 +250,7 @@ lspconfig.lua_ls.setup({
 })
 
 -- Clean Nix Setup
-lspconfig.nixd.setup({
+setup_server('nixd', {
   capabilities = capabilities,
   settings = {
     nixd = {
@@ -278,9 +287,6 @@ require('telescope').setup({
   }
 })
 require('telescope').load_extension('fzf')
-
--- Gemini Setup
-require('gemini').setup({})
 
 local builtin = require('telescope.builtin')
 vim.keymap.set('n', '<leader>ff', builtin.find_files, { desc = "Find Files" })
@@ -321,7 +327,7 @@ vim.api.nvim_create_autocmd("BufWritePre", {
   end,
 })
 -- Fast Saving
-vim.keymap.set("n", "<leader>w", ":w<CR>", { desc = "Save File" })
+vim.keymap.set("n", "<leader>w", "<CMD>w<CR>", { desc = "Save File" })
 
 -- Fast Quitting
 vim.keymap.set("n", "<leader>q", ":q<CR>", { desc = "Exit editor" })
@@ -345,6 +351,3 @@ end, { desc = "Add Empty Line Above" })
 vim.keymap.set("n", "<leader>p", ":pu<CR>", { desc = "Paste Below (Force Line)" })
 -- <leader>P = Paste on a new line ABOVE
 vim.keymap.set("n", "<leader>P", ":pu!<CR>", { desc = "Paste Above (Force Line)" })
--- Gemini CLI Toggle
-vim.keymap.set('n', '<leader>ag', '<cmd>Gemini toggle<cr>', { desc = "Toggle Gemini Agent" })
-vim.keymap.set('v', '<leader>aq', '<cmd>Gemini ask<cr>', { desc = "Ask Gemini [Query]" })

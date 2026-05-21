@@ -38,6 +38,17 @@
       os = ''
         nh os switch $argv /home/michael/git/sober-nix
       '';
+
+      bw-ssh-init = ''
+        if not set -q BW_SESSION
+          set -gx BW_SESSION (bw unlock --raw)
+        end
+        if test (count $argv) -eq 0
+          echo "Usage: bw-ssh-init <item-name>"
+          return 1
+        end
+        bw get item "$argv[1]" --raw | jq -r .sshKey.privateKey | ssh-add -
+      '';
     };
     shellAliases = {
       # Replace standard ls with eza
@@ -70,7 +81,7 @@
     enableFishIntegration = true;
     settings = {
       add_newline = false;
-      format = "$directory$character";
+      format = "$directory\n$character";
       right_format = "$all";
       palette = "tokyonight";
 
@@ -86,6 +97,11 @@
       directory = {
         style = "blue";
         read_only = " 🔒";
+      };
+
+      character = {
+        success_symbol = "[λ](green)";
+        error_symbol = "[λ](red)";
       };
 
       # The "Owl" Identity for Nix Shells ❄️
