@@ -254,6 +254,17 @@ setup_server('nixd', {
   capabilities = capabilities,
   settings = {
     nixd = {
+      nixpkgs = {
+        expr = "import <nixpkgs> { }",
+      },
+      options = {
+        nixos = {
+          expr = '(builtins.getFlake "${workspaceFolder}").nixosConfigurations.otus.options',
+        },
+        home_manager = {
+          expr = '(builtins.getFlake "${workspaceFolder}").homeConfigurations.server.options',
+        },
+      },
       formatting = { command = { "nixfmt" } },
     },
   },

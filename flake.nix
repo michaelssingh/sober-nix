@@ -24,6 +24,10 @@
     nixpkgs-pinned = {
       url = "github:nixos/nixpkgs/4a3fc4cf736b7d2d288d7a8bf775ac8d4c0920b4";
     };
+
+    sops-nix = {
+      url = "github:Mic92/sops-nix";
+    };
   };
 
   outputs =
@@ -31,6 +35,7 @@
       self,
       nixpkgs,
       home-manager,
+      sops-nix,
       ...
     }@inputs:
     let
@@ -44,6 +49,7 @@
           specialArgs = { inherit inputs user; };
 
           modules = [
+            sops-nix.nixosModules.sops
             ./hosts/otus/hardware-configuration.nix
             ./hosts/otus/default.nix
 
@@ -94,6 +100,8 @@
           jq # JSON processing
           dig
           powertop # Power management
+          sops
+          age
         ];
       };
     };

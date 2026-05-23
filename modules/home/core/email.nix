@@ -1,11 +1,13 @@
-{ pkgs, ... }:
+{ pkgs, config, ... }:
 {
+  sops.secrets.protonmail_bridge_password = {};
+
   accounts.email.accounts.protonmail = {
     primary = true;
     address = "michaelssingh@protonmail.com";
     userName = "michaelssingh@protonmail.com";
     realName = "Michael S. Singh";
-    passwordCommand = "echo '794P+znPzfkl3fu4N1OleY1ojcziCH88or0tgz46v6w='";
+    passwordCommand = "cat ${config.sops.secrets.protonmail_bridge_password.path}";
     
     imap = {
       host = "127.0.0.1";

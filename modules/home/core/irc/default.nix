@@ -1,12 +1,14 @@
 { config, lib, pkgs, ... }:
 
 {
+  sops.secrets.soju_password = {};
+
   xdg.configFile."senpai/senpai.scfg".text = ''
     address irc+insecure://sober-services.internal:6697
     nickname init
     realname michael
     username init
-    password "pineapple"
+    password-cmd "cat ${config.sops.secrets.soju_password.path}"
 
     pane-widths {
         nicknames 10

@@ -9,6 +9,9 @@ echo "📦 Mounting persistent Nix store..."
 mount -t overlay overlay -o lowerdir=/nix,upperdir=/var/lib/nix_persist/nix_upper,workdir=/var/lib/nix_persist/nix_work /nix
 
 # 2. WireGuard Setup
+echo "🛡️ Cleaning up existing WireGuard state..."
+ip link del wg-sober > /dev/null 2>&1 || true
+
 echo "🛡️ Configuring WireGuard..."
 sysctl -w net.ipv4.ip_forward=1
 sysctl -w net.ipv6.conf.all.forwarding=1
@@ -22,9 +25,10 @@ cat <<EOF > /etc/wireguard/wg-sober.conf
 [Interface]
 Address = 10.13.13.1/24
 ListenPort = 51820
-PrivateKey = 0DGVDVBobtwR3yoX290O0naF1Wswmi2pbwJmnSV9L2w=
-PostUp = iptables -A FORWARD -i wg-sober -j ACCEPT; iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
-PostDown = iptables -D FORWARD -i wg-sober -j ACCEPT; iptables -t nat -D POSTROUTING -o eth0 -j MASQUERADE
+MTU = 1280
+PrivateKey = ${WG_PRIVATE_KEY}
+PostUp = iptables -A FORWARD -i wg-sober -j ACCEPT; iptables -A FORWARD -o wg-sober -m state --state RELATED,ESTABLISHED -j ACCEPT; iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
+PostDown = iptables -D FORWARD -i wg-sober -j ACCEPT; iptables -D FORWARD -o wg-sober -m state --state RELATED,ESTABLISHED -j ACCEPT; iptables -t nat -D POSTROUTING -o eth0 -j MASQUERADE
 
 [Peer]
 PublicKey = mLpRrytjze69fuDpFkxwmYmB5ZBHyJKizfos9jyKWAM=
@@ -32,7 +36,7 @@ AllowedIPs = 10.13.13.2/32
 
 [Peer]
 # Otus Client
-PublicKey = omRwjAHUZSgObSn6tCA3UCfKRVwv63NRYGABnyKHdQA=
+PublicKey = 23wz66STtDjKTiL9ipLykJy7ElCVkRGR/4js7pm7MzM=
 AllowedIPs = 10.13.13.2/32
 EOF
 
@@ -40,7 +44,7 @@ wg-quick up wg-sober
 
 # 3. Setup Authorized Keys for Root
 mkdir -p /root/.ssh
-echo "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAPGyqlLfLc3PTAQ00M2fg4kaEnoOkmMfECNGOQo/2FI" > /root/.ssh/authorized_keys
+echo "${ROOT_AUTHORIZED_KEYS}" > /root/.ssh/authorized_keys
 chmod 700 /root/.ssh
 chmod 600 /root/.ssh/authorized_keys
 
@@ -90,6 +94,11 @@ export NIXPKGS_ALLOW_UNFREE=1
 /nix/var/nix/profiles/default/bin/nix profile remove '.*soju.*' || true
 
 /nix/var/nix/profiles/default/bin/home-manager switch --flake /repo#server --impure
+
+# Soju configuration update (post-provisioning)
+echo "💬 Configuring Soju secrets..."
+/nix/var/nix/profiles/default/bin/sojuctl -config /root/.config/soju/config user create -username init -password "$SOJU_PASSWORD" 2>&1 | grep -v "already exists" || true
+/nix/var/nix/profiles/default/bin/sojuctl -config /root/.config/soju/config user run init network update -name libera -username "init" -pass "$SOJU_NETWORK_PASS" -sasl plain || true
 
 # Enable NAT/Masquerading
 echo "🛡️ Enabling NAT/Masquerading..."
