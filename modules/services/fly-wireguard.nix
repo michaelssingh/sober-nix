@@ -19,15 +19,18 @@ in
     # 0. Trust the Fly interface in the firewall
     networking.firewall.trustedInterfaces = [ cfg.interface ];
 
+    sops.secrets.fly_wireguard_private_key = {
+      sopsFile = ../../secrets/secrets.yaml;
+    };
+
     # 1. WireGuard Configuration
     networking.wg-quick.interfaces."${cfg.interface}" = {
       autostart = true;
       # Address assigned by Fly.io
-      address = [ "fdaa:3:7a15:a7b:8cfe:2709:e7f0:ff02/120" ];
+      address = [ "fdaa:3:7a15:a7b:8cfe:5277:7317:d402/120" ];
       dns = [ "fdaa:3:7a15::3" ];
       
-      # Hardcoded for now per user request
-      privateKey = "***REDACTED***=";
+      privateKeyFile = config.sops.secrets.fly_wireguard_private_key.path;
 
       peers = [
         {

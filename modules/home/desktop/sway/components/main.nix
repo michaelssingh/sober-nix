@@ -92,6 +92,7 @@ in
           "${modifier}+d" = "exec fuzzel";
           "${modifier}+b" = "exec firefox";
           "${modifier}+Shift+s" = "exec grimshot copy area";
+          "${modifier}+l" = "exec swaylock -f --screenshots --clock --indicator --indicator-radius 100 --indicator-thickness 7 --effect-blur 7x5 --effect-vignette 0.5:0.5 --ring-color bb9af7 --key-hl-color 9ece6a";
           "Print" = "exec grimshot copy active";
           "${modifier}+minus" = "scratchpad show";
           "${modifier}+Shift+minus" = "move scratchpad";
@@ -102,6 +103,7 @@ in
       bars = [ { command = "${pkgs.waybar}/bin/waybar"; } ];
       startup = [
         { command = "swaymsg workspace number 1"; }
+        { command = "${pkgs.swayidle}/bin/swayidle -w timeout 300 'swaylock -f --screenshots --clock --indicator --indicator-radius 100 --indicator-thickness 7 --effect-blur 7x5 --effect-vignette 0.5:0.5 --ring-color bb9af7 --key-hl-color 9ece6a' before-sleep 'swaylock -f --screenshots --clock --indicator --indicator-radius 100 --indicator-thickness 7 --effect-blur 7x5 --effect-vignette 0.5:0.5 --ring-color bb9af7 --key-hl-color 9ece6a'"; }
       ];
     };
 

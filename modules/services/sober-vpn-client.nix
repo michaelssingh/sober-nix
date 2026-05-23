@@ -5,35 +5,48 @@
   ...
 }:
 
+let
+  cfg = config.sober.services.sober-vpn-client;
+in
 {
   options = {
     sober.services.sober-vpn-client = {
       enable = lib.mkEnableOption "Sober VPN Client";
+      interface = lib.mkOption {
+        type = lib.types.str;
+        default = "wg-sober";
+        description = "Name of the Sober VPN interface.";
+      };
     };
   };
 
-  config = lib.mkIf config.sober.services.sober-vpn-client.enable {
-    networking.firewall.trustedInterfaces = [ "wg-sober" ];
+  config = lib.mkIf cfg.enable {
+    networking.firewall.trustedInterfaces = [ cfg.interface ];
     networking.firewall.checkReversePath = "loose";
 
-    networking.wg-quick.interfaces.wg-sober = {
-      autostart = true;
-      configFile = "${pkgs.writeText "wg-sober-client.conf" ''
-        [Interface]
-        Address = 10.13.13.2/32
-        PrivateKey = ***REDACTED***=
-        DNS = 1.1.1.1
+    sops.secrets.sober_vpn_private_key = {
+      sopsFile = ../../secrets/secrets.yaml;
+    };
 
-        [Peer]
-        PublicKey = hTv/+XOD816hekBrLAFwHpwGIpO/QloV3rMOEXKobwc=
-        Endpoint = 137.66.4.172:51820
-        AllowedIPs = 0.0.0.0/0
-        PersistentKeepalive = 25
-      ''}";
+    networking.wg-quick.interfaces."${cfg.interface}" = {
+      autostart = true;
+      address = [ "10.13.13.2/32" ];
+      privateKeyFile = config.sops.secrets.sober_vpn_private_key.path;
+      mtu = 1280;
+
+      peers = [
+        {
+          publicKey = "BgF0yad/27+0o74CldVXUWtkS+h4VsT1nAPEkKD3VHo=";
+          allowedIPs = [ "0.0.0.0/0" ];
+          endpoint = "137.66.4.172:51820";
+          persistentKeepalive = 25;
+        }
+      ];
+
       postUp = ''
-        ${pkgs.systemd}/bin/resolvectl dns wg-sober 1.1.1.1
-        ${pkgs.systemd}/bin/resolvectl domain wg-sober "~."
-        ${pkgs.systemd}/bin/resolvectl dnsovertls wg-sober no
+        ${pkgs.systemd}/bin/resolvectl dns ${cfg.interface} 1.1.1.1
+        ${pkgs.systemd}/bin/resolvectl dnssec ${cfg.interface} no
+        ${pkgs.systemd}/bin/resolvectl dnsovertls ${cfg.interface} no
       '';
     };
   };
