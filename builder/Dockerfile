@@ -22,8 +22,12 @@ RUN . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh && \
     nix profile install nixpkgs#home-manager
 
 # 5. Add Repository and Entrypoint Script
-COPY . /repo
-COPY builder/entrypoint.sh /entrypoint.sh
+COPY flake.nix flake.lock /repo/
+COPY modules/ /repo/modules/
+COPY users/ /repo/users/
+COPY hosts/ /repo/hosts/
+COPY home-manager/ /repo/home-manager/
+COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
 EXPOSE 2222
