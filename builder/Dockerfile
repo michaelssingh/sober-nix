@@ -27,7 +27,7 @@ COPY modules/ /repo/modules/
 COPY users/ /repo/users/
 COPY hosts/ /repo/hosts/
 COPY home-manager/ /repo/home-manager/
-COPY entrypoint.sh /entrypoint.sh
+COPY builder/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
 EXPOSE 2222
