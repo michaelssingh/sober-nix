@@ -2,6 +2,7 @@
 
 {
   imports = [
+    inputs.sops-nix.homeManagerModules.sops
     ./core.nix
 
     # Workstation only modules
@@ -12,6 +13,10 @@
     ../../modules/home/core/neomutt.nix
   ];
 
+  # Sops-Nix Key Source for Home-Manager
+  sops.age.keyFile = "/home/michael/.config/sops/age/keys.txt";
+  sops.defaultSopsFile = ../../secrets/secrets.yaml;
+
   # GUI-Only Packages
   home.packages = with pkgs; [
     foot
@@ -19,6 +24,8 @@
     zoom-us
     aerc
     neomutt
+    swaylock
+    swayidle
     (inputs.nixpkgs-pinned.legacyPackages.${pkgs.system}.transmission_4)
     stig
   ];

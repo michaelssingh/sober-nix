@@ -15,9 +15,7 @@
     ../../modules/services/greetd.nix
     ../../modules/core/perf-lowend.nix
     ../../modules/services/nix-remote-builder.nix
-    ../../modules/services/sober-vpn.nix
     ../../modules/services/fly-wireguard.nix
-    ../../modules/services/vpn.nix
     ../../modules/services/sober-vpn-client.nix
   ];
 
@@ -25,16 +23,7 @@
 
   # --- ENABLE FEATURES ---
   # Remote Nix Builders
-  sober.services.nix-remote-builder.enable = true;
-  # Fly.io Private Network
-  sober.services.fly-wireguard.enable = true;
-  # Fly VPN
-  sober.services.sober-vpn.enable = false;
-  # Sober VPN Client
-  sober.services.sober-vpn-client.enable = true;
-  # Secure networking with a VPN
-  sober.services.vpn.enable = true;
-  sober.services.vpn.killswitch = false;
+  sober.services.nix-remote-builder.enable = false;
 
   # Transmission
   services.transmission.enable = true;
@@ -44,7 +33,6 @@
   services.transmission.settings.watch-dir-enabled = true;
 
   # Turn on the keyboard remapper
-
   sober.services.kanata.enable = true;
 
   # Low-end hardware optimizations
@@ -58,6 +46,8 @@
   sober.core.networking.mac-rotation.enable = true;
   sober.core.networking.secure-dns.enable = true;
   sober.core.networking.firewall.enable = true;
+  sober.services.fly-wireguard.enable = true;
+  sober.services.sober-vpn-client.enable = true;
 
   programs.nh = {
     enable = true;
@@ -96,6 +86,7 @@
   # nixbuild.net
   programs.ssh.extraConfig = ''
     Host sober-services.internal
+      HostName fdaa:3:7a15:a7b:572:11c:754f:2
       Port 2222
       User root
       StrictHostKeyChecking no
@@ -107,7 +98,7 @@
       RequestTTY no
       Compression yes
       ControlMaster auto
-      ControlPath ~/.ssh/master-%r@%h:%p
+      ControlPath /tmp/ssh-%r@%h:%p
       ControlPersist 10m
   '';
 
@@ -116,23 +107,40 @@
       hostNames = [ "eu.nixbuild.net" ];
       publicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPIQCZc54poJ8vqawd8TraNryQeJnvH1eLpIDgbiqymM";
     };
+    sober-services = {
+      hostNames = [ "[fdaa:3:7a15:a7b:572:11c:754f:2]:2222" "sober-services.internal" ];
+      publicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMxyjPsJjJr7uGC9LRQkU9vixOZML0zLMb0KQH24NGl1";
+    };
   };
 
   nix = {
     distributedBuilds = true;
     buildMachines = [
       {
+        hostName = "sober-services.internal";
+        system = "x86_64-linux";
+        maxJobs = 8;
+        speedFactor = 2;
+        supportedFeatures = [ "benchmark" "big-parallel" ];
+      }
+      {
         hostName = "eu.nixbuild.net";
         system = "x86_64-linux";
         maxJobs = 100;
-        supportedFeatures = [ "benchmark" "big-parallel" ];
+        speedFactor = 1;
+        supportedFeatures = [
+          "benchmark"
+          "big-parallel"
+        ];
       }
     ];
   };
 
   # Bridge the user's SSH agent to the Nix daemon
   # This allows the daemon to use keys loaded via 'bw-ssh-init'.
-  systemd.services.nix-daemon.serviceConfig.Environment = [ "SSH_AUTH_SOCK=/run/user/1001/ssh-agent" ];
+  systemd.services.nix-daemon.serviceConfig.Environment = [
+    "SSH_AUTH_SOCK=/run/user/1001/ssh-agent"
+  ];
 
   users.users.${user} = {
     isNormalUser = true;
@@ -190,8 +198,17 @@
     };
   };
 
+  # --- Sops-Nix Configuration ---
+  sops.defaultSopsFile = ../../secrets/secrets.yaml;
+  sops.age.keyFile = "/home/michael/.config/sops/age/keys.txt";
+
   # --- System State ---
   # Force rebuild
   nixpkgs.config.allowUnfree = true;
   system.stateVersion = "25.11";
+
+  # Remember password forever until session ends
+  security.sudo.extraConfig = ''
+    Defaults timestamp_timeout=-1
+  '';
 }

@@ -37,6 +37,31 @@
       # Pane borders
       set -g pane-border-style "fg=#565f89"
       set -g pane-active-border-style "fg=#7aa2f7"
+
+      # --- Keybindings ---
+      # Send prefix to underlying application (e.g., jump to beginning of line)
+      bind-key C-a send-prefix
+
+      # Vim-style pane navigation
+      bind h select-pane -L
+      bind j select-pane -D
+      bind k select-pane -U
+      bind l select-pane -R
+
+      # Repeatable (-r) pane resizing
+      bind -r H resize-pane -L 5
+      bind -r J resize-pane -D 5
+      bind -r K resize-pane -U 5
+      bind -r L resize-pane -R 5
+
+      # Repeatable window navigation
+      bind -r n next-window
+      bind -r p previous-window
+
+      # Vim-style copy mode
+      bind-key -T copy-mode-vi v send-keys -X begin-selection
+      bind-key -T copy-mode-vi C-v send-keys -X rectangle-toggle
+      bind-key -T copy-mode-vi y send-keys -X copy-selection-and-cancel
     '';
   };
 }

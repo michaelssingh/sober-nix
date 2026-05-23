@@ -52,8 +52,12 @@
         ruleset =
           let
             trustedInterfaces = config.networking.firewall.trustedInterfaces;
-            trustedRules = lib.concatMapStringsSep "\n                " (iface: "iifname \"${iface}\" accept") trustedInterfaces;
-            trustedOutputRules = lib.concatMapStringsSep "\n                " (iface: "oifname \"${iface}\" accept") trustedInterfaces;
+            trustedRules = lib.concatMapStringsSep "\n                " (
+              iface: "iifname \"${iface}\" accept"
+            ) trustedInterfaces;
+            trustedOutputRules = lib.concatMapStringsSep "\n                " (
+              iface: "oifname \"${iface}\" accept"
+            ) trustedInterfaces;
           in
           ''
             table inet filter {
@@ -82,6 +86,7 @@
 
                 oifname "lo" accept
                 ${trustedOutputRules}
+                udp dport 51820 accept
                 udp dport 53 accept
                 tcp dport 53 accept
 

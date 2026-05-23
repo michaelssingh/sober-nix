@@ -6,7 +6,6 @@
     ../../modules/home/core/cli.nix
     ../../modules/home/core/shell.nix
     ../../modules/home/core/nvim/nvim.nix
-    ../../modules/home/core/irc
     ../../modules/home/core/tmux.nix
   ];
 
