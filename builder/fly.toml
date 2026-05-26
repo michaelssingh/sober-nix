@@ -20,6 +20,13 @@ primary_region = "iad"
     port = 22
 
 [[services]]
+  protocol = "tcp"
+  internal_port = 8080
+  [[services.ports]]
+    port = 443
+    handlers = ["tls", "http"]
+
+[[services]]
   protocol = "udp"
   internal_port = 51820
   [[services.ports]]
