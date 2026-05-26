@@ -13,3 +13,5 @@ result-*
 secrets/*.yaml
 !secrets/*.enc.yaml
 .sops.yaml
+
+GEMINI.md
