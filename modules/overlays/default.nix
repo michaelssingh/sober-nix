@@ -18,6 +18,9 @@
       version = "master-${inputs.senpai-src.shortRev or "latest"}";
       src = inputs.senpai-src;
       vendorHash = null;
+      ldflags = [
+        "-X git.sr.ht/~delthas/senpai.version=master-${builtins.substring 0 7 (inputs.senpai-src.rev or "latest")}"
+      ];
     });
 
     hydroxide = prev.hydroxide.overrideAttrs (old: rec {

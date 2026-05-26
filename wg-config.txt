@@ -1,6 +1,0 @@
-Creating WireGuard peer "otus" in region "iad" for organization personal
-
-!!!! WARNING: Output includes private key. Private keys cannot be recovered !!!!
-!!!! after creating the peer; if you lose the key, you'll need to remove    !!!!
-!!!! and re-add the peering connection.                                     !!!!
-[0G[2K[0;1;92m? [0m[0;1;99mFilename to store WireGuard configuration in, or 'stdout':  [0m[?25l[?25l7[999;999f[6n8[?25h[6n[?25h
