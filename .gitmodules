@@ -1,0 +1,3 @@
+[submodule "packages/senpai"]
+	path = packages/senpai
+	url = https://git.sr.ht/~delthas/senpai
