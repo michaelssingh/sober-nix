@@ -5,10 +5,10 @@
     settings = {
       main = {
         dpi-aware = "yes";
-        font = "FiraCode Nerd Font Mono:size=11";
+        font = "FiraCode Nerd Font Mono:size=10";
       };
       colors = {
-        alpha = 0.9;
+        alpha = 1;
         background = "1a1b26";
         foreground = "c0caf5";
         regular0 = "15161e";

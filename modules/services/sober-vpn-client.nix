@@ -43,10 +43,10 @@ in
         }
       ];
       postUp = ''
-        ${pkgs.systemd}/bin/resolvectl dns ${cfg.interface} 1.1.1.1
+        ${pkgs.systemd}/bin/resolvectl dns ${cfg.interface} 1.1.1.1#cloudflare-dns.com 1.0.0.1#cloudflare-dns.com
         ${pkgs.systemd}/bin/resolvectl domain ${cfg.interface} "~."
-        ${pkgs.systemd}/bin/resolvectl dnssec ${cfg.interface} no
-        ${pkgs.systemd}/bin/resolvectl dnsovertls ${cfg.interface} no 
+        ${pkgs.systemd}/bin/resolvectl dnssec ${cfg.interface} yes
+        ${pkgs.systemd}/bin/resolvectl dnsovertls ${cfg.interface} yes 
       '';
     };
 

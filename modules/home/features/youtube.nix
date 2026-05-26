@@ -25,6 +25,7 @@ in
     jq
     chafa
     fzf
+    unstable.youtube-tui
   ];
 
   programs.newsboat = {

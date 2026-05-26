@@ -10,10 +10,13 @@ in
   xdg.configFile."soju/config".text = ''
     listen irc+insecure://0.0.0.0:6697
     listen unix+admin://${dataPath}/admin.sock
+    listen http+insecure://0.0.0.0:8080
+    http-ingress https://sober-services.fly.dev
+    file-upload fs ${dataPath}/uploads
     db sqlite3 ${dataPath}/soju.db
   '';
 
   home.activation.provision-soju-dir = lib.hm.dag.entryAfter ["writeBoundary"] ''
-    mkdir -p "${dataPath}"
+    mkdir -p "${dataPath}/uploads"
   '';
 }

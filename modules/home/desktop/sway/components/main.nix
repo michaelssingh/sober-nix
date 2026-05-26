@@ -88,22 +88,25 @@ in
           "XF86AudioMute" = "exec wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle";
 
           "${modifier}+Return" = null;
+          "${modifier}+c" = "exec makoctl dismiss --all";
           "${modifier}+z" = "exec foot";
           "${modifier}+d" = "exec fuzzel";
           "${modifier}+b" = "exec firefox";
-          "${modifier}+Shift+s" = "exec grimshot copy area";
-          "${modifier}+l" = "exec swaylock -f --screenshots --clock --indicator --indicator-radius 100 --indicator-thickness 7 --effect-blur 7x5 --effect-vignette 0.5:0.5 --ring-color bb9af7 --key-hl-color 9ece6a";
-          "Print" = "exec grimshot copy active";
+          "${modifier}+Shift+p" = "exec grimshot --notify savecopy anything";
+          "${modifier}+Shift+e" =
+            "exec swaylock -f -i ${./../bg.jpg} --indicator-radius 100 --indicator-thickness 7 --ring-color bb9af7 --key-hl-color 9ece6a";
           "${modifier}+minus" = "scratchpad show";
           "${modifier}+Shift+minus" = "move scratchpad";
           "${modifier}+t" = "floating disable";
         };
 
       # 3. Simplify Waybar (Reference variables)
-      bars = [ { command = "${pkgs.waybar}/bin/waybar"; } ];
+      bars = [ ];
       startup = [
         { command = "swaymsg workspace number 1"; }
-        { command = "${pkgs.swayidle}/bin/swayidle -w timeout 300 'swaylock -f --screenshots --clock --indicator --indicator-radius 100 --indicator-thickness 7 --effect-blur 7x5 --effect-vignette 0.5:0.5 --ring-color bb9af7 --key-hl-color 9ece6a' before-sleep 'swaylock -f --screenshots --clock --indicator --indicator-radius 100 --indicator-thickness 7 --effect-blur 7x5 --effect-vignette 0.5:0.5 --ring-color bb9af7 --key-hl-color 9ece6a'"; }
+        {
+          command = "${pkgs.swayidle}/bin/swayidle -w timeout 300 'swaylock -f -i ${./../bg.jpg} --indicator-radius 100 --indicator-thickness 7 --ring-color bb9af7 --key-hl-color 9ece6a' before-sleep 'swaylock -f -i ${./../bg.jpg} --indicator-radius 100 --indicator-thickness 7 --ring-color bb9af7 --key-hl-color 9ece6a'";
+        }
       ];
     };
 
