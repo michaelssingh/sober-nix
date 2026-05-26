@@ -42,12 +42,17 @@ in
           persistentKeepalive = 25;
         }
       ];
-
       postUp = ''
         ${pkgs.systemd}/bin/resolvectl dns ${cfg.interface} 1.1.1.1
+        ${pkgs.systemd}/bin/resolvectl domain ${cfg.interface} "~."
         ${pkgs.systemd}/bin/resolvectl dnssec ${cfg.interface} no
-        ${pkgs.systemd}/bin/resolvectl dnsovertls ${cfg.interface} no
+        ${pkgs.systemd}/bin/resolvectl dnsovertls ${cfg.interface} no 
       '';
+    };
+
+    systemd.services."wg-quick-${cfg.interface}" = {
+      after = [ "wg-quick-wg-fly.service" ];
+      wants = [ "wg-quick-wg-fly.service" ];
     };
   };
 }
