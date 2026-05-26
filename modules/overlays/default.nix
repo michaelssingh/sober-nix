@@ -17,7 +17,7 @@
     senpai = prev.senpai.overrideAttrs (old: {
       version = "master-${inputs.senpai-src.shortRev or "latest"}";
       src = inputs.senpai-src;
-      vendorHash = "sha256-4Ax9YVa9z1Unk3Z2iy9ZEqKjNmdgK0aF4GrD9ucXtjk=";
+      vendorHash = null;
     });
 
     hydroxide = prev.hydroxide.overrideAttrs (old: rec {
