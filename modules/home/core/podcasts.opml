@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<opml version="2.0">
+  <head>
+    <title>Castero Subscriptions</title>
+  </head>
+  <body>
+    <outline text="Darknet Diaries" type="rss" xmlUrl="https://feeds.megaphone.fm/darknetdiaries"/>
+    <outline text="Linux Action News" type="rss" xmlUrl="https://linuxactionnews.com/rss"/>
+    <outline text="NPR Up First" type="rss" xmlUrl="https://feeds.npr.org/510318/podcast.xml"/>
+    <outline text="TBOY (The Best One Yet)" type="rss" xmlUrl="https://feeds.acast.com/public/shows/the-best-one-yet"/>
+    <outline text="BibleProject Podcast" type="rss" xmlUrl="https://feeds.simplecast.com/3NVmUWZO"/>
+  </body>
+</opml>

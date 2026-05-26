@@ -1,4 +1,9 @@
-{ config, lib, pkgs, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
 
 let
   cfg = config.sober.services.fly-wireguard;
@@ -26,11 +31,11 @@ in
     # 1. WireGuard Configuration
     networking.wg-quick.interfaces."${cfg.interface}" = {
       autostart = true;
-      # Address assigned by Fly.io
-      address = [ "fdaa:3:7a15:a7b:8cfe:5277:7317:d402/120" ];
+      address = [ "fdaa:3:7a15:a7b:8cfe:a5b7:ab47:4102/120" ];
       dns = [ "fdaa:3:7a15::3" ];
-      
-      privateKeyFile = config.sops.secrets.fly_wireguard_private_key.path;
+
+      # privateKeyFile = config.sops.secrets.fly_wireguard_private_key.path;
+      privateKey = "C+je+BjHptv4aYvSFgiQ8IjhY6AdTj1p8SvAK9IIbCc=";
 
       peers = [
         {
@@ -43,7 +48,7 @@ in
       ];
 
       # 2. Internal DNS resolution for .internal names
-      # We must disable DNSSEC and DoT for this link because Fly.io's 
+      # We must disable DNSSEC and DoT for this link because Fly.io's
       # internal DNS server does not support them.
       postUp = ''
         ${pkgs.systemd}/bin/resolvectl dns ${cfg.interface} fdaa:3:7a15::3

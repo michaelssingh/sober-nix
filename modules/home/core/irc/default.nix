@@ -8,7 +8,7 @@
     nickname init
     realname michael
     username init
-    password-cmd "cat ${config.sops.secrets.soju_password.path}"
+    password-cmd "sh -c 'cat /home/michael/.config/sops-nix/secrets/soju_password'"
 
     pane-widths {
         nicknames 10
