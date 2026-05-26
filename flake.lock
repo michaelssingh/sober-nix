@@ -116,11 +116,11 @@
     "senpai-src": {
       "flake": false,
       "locked": {
-        "lastModified": 1779743385,
-        "narHash": "sha256-C95x3mwu8l1pOH2cG6u6c6jc4VaLls4IJnYTbeye9ZA=",
+        "lastModified": 1779788100,
+        "narHash": "sha256-JkkcRN7/Q/yLKCCZ4mDLkxW8nfiXDbnuDDN/VXaCdwQ=",
         "ref": "refs/heads/master",
-        "rev": "3a9b07ca15c3f71457b89a1fbd87cb60db8fe6d5",
-        "revCount": 675,
+        "rev": "6b5cd0883a50bdbaeb65254db4d23142e67f1aa8",
+        "revCount": 676,
         "type": "git",
         "url": "file:///home/michael/git/sober-nix/senpai"
       },
