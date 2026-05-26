@@ -108,7 +108,10 @@
       publicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPIQCZc54poJ8vqawd8TraNryQeJnvH1eLpIDgbiqymM";
     };
     sober-services = {
-      hostNames = [ "[fdaa:3:7a15:a7b:572:11c:754f:2]:2222" "sober-services.internal" ];
+      hostNames = [
+        "[fdaa:3:7a15:a7b:572:11c:754f:2]:2222"
+        "sober-services.internal"
+      ];
       publicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMxyjPsJjJr7uGC9LRQkU9vixOZML0zLMb0KQH24NGl1";
     };
   };
@@ -119,15 +122,18 @@
       {
         hostName = "sober-services.internal";
         system = "x86_64-linux";
-        maxJobs = 8;
-        speedFactor = 2;
-        supportedFeatures = [ "benchmark" "big-parallel" ];
+        maxJobs = 4;
+        speedFactor = 1;
+        supportedFeatures = [
+          "benchmark"
+          "big-parallel"
+        ];
       }
       {
         hostName = "eu.nixbuild.net";
         system = "x86_64-linux";
         maxJobs = 100;
-        speedFactor = 1;
+        speedFactor = 2;
         supportedFeatures = [
           "benchmark"
           "big-parallel"

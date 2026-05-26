@@ -72,6 +72,9 @@
 
       # Edit current directory
       e = "nvim .";
+
+      # Media Queue
+      mpv = "mpv-queue";
     };
   };
 

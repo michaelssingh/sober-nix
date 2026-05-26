@@ -25,8 +25,18 @@
       url = "github:nixos/nixpkgs/4a3fc4cf736b7d2d288d7a8bf775ac8d4c0920b4";
     };
 
+    nixpkgs-unstable = {
+      url = "github:nixos/nixpkgs/nixos-unstable";
+    };
+
     sops-nix = {
       url = "github:Mic92/sops-nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
+    senpai-src = {
+      url = "git+file:///home/michael/git/sober-nix/senpai";
+      flake = false;
     };
   };
 
@@ -34,6 +44,7 @@
     {
       self,
       nixpkgs,
+      nixpkgs-unstable,
       home-manager,
       sops-nix,
       ...
