@@ -18,4 +18,8 @@
   # ff2mpv
   "ff2mpv@yuvallanger.github.com" =
     "https://addons.mozilla.org/firefox/downloads/latest/ff2mpv/latest.xpi";
+
+  # Auto Tab Discard
+  "{c2c003ee-bd36-42bc-b0a6-12c85b822d86}" =
+    "https://addons.mozilla.org/firefox/downloads/latest/auto-tab-discard/latest.xpi";
 }

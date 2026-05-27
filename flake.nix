@@ -35,7 +35,12 @@
     };
 
     senpai-src = {
-      url = "git+file:///home/michael/git/sober-nix/senpai";
+      url = "git+https://git.sr.ht/~delthas/senpai?ref=master";
+      flake = false;
+    };
+
+    senpai-dev-src = {
+      url = "git+file:///home/michael/git/sober-nix/packages/senpai?ref=dev-michael";
       flake = false;
     };
   };
@@ -81,6 +86,13 @@
           ];
         };
       };
+
+      packages."x86_64-linux" = {
+        athene-image = import ./hosts/athene/athene.nix { inherit pkgs; lib = nixpkgs.lib; };
+        glaucidium-image = import ./hosts/glaucidium/glaucidium.nix { inherit pkgs; lib = nixpkgs.lib; };
+        styx-image = import ./hosts/styx/styx.nix { inherit pkgs; lib = nixpkgs.lib; };
+      };
+
       homeConfigurations = {
         server = home-manager.lib.homeManagerConfiguration {
           inherit pkgs;
@@ -95,6 +107,7 @@
         nativeBuildInputs = with pkgs; [
           gh # GitHub CLI
           git # Git for version control
+          skopeo # Daemonless container image management
           nixfmt-rfc-style # Keep the config pretty
           openssl # Required by ani-cli
           dmidecode # Hardware info

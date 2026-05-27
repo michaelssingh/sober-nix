@@ -15,8 +15,8 @@
     ../../modules/services/greetd.nix
     ../../modules/core/perf-lowend.nix
     ../../modules/services/nix-remote-builder.nix
-    ../../modules/services/fly-wireguard.nix
-    ../../modules/services/sober-vpn-client.nix
+    ../../modules/services/wg-fly.nix
+    ../../modules/services/wg-sober.nix
   ];
 
   home-manager.backupFileExtension = "backup";
@@ -46,8 +46,8 @@
   sober.core.networking.mac-rotation.enable = true;
   sober.core.networking.secure-dns.enable = true;
   sober.core.networking.firewall.enable = true;
-  sober.services.fly-wireguard.enable = true;
-  sober.services.sober-vpn-client.enable = true;
+  sober.services.wg-fly.enable = true;
+  sober.services.wg-sober.enable = true;
 
   programs.nh = {
     enable = true;
@@ -85,7 +85,7 @@
 
   # nixbuild.net
   programs.ssh.extraConfig = ''
-    Host sober-services.internal
+    Host athene.internal
       HostName fdaa:3:7a15:a7b:572:11c:754f:2
       Port 2222
       User root
@@ -107,10 +107,10 @@
       hostNames = [ "eu.nixbuild.net" ];
       publicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPIQCZc54poJ8vqawd8TraNryQeJnvH1eLpIDgbiqymM";
     };
-    sober-services = {
+    athene = {
       hostNames = [
         "[fdaa:3:7a15:a7b:572:11c:754f:2]:2222"
-        "sober-services.internal"
+        "athene.internal"
       ];
       publicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMxyjPsJjJr7uGC9LRQkU9vixOZML0zLMb0KQH24NGl1";
     };
@@ -120,17 +120,8 @@
     distributedBuilds = true;
     buildMachines = [
       {
-        hostName = "sober-services.internal";
-        system = "x86_64-linux";
-        maxJobs = 4;
-        speedFactor = 1;
-        supportedFeatures = [
-          "benchmark"
-          "big-parallel"
-        ];
-      }
-      {
         hostName = "eu.nixbuild.net";
+        protocol = "ssh-ng";
         system = "x86_64-linux";
         maxJobs = 100;
         speedFactor = 2;

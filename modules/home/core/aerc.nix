@@ -8,7 +8,7 @@
         unsafe-accounts-conf = true;
       };
       filters = {
-        "text/html" = "w3m -dump -T text/html";
+        "text/html" = "chawan";
       };
     };
   };

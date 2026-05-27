@@ -1,23 +1,23 @@
-app = "sober-services"
-primary_region = "iad"
+app = "sober-athene"
+primary_region = "ewr"
 
 [build]
   dockerfile = "Dockerfile"
 
 [mounts]
   source = "nix_data"
-  destination = "/var/lib/nix_persist"
+  destination = "/var/lib/soju"
 
 [vm]
   cpu_kind = "shared"
-  cpus = 4
-  memory_mb = 4096
+  cpus = 1
+  memory_mb = 256
 
 [[services]]
   protocol = "tcp"
-  internal_port = 2222
+  internal_port = 6697
   [[services.ports]]
-    port = 22
+    port = 6697
 
 [[services]]
   protocol = "tcp"
@@ -26,8 +26,3 @@ primary_region = "iad"
     port = 443
     handlers = ["tls", "http"]
 
-[[services]]
-  protocol = "udp"
-  internal_port = 51820
-  [[services.ports]]
-    port = 51820

@@ -1,8 +1,0 @@
-.git
-.direnv
-.sops
-dmesg.log
-log.log
-result
-/builder/id_ed25519
-/builder/authorized_keys

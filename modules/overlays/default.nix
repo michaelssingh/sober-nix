@@ -17,10 +17,20 @@
     senpai = prev.senpai.overrideAttrs (old: {
       version = "master-${inputs.senpai-src.shortRev or "latest"}";
       src = inputs.senpai-src;
-      vendorHash = null;
+      vendorHash = "sha256-4Ax9YVa9z1Unk3Z2iy9ZEqKjNmdgK0aF4GrD9ucXtjk=";
       ldflags = [
         "-X git.sr.ht/~delthas/senpai.version=master-${builtins.substring 0 7 (inputs.senpai-src.rev or "latest")}"
       ];
+    });
+
+    senpai-dev = prev.senpai.overrideAttrs (old: {
+      pname = "senpai-dev";
+      version = "dev-${inputs.senpai-dev-src.shortRev or "latest"}";
+      src = inputs.senpai-dev-src;
+      vendorHash = null;
+      postInstall = (old.postInstall or "") + ''
+        mv $out/bin/senpai $out/bin/senpai-dev
+      '';
     });
 
     hydroxide = prev.hydroxide.overrideAttrs (old: rec {

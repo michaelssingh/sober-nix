@@ -6,11 +6,11 @@
 }:
 
 let
-  cfg = config.sober.services.sober-vpn-client;
+  cfg = config.sober.services.wg-sober;
 in
 {
   options = {
-    sober.services.sober-vpn-client = {
+    sober.services.wg-sober = {
       enable = lib.mkEnableOption "Sober VPN Client";
       interface = lib.mkOption {
         type = lib.types.str;
@@ -24,21 +24,21 @@ in
     networking.firewall.trustedInterfaces = [ cfg.interface ];
     networking.firewall.checkReversePath = "loose";
 
-    sops.secrets.sober_vpn_private_key = {
+    sops.secrets.wg_sober_otus_private = {
       sopsFile = ../../secrets/secrets.yaml;
     };
 
     networking.wg-quick.interfaces."${cfg.interface}" = {
       autostart = true;
       address = [ "10.13.13.2/32" ];
-      privateKeyFile = config.sops.secrets.sober_vpn_private_key.path;
+      privateKeyFile = config.sops.secrets.wg_sober_otus_private.path;
       mtu = 1280;
 
       peers = [
         {
           publicKey = "BgF0yad/27+0o74CldVXUWtkS+h4VsT1nAPEkKD3VHo=";
           allowedIPs = [ "0.0.0.0/0" ];
-          endpoint = "137.66.4.172:51820";
+          endpoint = "188.93.147.190:51820";
           persistentKeepalive = 25;
         }
       ];
