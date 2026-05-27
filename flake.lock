@@ -109,24 +109,43 @@
         "nixpkgs": "nixpkgs",
         "nixpkgs-pinned": "nixpkgs-pinned",
         "nixpkgs-unstable": "nixpkgs-unstable",
+        "senpai-dev-src": "senpai-dev-src",
         "senpai-src": "senpai-src",
         "sops-nix": "sops-nix"
+      }
+    },
+    "senpai-dev-src": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1779799828,
+        "narHash": "sha256-UA+REugGmEtECJbYCNGqwDH5zSZSd334vdk0TDYb44g=",
+        "ref": "dev-michael",
+        "rev": "510b41b90d0ee4b56b849fafb59fd1d0c446f4b8",
+        "revCount": 677,
+        "type": "git",
+        "url": "file:///home/michael/git/sober-nix/packages/senpai"
+      },
+      "original": {
+        "ref": "dev-michael",
+        "type": "git",
+        "url": "file:///home/michael/git/sober-nix/packages/senpai"
       }
     },
     "senpai-src": {
       "flake": false,
       "locked": {
-        "lastModified": 1779788100,
-        "narHash": "sha256-JkkcRN7/Q/yLKCCZ4mDLkxW8nfiXDbnuDDN/VXaCdwQ=",
-        "ref": "refs/heads/master",
-        "rev": "6b5cd0883a50bdbaeb65254db4d23142e67f1aa8",
-        "revCount": 676,
+        "lastModified": 1778760157,
+        "narHash": "sha256-0g75ZoDLlvhRUUAJQouxl30sUU7naX5KL4y7lGOmpWo=",
+        "ref": "master",
+        "rev": "4b426b9c069b2567ae0bdcf9b9ad52a7c533aacb",
+        "revCount": 674,
         "type": "git",
-        "url": "file:///home/michael/git/sober-nix/senpai"
+        "url": "https://git.sr.ht/~delthas/senpai"
       },
       "original": {
+        "ref": "master",
         "type": "git",
-        "url": "file:///home/michael/git/sober-nix/senpai"
+        "url": "https://git.sr.ht/~delthas/senpai"
       }
     },
     "sops-nix": {

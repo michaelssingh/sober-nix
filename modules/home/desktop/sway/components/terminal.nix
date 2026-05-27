@@ -16,7 +16,7 @@
         regular2 = "9ece6a";
         regular3 = "e0af68";
         regular4 = "7aa2f7";
-        regular5 = "bb9af7";
+        regular5 = "9d7cd8";
         regular6 = "7dcfff";
         regular7 = "a9b1d6";
       };

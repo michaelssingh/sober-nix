@@ -28,6 +28,7 @@
     swayidle
     (inputs.nixpkgs-pinned.legacyPackages.${pkgs.system}.transmission_4)
     stig
+    chawan
   ];
   programs.zathura = {
     enable = true;

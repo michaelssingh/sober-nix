@@ -3,8 +3,8 @@
 {
   home.packages = with pkgs; [
     (pkgs.writeShellScriptBin "mpv-queue" ''
-      SOCKET="''${XDG_RUNTIME_DIR:-/tmp}/mpv-socket"
-      
+      SOCKET="/tmp/mpv-socket"
+
       if [ -S "$SOCKET" ] && ${pkgs.socat}/bin/socat - "$SOCKET" <<< '{ "command": ["get_property", "idle-active"] }' >/dev/null 2>&1; then
         : # Socket exists and is responsive
       else
@@ -21,6 +21,12 @@
       echo '{ "command": ["loadfile", "'"$1"'", "append-play"] }' | ${pkgs.socat}/bin/socat - "$SOCKET"
     '')
     (pkgs.writeShellScriptBin "ani-cli" ''
+      # Create a temporary bin directory to shadow 'mpv' with 'mpv-queue'
+      BIN_DIR=$(mktemp -d)
+      trap 'rm -rf "$BIN_DIR"' EXIT
+      ln -s "$(command -v mpv-queue)" "$BIN_DIR/mpv"
+      
+      export PATH="$BIN_DIR:$PATH"
       ${pkgs.bash}/bin/bash ${inputs.ani-cli}/ani-cli "$@"
     '')
     pkgs.socat

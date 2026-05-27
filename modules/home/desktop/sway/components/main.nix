@@ -45,7 +45,7 @@ in
       fonts = {
         names = [ "FiraCode Nerd Font" ];
         style = "Regular";
-        size = 11.0;
+        size = 9.0;
       };
 
       # 2. The Tokyo Night Palette
@@ -97,6 +97,9 @@ in
             "exec swaylock -f -i ${./../bg.jpg} --indicator-radius 100 --indicator-thickness 7 --ring-color bb9af7 --key-hl-color 9ece6a";
           "${modifier}+minus" = "scratchpad show";
           "${modifier}+Shift+minus" = "move scratchpad";
+          "${modifier}+i" = "[app_id=\"senpai\"] scratchpad show";
+          "${modifier}+p" = "[app_id=\"castero\"] scratchpad show";
+          "${modifier}+m" = "[app_id=\"mpv\"] scratchpad show";
           "${modifier}+t" = "floating disable";
         };
 
@@ -104,6 +107,11 @@ in
       bars = [ ];
       startup = [
         { command = "swaymsg workspace number 1"; }
+        { command = "foot --app-id senpai senpai-dev"; }
+        { command = "foot --app-id castero castero"; }
+        {
+          command = "mpv --idle=yes --force-window=yes --input-ipc-server=/tmp/mpv-socket --really-quiet && live dw > /dev/null ";
+        }
         {
           command = "${pkgs.swayidle}/bin/swayidle -w timeout 300 'swaylock -f -i ${./../bg.jpg} --indicator-radius 100 --indicator-thickness 7 --ring-color bb9af7 --key-hl-color 9ece6a' before-sleep 'swaylock -f -i ${./../bg.jpg} --indicator-radius 100 --indicator-thickness 7 --ring-color bb9af7 --key-hl-color 9ece6a'";
         }
@@ -115,6 +123,24 @@ in
 
       output * bg ${./../bg.jpg} fill
       for_window [app_id="foot"] hints none
+      for_window [app_id="senpai"] {
+          floating enable
+          move position center
+          resize set 960 540
+          move scratchpad
+      }
+      for_window [app_id="castero"] {
+          floating enable
+          move position center
+          resize set 960 540 
+          move scratchpad
+      }
+      for_window [app_id="mpv"] {
+          floating enable
+          move position center
+          resize set 960 540
+          move scratchpad
+      }
       default_border  pixel 1
       default_floating_border pixel 1
       gaps inner 0

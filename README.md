@@ -7,7 +7,9 @@ Hosts are named after Owl genera to reflect the system's identity (Observation, 
 
 | Hostname | Hardware | Architecture | Role | Vibe |
 | :--- | :--- | :--- | :--- | :--- |
-| **Otus** | Lenovo IdeaPad Slim 1-14AST-05 | `x86_64-linux` | Workstation | *The Scops Owl* - Small, well-camouflaged, highly adaptable. |
+| **Otus** | Lenovo IdeaPad Slim 1-14AST-05 | `x86_64-linux` | Workstation | *The Scops Owl* - Small, adaptable. |
+| **Athene** | Fly.io MicroVM (256MB) | `x86_64-linux` | IRC Bouncer | *The Little Owl* - Small, vigilant. |
+| **Glaucidium** | Fly.io MicroVM (256MB) | `x86_64-linux` | VPN Gateway | *The Pygmy Owl* - Tiny but fierce. |
 
 ## 📂 Directory Layout
 

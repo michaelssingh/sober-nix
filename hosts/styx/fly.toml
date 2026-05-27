@@ -1,0 +1,13 @@
+app = "sober-styx"
+primary_region = "ewr"
+
+[vm]
+  cpu_kind = "shared"
+  cpus = 2
+  memory_mb = 4096
+
+[[services]]
+  protocol = "tcp"
+  internal_port = 3000
+  [[services.ports]]
+    port = 3000
