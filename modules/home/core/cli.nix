@@ -11,6 +11,7 @@
 
     pkgs.socat
     pkgs.senpai
+    pkgs.senpai-dev
     pkgs.harper
     pkgs.imv
     pkgs.yazi

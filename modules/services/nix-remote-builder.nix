@@ -32,12 +32,11 @@ in
       
       buildMachines = [
         {
-          hostName = "sober-services.internal";
-          sshUser = "root";
-          system = config.nixpkgs.hostPlatform.system;
-          protocol = "ssh-ng";
+          hostName = "sober-styx.internal";
+          system = "x86_64-linux";
+          protocol = "nix"; # Standard TCP protocol for nix-daemon
           maxJobs = 8;
-          speedFactor = 1; # Reduced to be lower than nixbuild.net (default 1)
+          speedFactor = 2; 
           supportedFeatures = [ "nixos-test" "benchmark" "big-parallel" "kvm" ];
           mandatoryFeatures = [ ];
         }

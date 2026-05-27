@@ -29,7 +29,7 @@
     '';
     live = ''
       argparse a/audio -- $argv
-      set -l socket "''${XDG_RUNTIME_DIR:-/tmp}/mpv-socket"
+      set -l socket "/tmp/mpv-socket"
 
       # Find a matching stream in the registry
       set -l match (grep -i "$argv" ~/git/sober-nix/modules/home/features/livestreams.txt)

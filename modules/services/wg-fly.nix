@@ -6,11 +6,11 @@
 }:
 
 let
-  cfg = config.sober.services.fly-wireguard;
+  cfg = config.sober.services.wg-fly;
 in
 {
   options = {
-    sober.services.fly-wireguard = {
+    sober.services.wg-fly = {
       enable = lib.mkEnableOption "Fly.io Private WireGuard Network";
       interface = lib.mkOption {
         type = lib.types.str;
@@ -24,7 +24,7 @@ in
     # 0. Trust the Fly interface in the firewall
     networking.firewall.trustedInterfaces = [ cfg.interface ];
 
-    sops.secrets.fly_wireguard_private_key = {
+    sops.secrets.wg_fly_otus_private = {
       sopsFile = ../../secrets/secrets.yaml;
     };
 
@@ -34,7 +34,7 @@ in
       address = [ "fdaa:3:7a15:a7b:8cfe:a5b7:ab47:4102/120" ];
       dns = [ "fdaa:3:7a15::3" ];
 
-      # privateKeyFile = config.sops.secrets.fly_wireguard_private_key.path;
+      # privateKeyFile = config.sops.secrets.wg_fly_otus_private.path;
       privateKey = "REDACTED_WG_KEY";
 
       peers = [
