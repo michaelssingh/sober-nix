@@ -15,10 +15,6 @@ let
   entrypoint = pkgs.writeShellScriptBin "entrypoint" ''
     set -e
     mkdir -p /var/lib/soju/uploads
-    # Ensure the DB file exists in the volume, copying from root if missing (for bootstrap)
-    if [ ! -f /var/lib/soju/soju.db ] && [ -f /soju.db ]; then
-        cp /soju.db /var/lib/soju/soju.db
-    fi
     exec ${pkgs.soju}/bin/soju -config ${sojuConfig}
   '';
 in
@@ -46,6 +42,9 @@ pkgs.dockerTools.buildLayeredImage {
       "6697/tcp" = { };
       "8080/tcp" = { };
     };
-    Env = [ "PATH=/bin" "SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt" ];
+    Env = [
+      "PATH=/bin"
+      "SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt"
+    ];
   };
 }

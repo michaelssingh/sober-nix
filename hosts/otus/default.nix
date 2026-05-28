@@ -133,18 +133,18 @@
     ];
   };
 
-  # Bridge the user's SSH agent to the Nix daemon
-  # This allows the daemon to use keys loaded via 'bw-ssh-init'.
-  systemd.services.nix-daemon.serviceConfig.Environment = [
-    "SSH_AUTH_SOCK=/run/user/1001/ssh-agent"
-  ];
+  # # Bridge the user's SSH agent to the Nix daemon
+  # # This allows the daemon to use keys loaded via 'bw-ssh-init'.
+  # systemd.services.nix-daemon.serviceConfig.Environment = [
+  #   "SSH_AUTH_SOCK=/run/user/1001/ssh-agent"
+  # ];
 
   users.users.${user} = {
     isNormalUser = true;
     extraGroups = [
       "networkmanager"
       "wheel"
-      "docker"
+      # "docker"
     ];
     shell = pkgs.fish;
     # initialPassword = "password";

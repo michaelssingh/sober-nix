@@ -40,7 +40,7 @@
     };
 
     senpai-dev-src = {
-      url = "git+file:///home/michael/git/sober-nix/packages/senpai?ref=dev-michael";
+      url = "git+file:///home/michael/git/sober-nix/packages/senpai?ref=spell-checking";
       flake = false;
     };
   };
@@ -90,7 +90,11 @@
       packages."x86_64-linux" = {
         athene-image = import ./hosts/athene/athene.nix { inherit pkgs; lib = nixpkgs.lib; };
         glaucidium-image = import ./hosts/glaucidium/glaucidium.nix { inherit pkgs; lib = nixpkgs.lib; };
-        styx-image = import ./hosts/styx/styx.nix { inherit pkgs; lib = nixpkgs.lib; };
+        styx-image = import ./hosts/styx/styx.nix { 
+          inherit pkgs; 
+          lib = nixpkgs.lib; 
+          publicKeys = (import ./modules/core/public-keys.nix { lib = nixpkgs.lib; }).config.sober.core.public-keys;
+        };
       };
 
       homeConfigurations = {

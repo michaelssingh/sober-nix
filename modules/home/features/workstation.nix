@@ -29,33 +29,19 @@
     '';
     live = ''
       argparse a/audio -- $argv
-      set -l socket "/tmp/mpv-socket"
 
       # Find a matching stream in the registry
       set -l match (grep -i "$argv" ~/git/sober-nix/modules/home/features/livestreams.txt)
       if test -n "$match"
         set -l url (string split "|" $match)[2]
         
-        # Load the file
-        mpv-queue "$url"
-        
-        # Wait until the socket is actually available (max 2 seconds)
-        set -l count 0
-        while not test -S "$socket"; and test $count -lt 20
-          sleep 0.1
-          set count (math $count + 1)
-        end
-
-        # Determine desired video state
-        set -l video_state "yes"
+        set -l flags
         if set -q _flag_audio
-          set video_state "no"
+          set flags "--vid=no"
         end
 
-        # Apply the state if socket is available
-        if test -S "$socket"
-          echo '{"command": ["set_property", "video", "'$video_state'"]}' | socat - "$socket"
-        end
+        # Load the file with optional flags
+        mpv-queue $flags "$url"
       else
         echo "Stream not found: $argv"
       end
