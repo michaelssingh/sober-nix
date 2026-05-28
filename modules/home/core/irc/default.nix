@@ -21,6 +21,7 @@
         nicknames 10
         channels 0
         members 0
+        text 80
     }
     colors {
         prompt "#7aa2f7"

@@ -10,7 +10,7 @@ in
 {
   wayland.windowManager.sway = {
     enable = true;
-    xwayland = true;
+    xwayland = false;
 
     config = {
       input = {
@@ -91,8 +91,10 @@ in
           "${modifier}+c" = "exec makoctl dismiss --all";
           "${modifier}+z" = "exec foot";
           "${modifier}+d" = "exec fuzzel";
+          "${modifier}+Shift+d" = "exec dict-lookup";
           "${modifier}+b" = "exec firefox";
           "${modifier}+Shift+p" = "exec grimshot --notify savecopy anything";
+          "${modifier}+Shift+n" = "exec makoctl restore";
           "${modifier}+Shift+e" =
             "exec swaylock -f -i ${./../bg.jpg} --indicator-radius 100 --indicator-thickness 7 --ring-color bb9af7 --key-hl-color 9ece6a";
           "${modifier}+minus" = "scratchpad show";
@@ -113,12 +115,13 @@ in
           command = "mpv --idle=yes --force-window=yes --input-ipc-server=/tmp/mpv-socket --really-quiet && live dw > /dev/null ";
         }
         {
-          command = "${pkgs.swayidle}/bin/swayidle -w timeout 300 'swaylock -f -i ${./../bg.jpg} --indicator-radius 100 --indicator-thickness 7 --ring-color bb9af7 --key-hl-color 9ece6a' before-sleep 'swaylock -f -i ${./../bg.jpg} --indicator-radius 100 --indicator-thickness 7 --ring-color bb9af7 --key-hl-color 9ece6a'";
+          command = "${pkgs.swayidle}/bin/swayidle -w timeout 300 'swaylock -f -i ${./../bg.jpg} --indicator-radius 100 --indicator-thickness 7 --ring-color bb9af7 --key-hl-color 9ece6a' before-sleep 'swaylock -f -i ${./../bg.jpg} --indicator-radius 100 --indicator-thickness 7 --ring-color bb9af7 --key-hl-color 9ece6a' lock 'swaylock -f -i ${./../bg.jpg} --indicator-radius 100 --indicator-thickness 7 --ring-color bb9af7 --key-hl-color 9ece6a'";
         }
       ];
     };
 
     extraConfig = ''
+      exec sway-audio-idle-inhibit
       title_align center
 
       output * bg ${./../bg.jpg} fill
