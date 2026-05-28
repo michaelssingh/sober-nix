@@ -16,5 +16,7 @@
     wf-recorder # Screen recording
     wlr-randr # Monitor settings
     brightnessctl
+    sway-audio-idle-inhibit
+    libnotify
   ];
 }

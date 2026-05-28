@@ -21,7 +21,6 @@
   home.packages = with pkgs; [
     foot
     fuzzel
-    zoom-us
     aerc
     neomutt
     swaylock
@@ -29,6 +28,7 @@
     (inputs.nixpkgs-pinned.legacyPackages.${pkgs.system}.transmission_4)
     stig
     chawan
+    dict
   ];
   programs.zathura = {
     enable = true;

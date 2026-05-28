@@ -10,7 +10,7 @@
       border-radius = 5;
       border-size = 2;
       padding = "10";
-      default-timeout = 0;
+      default-timeout = 5000;
     };
   };
 }

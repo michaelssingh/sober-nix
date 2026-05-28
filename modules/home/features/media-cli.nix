@@ -2,37 +2,71 @@
 
 {
   home.packages = with pkgs; [
-    (pkgs.writeShellScriptBin "mpv-queue" ''
-      SOCKET="/tmp/mpv-socket"
+    (pkgs.writeShellApplication {
+      name = "mpv-queue";
+      runtimeInputs = [
+        socat
+        mpv
+        coreutils
+      ];
+      text = ''
+        SOCKET="/tmp/mpv-socket"
 
-      if [ -S "$SOCKET" ] && ${pkgs.socat}/bin/socat - "$SOCKET" <<< '{ "command": ["get_property", "idle-active"] }' >/dev/null 2>&1; then
-        : # Socket exists and is responsive
-      else
-        rm -f "$SOCKET"
-        # Use nohup and redirect streams to fully detach from the parent process group
-        nohup ${pkgs.mpv}/bin/mpv --idle=yes --input-ipc-server="$SOCKET" --force-window=yes --really-quiet >/dev/null 2>&1 </dev/null &
-        
-        for i in {1..20}; do
-          if [ -S "$SOCKET" ]; then break; fi
-          sleep 0.1
+        # 1. Identify the actual URL/File vs flags
+        # We assume the last argument is the target if it doesn't look like a flag,
+        # or we just take the first non-flag argument.
+        TARGET=""
+        args=("$@")
+        for i in "''${!args[@]}"; do
+          if [[ "''${args[$i]}" != -* ]]; then
+            TARGET="''${args[$i]}"
+            # Remove target from args so we only have flags left
+            unset "args[$i]"
+            break
+          fi
         done
-      fi
-      
-      echo '{ "command": ["loadfile", "'"$1"'", "append-play"] }' | ${pkgs.socat}/bin/socat - "$SOCKET"
-    '')
-    (pkgs.writeShellScriptBin "ani-cli" ''
-      # Create a temporary bin directory to shadow 'mpv' with 'mpv-queue'
-      BIN_DIR=$(mktemp -d)
-      trap 'rm -rf "$BIN_DIR"' EXIT
-      ln -s "$(command -v mpv-queue)" "$BIN_DIR/mpv"
-      
-      export PATH="$BIN_DIR:$PATH"
-      ${pkgs.bash}/bin/bash ${inputs.ani-cli}/ani-cli "$@"
-    '')
+
+        if [ -S "$SOCKET" ] && socat - "$SOCKET" <<< '{ "command": ["get_property", "idle-active"] }' >/dev/null 2>&1; then
+          # Already running: just append the target
+          if [ -n "$TARGET" ]; then
+            echo "{ \"command\": [\"loadfile\", \"$TARGET\", \"append-play\"] }" | socat - "$SOCKET"
+          fi
+        else
+          # Not running: start fresh
+          rm -f "$SOCKET"
+          # Launch detached
+          nohup mpv --idle=yes --input-ipc-server="$SOCKET" --force-window=yes --really-quiet "''${args[@]}" "$TARGET" >/dev/null 2>&1 </dev/null &
+          
+          # Wait for socket
+          for _ in {1..20}; do
+            if [ -S "$SOCKET" ]; then break; fi
+            sleep 0.1
+          done
+        fi
+      '';
+    })
     pkgs.socat
     pkgs.w3m
     pkgs.chafa
     pkgs.ani-skip
+    (pkgs.writeShellApplication {
+      name = "ani-cli";
+      runtimeInputs = [
+        bash
+        curl
+        gnugrep
+        gnused
+        fzf
+        yt-dlp
+        ffmpeg
+        openssl
+        mpv
+        ani-skip
+      ];
+      text = ''
+        bash "${inputs.ani-cli}/ani-cli" "$@"
+      '';
+    })
   ];
 
   home.file.".w3m/config".text = ''

@@ -4,10 +4,14 @@ primary_region = "ewr"
 [vm]
   cpu_kind = "shared"
   cpus = 2
-  memory_mb = 4096
+  memory_mb = 2048
 
 [[services]]
   protocol = "tcp"
-  internal_port = 3000
+  internal_port = 2222
+  auto_stop_machines = true
+  auto_start_machines = true
+  min_machines_running = 0
+
   [[services.ports]]
-    port = 3000
+    port = 2222

@@ -24,6 +24,15 @@ in
       }
     ];
 
+    programs.ssh.extraConfig = ''
+      Host sober-styx.internal
+        HostName fdaa:3:7a15:a7b:4d:9be5:53d9:2
+        Port 2222
+        User root
+        StrictHostKeyChecking no
+        UserKnownHostsFile /dev/null
+    '';
+
     nix = {
       distributedBuilds = true;
       
@@ -34,8 +43,8 @@ in
         {
           hostName = "sober-styx.internal";
           system = "x86_64-linux";
-          protocol = "nix"; # Standard TCP protocol for nix-daemon
-          maxJobs = 8;
+          protocol = "ssh-ng";
+          maxJobs = 4;
           speedFactor = 2; 
           supportedFeatures = [ "nixos-test" "benchmark" "big-parallel" "kvm" ];
           mandatoryFeatures = [ ];

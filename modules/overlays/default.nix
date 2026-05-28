@@ -27,7 +27,7 @@
       pname = "senpai-dev";
       version = "dev-${inputs.senpai-dev-src.shortRev or "latest"}";
       src = inputs.senpai-dev-src;
-      vendorHash = null;
+      vendorHash = "sha256-4Ax9YVa9z1Unk3Z2iy9ZEqKjNmdgK0aF4GrD9ucXtjk=";
       postInstall = (old.postInstall or "") + ''
         mv $out/bin/senpai $out/bin/senpai-dev
       '';

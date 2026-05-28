@@ -15,14 +15,19 @@
     pkgs.harper
     pkgs.imv
     pkgs.yazi
-    
+
     # Media
-    pkgs.castero
+   pkgs.castero
     pkgs.kjv
+
   ];
 
+  home.file.".dictrc".text = ''
+    server dict.org
+  '';
+
   # Import Castero podcasts
-  home.activation.import-castero = lib.hm.dag.entryAfter ["writeBoundary"] ''
+  home.activation.import-castero = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
     if [ -x "${pkgs.castero}/bin/castero" ]; then
       ${pkgs.castero}/bin/castero --import ${./podcasts.opml}
     fi

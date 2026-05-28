@@ -34,5 +34,24 @@
     
     # Performance governance
     powerManagement.cpuFreqGovernor = "performance";
+
+    # --- Systemd Optimizations ---
+    systemd.settings.Manager = {
+      DefaultTimeoutStopSec = "15s";
+      DefaultStartLimitIntervalSec = "10s";
+    };
+
+    services.journald.extraConfig = ''
+      SystemMaxUse=50M
+      MaxLevelStore=notice
+      MaxLevelSyslog=notice
+      MaxLevelConsole=notice
+    '';
+
+    # Disable core dumps to save disk I/O
+    systemd.coredump.enable = false;
+
+    # Enable systemd OOM killer
+    systemd.oomd.enable = true;
   };
 }
