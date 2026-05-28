@@ -155,18 +155,37 @@ require('nvim-treesitter.configs').setup({
 local cmp = require('cmp')
 local luasnip = require('luasnip')
 
--- Add capabilities for nvim-cmp
-local capabilities = require('cmp_nvim_lsp').default_capabilities()
+-- Centralized LSP Configuration (Neovim 0.11 Native)
+vim.api.nvim_create_autocmd('LspAttach', {
+  callback = function(args)
+    local bufnr = args.buf
+    local client = vim.lsp.get_client_by_id(args.data.client_id)
 
--- Helper to setup servers adhering to lspconfig standards
-local function setup_server(name, config)
-  local lspconfig = require('lspconfig')
-  if lspconfig[name] then
-    lspconfig[name].setup(config)
-  else
-    vim.notify("LSP server " .. name .. " is not supported by lspconfig", vim.log.levels.ERROR)
-  end
-end
+    -- 1. Buffer-local Mappings
+    local opts = { buffer = bufnr }
+    vim.keymap.set('n', 'gd', vim.lsp.buf.definition, { buffer = bufnr, desc = "Go to Definition" })
+    vim.keymap.set('n', 'K', vim.lsp.buf.hover, { buffer = bufnr, desc = "Docs" })
+    vim.keymap.set('n', '<leader>e', vim.diagnostic.open_float, { buffer = bufnr, desc = "Line Diagnostics" })
+    vim.keymap.set('n', '[d', vim.diagnostic.goto_prev, { buffer = bufnr, desc = "Prev Diagnostic" })
+    vim.keymap.set('n', ']d', vim.diagnostic.goto_next, { buffer = bufnr, desc = "Next Diagnostic" })
+
+    -- 2. Enable Inlay Hints (0.10+)
+    if client.supports_method('textDocument/inlayHint') then
+      vim.lsp.inlay_hint.enable(true, { bufnr = bufnr })
+    end
+
+    -- 3. Auto-format on Save
+    -- Only if the server supports it
+    if client.supports_method('textDocument/formatting') then
+      vim.api.nvim_create_autocmd('BufWritePre', {
+        buffer = bufnr,
+        callback = function()
+          vim.lsp.buf.format({ bufnr = bufnr, id = client.id })
+        end,
+      })
+    end
+  end,
+})
 
 -- Autocompletion Setup
 cmp.setup({
@@ -209,9 +228,8 @@ cmp.setup({
   })
 })
 
--- Go Setup (Added for SOBER VPN Manager)
-setup_server('gopls', {
-  capabilities = capabilities,
+-- Server Configurations
+vim.lsp.config('gopls', {
   settings = {
     gopls = {
       analyses = {
@@ -223,19 +241,7 @@ setup_server('gopls', {
   },
 })
 
--- Rust Setup
-setup_server('rust_analyzer', {
-  capabilities = capabilities,
-})
-
--- C/C++ Setup
-setup_server('clangd', {
-  capabilities = capabilities,
-})
-
--- Clean Lua Setup
-setup_server('lua_ls', {
-  capabilities = capabilities,
+vim.lsp.config('lua_ls', {
   settings = {
     Lua = {
       runtime = { version = 'LuaJIT' },
@@ -249,9 +255,7 @@ setup_server('lua_ls', {
   },
 })
 
--- Clean Nix Setup
-setup_server('nixd', {
-  capabilities = capabilities,
+vim.lsp.config('nixd', {
   settings = {
     nixd = {
       nixpkgs = {
@@ -269,6 +273,10 @@ setup_server('nixd', {
     },
   },
 })
+
+-- Enable Servers
+-- This triggers filetype-based automatic start
+vim.lsp.enable({ 'gopls', 'rust_analyzer', 'clangd', 'lua_ls', 'nixd' })
 
 -- 6. Diagnostics UI
 vim.diagnostic.config({
@@ -302,11 +310,6 @@ require('telescope').load_extension('fzf')
 local builtin = require('telescope.builtin')
 vim.keymap.set('n', '<leader>ff', builtin.find_files, { desc = "Find Files" })
 vim.keymap.set('n', '<leader>fg', builtin.live_grep, { desc = "Live Grep" })
-vim.keymap.set('n', 'gd', vim.lsp.buf.definition, { desc = "Go to Definition" })
-vim.keymap.set('n', 'K', vim.lsp.buf.hover, { desc = "Docs" })
-vim.keymap.set('n', '<leader>e', vim.diagnostic.open_float, { desc = "Line Diagnostics" })
-vim.keymap.set('n', '[d', vim.diagnostic.goto_prev, { desc = "Prev Diagnostic" })
-vim.keymap.set('n', ']d', vim.diagnostic.goto_next, { desc = "Next Diagnostic" })
 
 -- RELOAD & RESTART (The "Full Refresh")
 vim.keymap.set("n", "<leader>rr", function()
@@ -330,13 +333,8 @@ end, { desc = "Reload Config + LSP" })
 
 -- Standalone Restart (If you just want to reboot the server without reloading config)
 vim.keymap.set("n", "<leader>rs", ":LspRestart<CR>", { desc = "Restart LSP" })
--- 8. Autocommands (Auto-format)
-vim.api.nvim_create_autocmd("BufWritePre", {
-  pattern = { "*.nix", "*.lua", "*.css", "*.go", "*.rs", "*.c", "*.h" },
-  callback = function()
-    vim.lsp.buf.format()
-  end,
-})
+
+-- 8. Autocommands
 -- Fast Saving
 vim.keymap.set("n", "<leader>w", "<CMD>w<CR>", { desc = "Save File" })
 
