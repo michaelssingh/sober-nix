@@ -57,5 +57,9 @@ in
         ${pkgs.systemd}/bin/resolvectl dnsovertls ${cfg.interface} no
       '';
     };
+
+    systemd.services."wg-quick-${cfg.interface}" = {
+      before = [ "wg-quick-wg-sober.service" ];
+    };
   };
 }
