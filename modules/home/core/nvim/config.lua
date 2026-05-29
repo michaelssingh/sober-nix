@@ -258,19 +258,21 @@ vim.lsp.config('lua_ls', {
 vim.lsp.config('nixd', {
   settings = {
     nixd = {
+      formatting = {
+        command = { "nixfmt" }
+      },
       nixpkgs = {
-        expr = "import <nixpkgs> { }",
+        expr = "import <nixpkgs> { }"
       },
       options = {
-        nixos = {
-          expr = '(builtins.getFlake "${workspaceFolder}").nixosConfigurations.otus.options',
-        },
         home_manager = {
-          expr = '(builtins.getFlake "${workspaceFolder}").homeConfigurations.server.options',
+          expr = '(builtins.getFlake "${workspaceFolder}").nixosConfigurations.otus.options.home-manager.users.type.getSubOptions [ ]'
         },
-      },
-      formatting = { command = { "nixfmt" } },
-    },
+        nixos = {
+          expr = '(builtins.getFlake "${workspaceFolder}").nixosConfigurations.otus.options'
+        }
+      }
+    }
   },
 })
 
