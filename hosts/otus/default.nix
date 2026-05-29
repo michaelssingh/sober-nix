@@ -23,7 +23,7 @@
 
   # --- ENABLE FEATURES ---
   # Remote Nix Builders
-  sober.services.nix-remote-builder.enable = false;
+  sober.services.nix-remote-builder.enable = true;
 
   # Transmission
   services.transmission.enable = true;
