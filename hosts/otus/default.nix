@@ -93,6 +93,7 @@
       UserKnownHostsFile /dev/null
 
     Host eu.nixbuild.net
+      User michael
       PubkeyAcceptedKeyTypes ssh-ed25519
       ServerAliveInterval 60
       RequestTTY no
@@ -105,7 +106,7 @@
   programs.ssh.knownHosts = {
     nixbuild = {
       hostNames = [ "eu.nixbuild.net" ];
-      publicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPIQCZc54poJ8vqawd8TraNryQeJnvH1eLpIDgbiqymM";
+      publicKey = (import ../../modules/core/public-keys.nix { inherit lib; }).config.sober.core.public-keys.nixbuild;
     };
     athene = {
       hostNames = [
@@ -121,6 +122,7 @@
     buildMachines = [
       {
         hostName = "eu.nixbuild.net";
+        sshUser = "michael";
         protocol = "ssh-ng";
         system = "x86_64-linux";
         maxJobs = 100;
@@ -133,11 +135,11 @@
     ];
   };
 
-  # # Bridge the user's SSH agent to the Nix daemon
-  # # This allows the daemon to use keys loaded via 'bw-ssh-init'.
-  # systemd.services.nix-daemon.serviceConfig.Environment = [
-  #   "SSH_AUTH_SOCK=/run/user/1001/ssh-agent"
-  # ];
+  # Bridge the user's SSH agent to the Nix daemon
+  # This allows the daemon to use keys loaded via 'bw-ssh-init'.
+  systemd.services.nix-daemon.serviceConfig.Environment = [
+    "SSH_AUTH_SOCK=/run/user/1001/ssh-agent"
+  ];
 
   users.users.${user} = {
     isNormalUser = true;

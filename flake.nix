@@ -91,7 +91,7 @@
         goanime = let
           pkgs-unstable = import inputs.nixpkgs-unstable { system = "x86_64-linux"; };
         in
-        pkgs-unstable.callPackage ./packages/goanime { };
+        pkgs-unstable.callPackage ./packages/goanime { go = pkgs-unstable.go; };
         athene-image = import ./hosts/athene/athene.nix { inherit pkgs; lib = nixpkgs.lib; };
         clare-image = import ./hosts/clare/clare.nix { inherit pkgs; lib = nixpkgs.lib; };
         glaucidium-image = import ./hosts/glaucidium/glaucidium.nix { inherit pkgs; lib = nixpkgs.lib; };

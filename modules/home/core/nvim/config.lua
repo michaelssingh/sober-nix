@@ -45,6 +45,7 @@ vim.opt.smartcase = true
 
 -- 4. Plugin Setup
 require('lualine').setup { options = { theme = 'tokyonight' } }
+require('gemini').setup({})
 require('gitsigns').setup({
   on_attach = function(bufnr)
     local gs = package.loaded.gitsigns

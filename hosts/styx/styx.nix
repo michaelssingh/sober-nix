@@ -1,8 +1,8 @@
 { pkgs, publicKeys, ... }:
 
 let
-  # Entrypoint to run sshd on port 2222
-  # This allows the Fly.io proxy to wake the machine when SSH traffic arrives.
+  # Entrypoint to run sshd and nix-daemon
+  # This allows the machine to act as a Nix remote builder over Fly.io.
   entrypoint = pkgs.writeShellScriptBin "entrypoint" ''
     set -e
 
@@ -15,14 +15,23 @@ let
 
     # 2. Setup Authentication
     mkdir -p /root/.ssh
-    echo "${publicKeys.otus}" > /root/.ssh/authorized_keys
+    echo "${publicKeys.fly}" > /root/.ssh/authorized_keys
     chmod 700 /root/.ssh
     chmod 600 /root/.ssh/authorized_keys
 
     # 3. Generate Host Keys
     ${pkgs.openssh}/bin/ssh-keygen -A
 
-    # 4. Run SSHD
+    # 4. Setup Nix environment
+    mkdir -p /nix/var/nix/daemon-socket
+    export NIX_BUILD_HOOK= # Prevent build loops
+
+    # 5. Start Nix Daemon
+    echo "Starting Nix Daemon..."
+    ${pkgs.nix}/bin/nix-daemon &
+
+    # 6. Run SSHD
+    echo "Starting SSHD..."
     exec ${pkgs.openssh}/bin/sshd -D -e
   '';
 in
