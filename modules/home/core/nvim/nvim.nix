@@ -10,6 +10,15 @@
       fd
     ];
     plugins = with pkgs.vimPlugins; [
+      (pkgs.vimUtils.buildVimPlugin {
+        name = "gemini-nvim";
+        src = pkgs.fetchFromGitHub {
+          owner = "kiddos";
+          repo = "gemini.nvim";
+          rev = "master";
+          sha256 = "0gr2wyblr9vzxkwl045mz7sc8v36l10909bpmrlsz1ym0h9qskb7";
+        };
+      })
       nvim-lspconfig
       nvim-autopairs
       nvim-web-devicons

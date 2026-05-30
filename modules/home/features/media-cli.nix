@@ -49,6 +49,7 @@
     pkgs.w3m
     pkgs.chafa
     pkgs.ani-skip
+    pkgs.goanime
     (pkgs.writeShellApplication {
       name = "ani-cli";
       runtimeInputs = [
@@ -62,6 +63,7 @@
         openssl
         mpv
         ani-skip
+        aria2
       ];
       text = ''
         bash "${inputs.ani-cli}/ani-cli" "$@"
