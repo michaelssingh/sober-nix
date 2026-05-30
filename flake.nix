@@ -88,7 +88,12 @@
       };
 
       packages."x86_64-linux" = {
+        goanime = let
+          pkgs-unstable = import inputs.nixpkgs-unstable { system = "x86_64-linux"; };
+        in
+        pkgs-unstable.callPackage ./packages/goanime { };
         athene-image = import ./hosts/athene/athene.nix { inherit pkgs; lib = nixpkgs.lib; };
+        clare-image = import ./hosts/clare/clare.nix { inherit pkgs; lib = nixpkgs.lib; };
         glaucidium-image = import ./hosts/glaucidium/glaucidium.nix { inherit pkgs; lib = nixpkgs.lib; };
         styx-image = import ./hosts/styx/styx.nix { 
           inherit pkgs; 
@@ -121,6 +126,9 @@
           btop # Resource monitoring
           iotop # Disk I/O monitoring
           iproute2 # Networking
+          go # Go programming language
+          gopls # Go language server
+
           tcpdump # Packet capture
           nmap # Network audit
           ripgrep # Search
