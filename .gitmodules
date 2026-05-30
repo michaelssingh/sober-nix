@@ -1,3 +1,6 @@
 [submodule "packages/senpai"]
 	path = packages/senpai
 	url = https://git.sr.ht/~delthas/senpai
+[submodule "hosts/clare"]
+	path = hosts/clare
+	url = ./hosts/clare
