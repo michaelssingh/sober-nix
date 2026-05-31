@@ -30,7 +30,7 @@ let
   # Minimal Ergo IRCd config for testing
   ergoConfig = pkgs.writeTextDir "etc/ergo/ergo.yaml" ''
     server:
-        name: localhost
+        name: irc.local
         listen:
             - ":6667"
     network:
