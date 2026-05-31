@@ -11,6 +11,7 @@
     ../../modules/home/core/email.nix
     ../../modules/home/core/aerc.nix
     ../../modules/home/core/neomutt.nix
+    ../../modules/home/features/rbw-unlock.nix
   ];
 
   # Sops-Nix Key Source for Home-Manager
@@ -29,6 +30,7 @@
     stig
     chawan
     dict
+    rbw
   ];
   programs.zathura = {
     enable = true;

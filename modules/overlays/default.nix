@@ -3,7 +3,7 @@
   # This 'additions' overlay adds new packages not in nixpkgs
   additions = final: prev: 
     import ./gemini.nix { inherit inputs; } final prev // {
-      goanime = final.callPackage ../../packages/goanime { };
+      tyto = final.callPackage ../../packages/tyto { };
       unstable = import inputs.nixpkgs-unstable {
         system = final.system;
         config.allowUnfree = true;
