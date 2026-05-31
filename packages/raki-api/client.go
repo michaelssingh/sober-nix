@@ -7,6 +7,7 @@ import (
 	"net"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // dialAdmin connects to the Soju unix socket.
@@ -22,6 +23,7 @@ func (s *Server) sendAdminCommand(ctx context.Context, words []string) (string, 
 		return "", fmt.Errorf("dial: %v", err)
 	}
 	defer uc.Close()
+	uc.SetDeadline(time.Now().Add(5 * time.Second))
 
 	c := irc.NewConn(uc)
 	if err := c.WriteMessage(&irc.Message{
