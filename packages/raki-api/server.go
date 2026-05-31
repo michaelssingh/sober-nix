@@ -19,8 +19,6 @@ type UserRequest struct {
 	Username    string `json:"username,omitempty"`
 	Password    string `json:"password,omitempty"`
 	Admin       bool   `json:"admin"`
-	Enabled     bool   `json:"enabled"`
-	MaxNetworks int    `json:"max_networks"`
 }
 
 func NewServer(adminSocketPath string, apiKeys []string) *Server {
@@ -51,12 +49,10 @@ func (s *Server) authMiddleware(next http.Handler) http.Handler {
 
 func (s *Server) setupRoutes() {
 	s.mux.HandleFunc("/health", s.healthCheck)
-	s.mux.Handle("/api/users", s.authMiddleware(http.HandlerFunc(s.listUsers)))
+	s.mux.Handle("/api/users", s.authMiddleware(http.HandlerFunc(s.usersHandler)))
 	s.mux.Handle("/api/users/", s.authMiddleware(http.HandlerFunc(s.userHandler)))
-	s.mux.Handle("/api/networks", s.authMiddleware(http.HandlerFunc(s.listNetworks)))
-	s.mux.Handle("/api/networks/", s.authMiddleware(http.HandlerFunc(s.networkHandler)))
-	s.mux.Handle("/api/channels", s.authMiddleware(http.HandlerFunc(s.listChannels)))
-	s.mux.Handle("/api/channels/", s.authMiddleware(http.HandlerFunc(s.channelHandler)))
+	s.mux.Handle("/api/networks", s.authMiddleware(http.HandlerFunc(s.networksHandler)))
+	s.mux.Handle("/api/channels", s.authMiddleware(http.HandlerFunc(s.channelsHandler)))
 }
 
 func (s *Server) healthCheck(w http.ResponseWriter, r *http.Request) {
@@ -68,35 +64,30 @@ func (s *Server) healthCheck(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func (s *Server) listUsers(w http.ResponseWriter, r *http.Request) {
-	resp, _ := s.sendAdminCommand(r.Context(), []string{"user", "status"})
-	w.Write([]byte(resp))
-}
-
-func (s *Server) createUser(w http.ResponseWriter, r *http.Request) {
-	var req UserRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
+func (s *Server) usersHandler(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case "GET":
+		resp, _ := s.sendAdminCommand(r.Context(), []string{"user", "status"})
+		w.Write([]byte(resp))
+	case "POST":
+		var req UserRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		cmd := []string{"user", "create", "-username", req.Username, "-password", req.Password}
+		if req.Admin {
+			cmd = append(cmd, "-admin", "true")
+		}
+		resp, err := s.sendAdminCommand(r.Context(), cmd)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.Write([]byte(resp))
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
 	}
-
-	if req.Username == "" || req.Password == "" {
-		http.Error(w, "username and password are required", http.StatusBadRequest)
-		return
-	}
-
-	cmd := []string{"user", "create", "-username", req.Username, "-password", req.Password}
-	if req.Admin {
-		cmd = append(cmd, "-admin", "true")
-	}
-
-	resp, err := s.sendAdminCommand(r.Context(), cmd)
-	if err != nil {
-		s.logger.Error("failed to create user", "error", err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	w.Write([]byte(resp))
 }
 
 func (s *Server) userHandler(w http.ResponseWriter, r *http.Request) {
@@ -113,45 +104,62 @@ func (s *Server) userHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (s *Server) listNetworks(w http.ResponseWriter, r *http.Request) {
-	resp, _ := s.sendAdminCommand(r.Context(), []string{"network", "status"})
-	w.Write([]byte(resp))
+func (s *Server) networksHandler(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case "GET":
+		resp, _ := s.sendAdminCommand(r.Context(), []string{"network", "status"})
+		w.Write([]byte(resp))
+	case "POST":
+		var req struct {
+			User string `json:"user"`
+			Addr string `json:"addr"`
+			Name string `json:"name"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		cmd := []string{"user", "run", req.User, "network", "create", "-addr", req.Addr}
+		if req.Name != "" {
+			cmd = append(cmd, "-name", req.Name)
+		}
+		resp, err := s.sendAdminCommand(r.Context(), cmd)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.Write([]byte(resp))
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+	}
 }
 
-func (s *Server) createNetwork(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		Addr string `json:"addr"`
-		Name string `json:"name"`
-		User string `json:"user"`
+func (s *Server) channelsHandler(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case "GET":
+		resp, _ := s.sendAdminCommand(r.Context(), []string{"channel", "status"})
+		w.Write([]byte(resp))
+	case "POST":
+		var req struct {
+			User    string `json:"user"`
+			Network string `json:"network"`
+			Name    string `json:"name"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		// user run <user> channel join <net> <channel>
+		cmd := []string{"user", "run", req.User, "channel", "join", req.Network, req.Name}
+		resp, err := s.sendAdminCommand(r.Context(), cmd)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.Write([]byte(resp))
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
 	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	cmd := []string{"user", "run", req.User, "network", "create", "-addr", req.Addr}
-	if req.Name != "" {
-		cmd = append(cmd, "-name", req.Name)
-	}
-	resp, err := s.sendAdminCommand(r.Context(), cmd)
-	if err != nil {
-		s.logger.Error("failed to create network", "error", err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	w.Write([]byte(resp))
-}
-
-func (s *Server) networkHandler(w http.ResponseWriter, r *http.Request) {
-    w.WriteHeader(http.StatusOK)
-}
-
-func (s *Server) listChannels(w http.ResponseWriter, r *http.Request) {
-	resp, _ := s.sendAdminCommand(r.Context(), []string{"channel", "status"})
-	w.Write([]byte(resp))
-}
-
-func (s *Server) channelHandler(w http.ResponseWriter, r *http.Request) {
-    w.WriteHeader(http.StatusOK)
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
