@@ -73,8 +73,13 @@ let
     # Wait for the socket to exist
     sleep 2
     
-    # Start the API in the background
-    ${rakiApi}/bin/raki-api -socket /var/lib/soju/admin.sock -listen :8081 -api-keys "''${RAKI_API_KEY:-default-insecure-key}" &
+    # Start the API in the background (allow override from volume for rapid iteration)
+    API_BIN=${rakiApi}/bin/raki-api
+    if [ -f /var/lib/soju/raki-api ]; then
+        chmod +x /var/lib/soju/raki-api
+        API_BIN=/var/lib/soju/raki-api
+    fi
+    $API_BIN -socket /var/lib/soju/admin.sock -listen :8081 -api-keys "''${RAKI_API_KEY:-default-insecure-key}" &
     
     # Start the custom SSH shell portal in the foreground
     exec ${clareShell}/bin/clare-shell
