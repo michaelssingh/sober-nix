@@ -49,7 +49,7 @@ let
     mkdir -p /var/lib/ergo
     
     # Start Ergo IRCd in the background
-    ${pkgs.ergoircd}/bin/ergo run --conf /etc/ergo/ergo.yaml &
+    ${pkgs.ergochat}/bin/ergo run --conf /etc/ergo/ergo.yaml &
     
     # Start soju in the background
     ${pkgs.soju}/bin/soju &
@@ -70,7 +70,7 @@ pkgs.dockerTools.buildLayeredImage {
 
   contents = [
     pkgs.soju
-    pkgs.ergoircd
+    pkgs.ergochat
     clareShell
     rakiApi
     pkgs.bashInteractive
