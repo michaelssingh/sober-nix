@@ -40,14 +40,11 @@
       '';
 
       bw-ssh-init = ''
-        if not set -q BW_SESSION
-          set -gx BW_SESSION (bw unlock --raw)
-        end
         if test (count $argv) -eq 0
           echo "Usage: bw-ssh-init <item-name>"
           return 1
         end
-        bw get item "$argv[1]" --raw | jq -r .sshKey.privateKey | ssh-add -
+        rbw get --field private-key "$argv[1]" | ssh-add -
       '';
 
       wg-up = ''

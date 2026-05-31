@@ -1,5 +1,5 @@
 app = "sober-glaucidium"
-primary_region = "ewr"
+primary_region = "fra"
 
 [vm]
   cpu_kind = "shared"
