@@ -61,7 +61,7 @@ let
     
     # Initialize Ergo if needed
     if [ ! -f /var/lib/ergo/ergo.db ]; then
-        ${pkgs.ergochat}/bin/ergo init --conf /etc/ergo/ergo.yaml
+        ${pkgs.ergochat}/bin/ergo initdb --conf /etc/ergo/ergo.yaml
     fi
     
     # Start Ergo IRCd in the background
