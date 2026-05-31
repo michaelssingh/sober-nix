@@ -29,28 +29,17 @@ let
 
   # Minimal Ergo IRCd config for testing
   ergoConfig = pkgs.writeTextDir "etc/ergo/ergo.yaml" ''
-    server:
-        name: irc.local
-        listen:
-            - "127.0.0.1:6667"
     network:
         name: local-test-net
+    server:
+        name: irc.local
+        listeners:
+            "127.0.0.1:6667":
     datastore:
         path: /var/lib/ergo/ergo.db
     accounts:
         registration:
             enabled: false
-    logging:
-        - method: stdout
-          level: debug
-    limits:
-        nick: 32
-        ident: 32
-        realname: 128
-        channel: 64
-        away-len: 256
-        kick-len: 256
-        topic-len: 390
   '';
 
   # A wrapper script to start soju, the api, and the SSH portal
