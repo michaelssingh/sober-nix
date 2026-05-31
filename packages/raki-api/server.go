@@ -77,7 +77,7 @@ func (s *Server) usersHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		cmd := []string{"user", "create", "-username", req.Username, "-password", req.Password}
 		if req.Admin {
-			cmd = append(cmd, "-admin", "true")
+			cmd = append(cmd, "-admin")
 		}
 		resp, err := s.sendAdminCommand(r.Context(), cmd)
 		if err != nil {
