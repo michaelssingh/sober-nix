@@ -34,17 +34,29 @@ let
     server:
         name: irc.local
         listeners:
-            "127.0.0.1:6667":
+            "127.0.0.1:6667": {}
     datastore:
         path: /var/lib/ergo/ergo.db
     accounts:
         registration:
             enabled: false
+    limits:
+        nicklen: 32
+        identlen: 20
+        realnamelen: 150
+        channellen: 64
+        awaylen: 390
+        kicklen: 390
+        topiclen: 390
   '';
 
   # A wrapper script to start soju, the api, and the SSH portal
   entrypoint = pkgs.writeShellScriptBin "entrypoint" ''
     set -e
+    # Debug limits
+    ulimit -a
+    ulimit -n 65536 || true
+
     mkdir -p /var/lib/soju/uploads
     mkdir -p /var/lib/ergo
     
@@ -91,6 +103,8 @@ pkgs.dockerTools.buildLayeredImage {
     pkgs.procps
     pkgs.findutils
     pkgs.sqlite
+    pkgs.go_1_26
+    pkgs.git
     sojuConfig
     ergoConfig
     entrypoint
