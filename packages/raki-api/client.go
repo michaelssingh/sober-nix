@@ -31,6 +31,7 @@ func (s *Server) sendAdminCommand(ctx context.Context, words []string) (string, 
 		return "", fmt.Errorf("write: %v", err)
 	}
 
+	var output strings.Builder
 	for {
 		m, err := c.ReadMessage()
 		if err != nil {
@@ -38,13 +39,17 @@ func (s *Server) sendAdminCommand(ctx context.Context, words []string) (string, 
 		}
 		switch m.Command {
 		case "PRIVMSG":
-			return m.Trailing(), nil
+			if output.Len() > 0 {
+				output.WriteRune('\n')
+			}
+			output.WriteString(m.Trailing())
 		case "BOUNCERSERV":
 			if m.Param(0) == "OK" {
-				return "OK", nil
+				return output.String(), nil
 			}
-			fallthrough
-		default:
+			// If not OK, it's an error
+			return "", fmt.Errorf("error: %s", m.Trailing())
+		case "ERROR":
 			return "", fmt.Errorf("error: %s", m.Trailing())
 		}
 	}
