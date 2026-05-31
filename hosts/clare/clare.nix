@@ -27,10 +27,29 @@ let
     db sqlite3 /var/lib/soju/soju.db
   '';
 
+  # Minimal Ergo IRCd config for testing
+  ergoConfig = pkgs.writeTextDir "etc/ergo/ergo.yaml" ''
+    server:
+        name: localhost
+        listen:
+            - ":6667"
+    network:
+        name: local-test-net
+    datastore:
+        path: /var/lib/ergo/ergo.db
+    accounts:
+        registration:
+            enabled: false
+  '';
+
   # A wrapper script to start soju, the api, and the SSH portal
   entrypoint = pkgs.writeShellScriptBin "entrypoint" ''
     set -e
     mkdir -p /var/lib/soju/uploads
+    mkdir -p /var/lib/ergo
+    
+    # Start Ergo IRCd in the background
+    ${pkgs.ergoircd}/bin/ergo run --conf /etc/ergo/ergo.yaml &
     
     # Start soju in the background
     ${pkgs.soju}/bin/soju &
@@ -51,6 +70,7 @@ pkgs.dockerTools.buildLayeredImage {
 
   contents = [
     pkgs.soju
+    pkgs.ergoircd
     clareShell
     rakiApi
     pkgs.bashInteractive
@@ -62,6 +82,7 @@ pkgs.dockerTools.buildLayeredImage {
     pkgs.findutils
     pkgs.sqlite
     sojuConfig
+    ergoConfig
     entrypoint
     (pkgs.writeTextDir "etc/passwd" ''
       root:x:0:0::/root:/bin/bash
