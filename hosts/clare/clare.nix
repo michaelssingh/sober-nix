@@ -32,7 +32,7 @@ let
     server:
         name: irc.local
         listen:
-            - ":6667"
+            - "127.0.0.1:6667"
     network:
         name: local-test-net
     datastore:
@@ -40,6 +40,9 @@ let
     accounts:
         registration:
             enabled: false
+    logging:
+        - method: stdout
+          level: debug
   '';
 
   # A wrapper script to start soju, the api, and the SSH portal
