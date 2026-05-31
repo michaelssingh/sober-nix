@@ -14,7 +14,7 @@ let
     pname = "raki-api";
     version = "0.1.0";
     src = ../../packages/raki-api;
-    vendorHash = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
+    vendorHash = null;
   };
 
   # The config for soju in the container
