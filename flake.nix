@@ -88,10 +88,8 @@
       };
 
       packages."x86_64-linux" = {
-        goanime = let
-          pkgs-unstable = import inputs.nixpkgs-unstable { system = "x86_64-linux"; };
-        in
-        pkgs-unstable.callPackage ./packages/goanime { go = pkgs-unstable.go; };
+        tyto = pkgs.callPackage ./packages/tyto { };
+        raki-api = pkgs.callPackage ./packages/raki-api { };
         athene-image = import ./hosts/athene/athene.nix { inherit pkgs; lib = nixpkgs.lib; };
         clare-image = import ./hosts/clare/clare.nix { inherit pkgs; lib = nixpkgs.lib; };
         glaucidium-image = import ./hosts/glaucidium/glaucidium.nix { inherit pkgs; lib = nixpkgs.lib; };
