@@ -39,7 +39,7 @@ let
     sleep 2
     
     # Start the API in the background
-    ${rakiApi}/bin/raki-api -listen :8081 -api-keys "$RAKI_API_KEY" &
+    ${rakiApi}/bin/raki-api -socket /var/lib/soju/admin.sock -listen :8081 -api-keys "''${RAKI_API_KEY:-default-insecure-key}" &
     
     # Start the custom SSH shell portal in the foreground
     exec ${clareShell}/bin/clare-shell

@@ -5,7 +5,6 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
-	"strings"
 )
 
 type Server struct {
@@ -13,12 +12,6 @@ type Server struct {
 	mux             *http.ServeMux
 	apiKeys         map[string]struct{}
 	logger          *slog.Logger
-}
-
-type UserRequest struct {
-	Username    string `json:"username,omitempty"`
-	Password    string `json:"password,omitempty"`
-	Admin       bool   `json:"admin"`
 }
 
 func NewServer(adminSocketPath string, apiKeys []string) *Server {
@@ -49,10 +42,8 @@ func (s *Server) authMiddleware(next http.Handler) http.Handler {
 
 func (s *Server) setupRoutes() {
 	s.mux.HandleFunc("/health", s.healthCheck)
-	s.mux.Handle("/api/users", s.authMiddleware(http.HandlerFunc(s.usersHandler)))
-	s.mux.Handle("/api/users/", s.authMiddleware(http.HandlerFunc(s.userHandler)))
-	s.mux.Handle("/api/networks", s.authMiddleware(http.HandlerFunc(s.networksHandler)))
-	s.mux.Handle("/api/channels", s.authMiddleware(http.HandlerFunc(s.channelsHandler)))
+	// Single generic endpoint for integration testing
+	s.mux.Handle("/api/exec", s.authMiddleware(http.HandlerFunc(s.execHandler)))
 }
 
 func (s *Server) healthCheck(w http.ResponseWriter, r *http.Request) {
@@ -64,102 +55,27 @@ func (s *Server) healthCheck(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func (s *Server) usersHandler(w http.ResponseWriter, r *http.Request) {
-	switch r.Method {
-	case "GET":
-		resp, _ := s.sendAdminCommand(r.Context(), []string{"user", "status"})
-		w.Write([]byte(resp))
-	case "POST":
-		var req UserRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		cmd := []string{"user", "create", "-username", req.Username, "-password", req.Password}
-		if req.Admin {
-			cmd = append(cmd, "-admin")
-		}
-		resp, err := s.sendAdminCommand(r.Context(), cmd)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		w.Write([]byte(resp))
-	default:
+func (s *Server) execHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
 		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
 	}
-}
 
-func (s *Server) userHandler(w http.ResponseWriter, r *http.Request) {
-	username := strings.TrimPrefix(r.URL.Path, "/api/users/")
-	switch r.Method {
-	case "GET":
-		resp, _ := s.sendAdminCommand(r.Context(), []string{"user", "status", username})
-		w.Write([]byte(resp))
-	case "DELETE":
-		resp, _ := s.sendAdminCommand(r.Context(), []string{"user", "delete", username})
-		w.Write([]byte(resp))
-	default:
-		w.WriteHeader(http.StatusMethodNotAllowed)
+	var req struct {
+		Args []string `json:"args"`
 	}
-}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 
-func (s *Server) networksHandler(w http.ResponseWriter, r *http.Request) {
-	switch r.Method {
-	case "GET":
-		resp, _ := s.sendAdminCommand(r.Context(), []string{"network", "status"})
-		w.Write([]byte(resp))
-	case "POST":
-		var req struct {
-			User string `json:"user"`
-			Addr string `json:"addr"`
-			Name string `json:"name"`
-		}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		cmd := []string{"user", "run", req.User, "network", "create", "-addr", req.Addr}
-		if req.Name != "" {
-			cmd = append(cmd, "-name", req.Name)
-		}
-		resp, err := s.sendAdminCommand(r.Context(), cmd)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		w.Write([]byte(resp))
-	default:
-		w.WriteHeader(http.StatusMethodNotAllowed)
+	resp, err := s.sendAdminCommand(r.Context(), req.Args)
+	if err != nil {
+		s.logger.Error("command failed", "args", req.Args, "error", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
-}
-
-func (s *Server) channelsHandler(w http.ResponseWriter, r *http.Request) {
-	switch r.Method {
-	case "GET":
-		resp, _ := s.sendAdminCommand(r.Context(), []string{"channel", "status"})
-		w.Write([]byte(resp))
-	case "POST":
-		var req struct {
-			User    string `json:"user"`
-			Network string `json:"network"`
-			Name    string `json:"name"`
-		}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		// user run <user> channel join <net> <channel>
-		cmd := []string{"user", "run", req.User, "channel", "join", req.Network, req.Name}
-		resp, err := s.sendAdminCommand(r.Context(), cmd)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		w.Write([]byte(resp))
-	default:
-		w.WriteHeader(http.StatusMethodNotAllowed)
-	}
+	w.Write([]byte(resp))
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
