@@ -43,6 +43,14 @@ let
     logging:
         - method: stdout
           level: debug
+    limits:
+        nick: 32
+        ident: 32
+        realname: 128
+        channel: 64
+        away-len: 256
+        kick-len: 256
+        topic-len: 390
   '';
 
   # A wrapper script to start soju, the api, and the SSH portal
@@ -50,6 +58,11 @@ let
     set -e
     mkdir -p /var/lib/soju/uploads
     mkdir -p /var/lib/ergo
+    
+    # Initialize Ergo if needed
+    if [ ! -f /var/lib/ergo/ergo.db ]; then
+        ${pkgs.ergochat}/bin/ergo init --conf /etc/ergo/ergo.yaml
+    fi
     
     # Start Ergo IRCd in the background
     ${pkgs.ergochat}/bin/ergo run --conf /etc/ergo/ergo.yaml &
