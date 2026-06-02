@@ -92,7 +92,7 @@ in
           "${modifier}+z" = "exec foot";
           "${modifier}+d" = "exec fuzzel";
           "${modifier}+Shift+d" = "exec dict-lookup";
-          "${modifier}+b" = "exec firefox";
+          "${modifier}+b" = "exec qutebrowser";
           "${modifier}+Shift+p" = "exec grimshot --notify savecopy anything";
           "${modifier}+Shift+n" = "exec makoctl restore";
           "${modifier}+Shift+e" =
