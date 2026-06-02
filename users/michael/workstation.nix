@@ -47,15 +47,15 @@ in
   sops.age.keyFile = "/home/michael/.config/sops/age/keys.txt";
   sops.defaultSopsFile = ../../secrets/secrets.yaml;
 
-  sops.secrets."ssh/nixbuild" = {
+  sops.secrets."nixbuild.key" = {
     path = "/home/michael/.ssh/nixbuild";
     mode = "0600";
   };
-  sops.secrets."ssh/fly" = {
+  sops.secrets."fly.key" = {
     path = "/home/michael/.ssh/fly";
     mode = "0600";
   };
-  sops.secrets."ssh/github" = {
+  sops.secrets."github.key" = {
     path = "/home/michael/.ssh/github";
     mode = "0600";
   };
