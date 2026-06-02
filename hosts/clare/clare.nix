@@ -35,6 +35,7 @@ let
         name: irc.local
         listeners:
             "127.0.0.1:6667": {}
+        max-sendq: 1M
     datastore:
         path: /var/lib/ergo/ergo.db
     accounts:
