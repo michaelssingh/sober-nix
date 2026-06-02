@@ -109,11 +109,6 @@ in
       bars = [ ];
       startup = [
         { command = "swaymsg workspace number 1"; }
-        { command = "foot --app-id senpai senpai-dev"; }
-        { command = "foot --app-id castero castero"; }
-        {
-          command = "mpv --idle=yes --force-window=yes --input-ipc-server=/tmp/mpv-socket --really-quiet && live dw > /dev/null ";
-        }
         {
           command = "${pkgs.swayidle}/bin/swayidle -w timeout 300 'swaylock -f -i ${./../bg.jpg} --indicator-radius 100 --indicator-thickness 7 --ring-color bb9af7 --key-hl-color 9ece6a' before-sleep 'swaylock -f -i ${./../bg.jpg} --indicator-radius 100 --indicator-thickness 7 --ring-color bb9af7 --key-hl-color 9ece6a' lock 'swaylock -f -i ${./../bg.jpg} --indicator-radius 100 --indicator-thickness 7 --ring-color bb9af7 --key-hl-color 9ece6a'";
         }

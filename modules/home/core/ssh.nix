@@ -14,12 +14,40 @@
       "github.com" = {
         hostname = "github.com";
         user = "git";
+        identityFile = "~/.ssh/github";
       };
 
-      "sober-services.internal" = {
-        hostname = "sober-services.internal";
+      "eu.nixbuild.net" = {
+        hostname = "eu.nixbuild.net";
+        user = "michael";
+        identityFile = "~/.ssh/nixbuild";
+        extraOptions = {
+          PubkeyAcceptedKeyTypes = "ssh-ed25519";
+          ServerAliveInterval = "60";
+          RequestTTY = "no";
+          Compression = "yes";
+          ControlMaster = "auto";
+          ControlPath = "/tmp/ssh-%r@%h:%p";
+          ControlPersist = "10m";
+        };
+      };
+
+      "athene.internal" = {
+        hostname = "fdaa:3:7a15:a7b:572:11c:754f:2";
         port = 2222;
         user = "root";
+        identityFile = "~/.ssh/fly";
+        extraOptions = {
+          StrictHostKeyChecking = "no";
+          UserKnownHostsFile = "/dev/null";
+        };
+      };
+
+      "sober-styx.internal" = {
+        hostname = "fdaa:3:7a15:a7b:4d:9be5:53d9:2";
+        port = 2222;
+        user = "root";
+        identityFile = "~/.ssh/fly";
       };
     };
   };

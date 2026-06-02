@@ -1,5 +1,10 @@
 { pkgs, inputs, ... }:
 
+let
+  emailPersonal = "michaelssingh@protonmail.com";
+  emailWork = "michael@sober.fyi";
+  theme = import ../../modules/home/core/theme.nix;
+in
 {
   imports = [
     inputs.sops-nix.homeManagerModules.sops
@@ -7,16 +12,53 @@
 
     # Workstation only modules
     ../../modules/home/desktop/sway
+    ../../modules/home/desktop/qutebrowser
     ../../modules/home/desktop/firefox/firefox.nix
     ../../modules/home/core/email.nix
     ../../modules/home/core/aerc.nix
     ../../modules/home/core/neomutt.nix
-    ../../modules/home/features/rbw-unlock.nix
   ];
+
+  programs.rbw = {
+    enable = true;
+    settings = {
+      email = emailPersonal;
+      base_url = "https://vault.bitwarden.com";
+      identity_url = "https://identity.bitwarden.com";
+      pinentry = pkgs.pinentry-tty;
+      # pinentry = pkgs.writeShellScriptBin "pinentry-bemenu-tokyonight" ''
+      #   ${pkgs.pinentry-bemenu}/bin/pinentry-bemenu \
+      #     --nb="${theme.colors.background}" \
+      #     --nf="${theme.colors.foreground}" \
+      #     --hb="${theme.colors.blue}" \
+      #     --hf="${theme.colors.foreground}" \
+      #     --sb="${theme.colors.blue}" \
+      #     --sf="${theme.colors.foreground}" \
+      #     --fb="${theme.colors.background}" \
+      #     --ff="${theme.colors.foreground}" \
+      #     --tb="${theme.colors.background}" \
+      #     --tf="${theme.colors.blue}" \
+      #     "$@"
+      # '';
+    };
+  };
 
   # Sops-Nix Key Source for Home-Manager
   sops.age.keyFile = "/home/michael/.config/sops/age/keys.txt";
   sops.defaultSopsFile = ../../secrets/secrets.yaml;
+
+  sops.secrets."ssh/nixbuild" = {
+    path = "/home/michael/.ssh/nixbuild";
+    mode = "0600";
+  };
+  sops.secrets."ssh/fly" = {
+    path = "/home/michael/.ssh/fly";
+    mode = "0600";
+  };
+  sops.secrets."ssh/github" = {
+    path = "/home/michael/.ssh/github";
+    mode = "0600";
+  };
 
   # GUI-Only Packages
   home.packages = with pkgs; [
@@ -31,11 +73,15 @@
     chawan
     dict
     rbw
+    qutebrowser
   ];
   programs.zathura = {
     enable = true;
     package = pkgs.zathura.override {
-      plugins = [ pkgs.zathuraPkgs.zathura_djvu pkgs.zathuraPkgs.zathura_pdf_mupdf ];
+      plugins = [
+        pkgs.zathuraPkgs.zathura_djvu
+        pkgs.zathuraPkgs.zathura_pdf_mupdf
+      ];
     };
     options = {
       # Tokyonight Storm Palette

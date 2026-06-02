@@ -15,3 +15,5 @@ secrets/*.yaml
 .sops.yaml
 
 GEMINI.md
+packages/ergo/
+packages/neomutt/
