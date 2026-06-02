@@ -37,3 +37,9 @@
 ### Newsboat Queueing
 - Use `macro A` to pipe unread YouTube video URLs directly to the `queue-unread` Fish helper function.
 - This ensures non-persistent, in-memory queueing that filters for valid YouTube video URLs.
+
+## Email Address Management
+- Personal and work email addresses should be defined as variables in Nix modules where they are needed:
+    - `emailPersonal = "michaelssingh@protonmail.com";`
+    - `emailWork = "michael@sober.fyi";`
+- Use these variables consistently across configurations to ensure accurate and maintainable settings.
