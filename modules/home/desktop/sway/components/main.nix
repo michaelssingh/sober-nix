@@ -99,9 +99,6 @@ in
             "exec swaylock -f -i ${./../bg.jpg} --indicator-radius 100 --indicator-thickness 7 --ring-color bb9af7 --key-hl-color 9ece6a";
           "${modifier}+minus" = "scratchpad show";
           "${modifier}+Shift+minus" = "move scratchpad";
-          "${modifier}+i" = "[app_id=\"senpai\"] scratchpad show";
-          "${modifier}+p" = "[app_id=\"castero\"] scratchpad show";
-          "${modifier}+m" = "[app_id=\"mpv\"] scratchpad show";
           "${modifier}+t" = "floating disable";
         };
 
@@ -121,24 +118,7 @@ in
 
       output * bg ${./../bg.jpg} fill
       for_window [app_id="foot"] hints none
-      for_window [app_id="senpai"] {
-          floating enable
-          move position center
-          resize set 960 540
-          move scratchpad
-      }
-      for_window [app_id="castero"] {
-          floating enable
-          move position center
-          resize set 960 540 
-          move scratchpad
-      }
-      for_window [app_id="mpv"] {
-          floating enable
-          move position center
-          resize set 960 540
-          move scratchpad
-      }
+
       default_border  pixel 1
       default_floating_border pixel 1
       gaps inner 0
