@@ -83,42 +83,9 @@
   };
   programs.dconf.enable = true;
 
-  # nixbuild.net
-  programs.ssh.extraConfig = ''
-    Host athene.internal
-      HostName fdaa:3:7a15:a7b:572:11c:754f:2
-      Port 2222
-      User root
-      StrictHostKeyChecking no
-      UserKnownHostsFile /dev/null
-
-    Host eu.nixbuild.net
-      User michael
-      PubkeyAcceptedKeyTypes ssh-ed25519
-      ServerAliveInterval 60
-      RequestTTY no
-      Compression yes
-      ControlMaster auto
-      ControlPath /tmp/ssh-%r@%h:%p
-      ControlPersist 10m
-  '';
-
-  programs.ssh.knownHosts = {
-    nixbuild = {
-      hostNames = [ "eu.nixbuild.net" ];
-      publicKey = (import ../../modules/core/public-keys.nix { inherit lib; }).config.sober.core.public-keys.nixbuild;
-    };
-    athene = {
-      hostNames = [
-        "[fdaa:3:7a15:a7b:572:11c:754f:2]:2222"
-        "athene.internal"
-      ];
-      publicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMxyjPsJjJr7uGC9LRQkU9vixOZML0zLMb0KQH24NGl1";
-    };
-  };
-
   nix = {
     distributedBuilds = true;
+
     buildMachines = [
       {
         hostName = "eu.nixbuild.net";
