@@ -24,13 +24,6 @@ in
       }
     ];
 
-    programs.ssh.extraConfig = ''
-      Host sober-styx.internal
-        HostName fdaa:3:7a15:a7b:4d:9be5:53d9:2
-        Port 2222
-        User root
-    '';
-
     nix = {
       distributedBuilds = true;
 

@@ -8,6 +8,9 @@
     interactiveShellInit = ''
       set fish_greeting # Disable greeting
 
+      # Automatically add sops-decrypted SSH keys on login
+      ssh-add ~/.ssh/nixbuild ~/.ssh/fly ~/.ssh/github 2>/dev/null
+
       # --- 1. Tokyonight Fish Color Palette ---
       set -g fish_color_normal "#c0caf5"
       set -g fish_color_command "#7dcfff"
@@ -37,14 +40,6 @@
     functions = {
       os = ''
         nh os switch $argv /home/michael/git/sober-nix
-      '';
-
-      bw-ssh-init = ''
-        if test (count $argv) -eq 0
-          echo "Usage: bw-ssh-init <item-name>"
-          return 1
-        end
-        rbw get --field private-key "$argv[1]" | ssh-add -
       '';
 
       wg-up = ''
@@ -80,6 +75,11 @@
 
       # Edit current directory
       e = "nvim .";
+
+      # AI Assistants
+      gemini = "gemini-cli";
+      chat = "gemini-cli";
+      ai = "clemini";
 
       # Media Queue
       mpv = "mpv-queue";
