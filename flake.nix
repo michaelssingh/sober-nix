@@ -34,13 +34,8 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    senpai-src = {
-      url = "git+https://git.sr.ht/~delthas/senpai?ref=master";
-      flake = false;
-    };
-
-    senpai-dev-src = {
-      url = "git+file:///home/michael/git/sober-nix/packages/senpai?ref=spell-checking";
+    neomutt-src = {
+      url = "github:neomutt/neomutt/20260504";
       flake = false;
     };
   };
@@ -115,7 +110,7 @@
           gh # GitHub CLI
           git # Git for version control
           skopeo # Daemonless container image management
-          nixfmt-rfc-style # Keep the config pretty
+          nixfmt # Keep the config pretty
           openssl # Required by ani-cli
           dmidecode # Hardware info
           pciutils # PCI bus info

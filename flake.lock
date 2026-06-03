@@ -53,6 +53,23 @@
         "type": "github"
       }
     },
+    "neomutt-src": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1777889206,
+        "narHash": "sha256-PVcQjuUWK0QwcDIuKsHTMWFCpYLHBG/3Hr1IbLtlJbg=",
+        "owner": "neomutt",
+        "repo": "neomutt",
+        "rev": "7d3b72510b78137331b95918ebf7f2cf2dc6badb",
+        "type": "github"
+      },
+      "original": {
+        "owner": "neomutt",
+        "ref": "20260504",
+        "repo": "neomutt",
+        "type": "github"
+      }
+    },
     "nixpkgs": {
       "locked": {
         "lastModified": 1780203844,
@@ -106,46 +123,11 @@
         "ani-cli": "ani-cli",
         "gemini-nvim": "gemini-nvim",
         "home-manager": "home-manager",
+        "neomutt-src": "neomutt-src",
         "nixpkgs": "nixpkgs",
         "nixpkgs-pinned": "nixpkgs-pinned",
         "nixpkgs-unstable": "nixpkgs-unstable",
-        "senpai-dev-src": "senpai-dev-src",
-        "senpai-src": "senpai-src",
         "sops-nix": "sops-nix"
-      }
-    },
-    "senpai-dev-src": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1780058969,
-        "narHash": "sha256-kg/YmxQ9Z7Z4+qUKKJv4kKrThSxLVmgqtKgAHwgKwYM=",
-        "ref": "spell-checking",
-        "rev": "0249bddef51e72a2200efc6cd8dbd489f06b11e1",
-        "revCount": 676,
-        "type": "git",
-        "url": "file:///home/michael/git/sober-nix/packages/senpai"
-      },
-      "original": {
-        "ref": "spell-checking",
-        "type": "git",
-        "url": "file:///home/michael/git/sober-nix/packages/senpai"
-      }
-    },
-    "senpai-src": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1778760157,
-        "narHash": "sha256-0g75ZoDLlvhRUUAJQouxl30sUU7naX5KL4y7lGOmpWo=",
-        "ref": "master",
-        "rev": "4b426b9c069b2567ae0bdcf9b9ad52a7c533aacb",
-        "revCount": 674,
-        "type": "git",
-        "url": "https://git.sr.ht/~delthas/senpai"
-      },
-      "original": {
-        "ref": "master",
-        "type": "git",
-        "url": "https://git.sr.ht/~delthas/senpai"
       }
     },
     "sops-nix": {

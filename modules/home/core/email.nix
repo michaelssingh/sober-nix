@@ -1,14 +1,17 @@
 { pkgs, config, ... }:
 {
-  sops.secrets.protonmail_bridge_password = {};
+  sops.secrets.protonmail_bridge_password = { };
+
+  programs.mbsync.enable = true;
+  programs.notmuch.enable = true;
 
   accounts.email.accounts.protonmail = {
     primary = true;
     address = "michaelssingh@protonmail.com";
     userName = "michaelssingh@protonmail.com";
     realName = "Michael S. Singh";
-    passwordCommand = "cat ${config.sops.secrets.protonmail_bridge_password.path}";
-    
+    passwordCommand = "${pkgs.coreutils}/bin/cat ${config.sops.secrets.protonmail_bridge_password.path}";
+
     imap = {
       host = "127.0.0.1";
       port = 1143;
@@ -19,13 +22,38 @@
       port = 1025;
       tls.enable = false;
     };
-    
-    aerc.enable = true;
-    neomutt.enable = true;
+
+    mbsync = {
+      enable = true;
+      create = "both";
+      patterns = [
+        "*"
+        "!\"~\""
+      ];
+      extraConfig.account = {
+        Timeout = "300";
+      };
+    };
     notmuch.enable = true;
+    neomutt = {
+      enable = true;
+      extraMailboxes = [
+        "All Mail"
+        "Archive"
+        "Drafts"
+        "Sent"
+        "Spam"
+        "Starred"
+        "Trash"
+      ];
+    };
+    aerc = {
+      enable = true;
+      # Per-account settings are handled by Home Manager
+      extraConfig = { };
+    };
   };
 
-  # Ensure Hydroxide starts as a service
   systemd.user.services.hydroxide = {
     Unit = {
       Description = "Hydroxide Proton Mail Bridge";

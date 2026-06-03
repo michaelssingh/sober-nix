@@ -8,25 +8,6 @@
 
   # Workstation-specific Shell Functions
   programs.fish.functions = {
-    yt-search = ''
-      if test -z "$argv"
-        echo "Usage: yt-search <query>"
-        return 1
-      end
-      
-      set -l query (string join " " $argv)
-      
-      # Fetch results and let fzf handle selection
-      set -l selection (yt-dlp --get-title --get-id --skip-download "ytsearch10:$query" | \
-        paste - - | \
-        awk -F'\t' '{print $1 " | " $2}' | \
-        fzf --delimiter=' | ' --with-nth=1 --height=40% --reverse)
-      
-      if test -n "$selection"
-        set -l id (string split "|" $selection)[2] | string trim
-        mpv "https://www.youtube.com/watch?v=$id"
-      end
-    '';
     live = ''
       argparse a/audio -- $argv
 
@@ -46,33 +27,15 @@
         echo "Stream not found: $argv"
       end
     '';
-    queue-unread = ''
-      while read -l url
-        # Filter only for YouTube video URLs
-        if string match -q "*youtube.com/watch?v=*" "$url"; or string match -q "*youtu.be/*" "$url"
-          mpv-queue "$url"
-        end
-      end
-    '';
   };
 
   # Workstation-only Packages
   home.packages = with pkgs; [
-    # DevOps / Cloud
-    k9s
-    kubectl
-    opentofu
-    awscli2
-    oci-cli
-
     gemini-cli
-    antigravity
-    himalaya
     flyctl
     hydroxide
     ripgrep-all
     fastfetch
-    bitwarden-cli
   ];
 
   # Workstation-specific Terminal Multiplexer

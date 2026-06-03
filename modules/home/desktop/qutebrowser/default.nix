@@ -56,10 +56,10 @@ in
       qt.args = [
         "disable-features=Vp9VideoDecoder,Av1VideoDecoder"
       ];
-      url.searchengines = {
-        "DEFAULT" = "https://duckduckgo.com/?q={}";
-        "g" = "https://google.com/search?q={}";
-      };
+    };
+    searchEngines = {
+      "DEFAULT" = "https://duckduckgo.com/?q={}";
+      "g" = "https://google.com/search?q={}";
     };
     keyBindings = {
       normal = {
@@ -71,11 +71,9 @@ in
   xdg.mimeApps = {
     enable = true;
     defaultApplications = {
-      "text/html" = "qutebrowser.desktop";
-      "x-scheme-handler/http" = "qutebrowser.desktop";
-      "x-scheme-handler/https" = "qutebrowser.desktop";
-      "x-scheme-handler/about" = "qutebrowser.desktop";
-      "x-scheme-handler/unknown" = "qutebrowser.desktop";
+      "text/html" = "org.qutebrowser.qutebrowser.desktop";
+      "x-scheme-handler/http" = "org.qutebrowser.qutebrowser.desktop";
+      "x-scheme-handler/https" = "org.qutebrowser.qutebrowser.desktop";
     };
   };
 }

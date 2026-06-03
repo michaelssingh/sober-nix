@@ -6,6 +6,7 @@ in
 {
   programs.firefox = {
     enable = true;
+    configPath = ".mozilla/firefox";
 
     nativeMessagingHosts = [ pkgs.ff2mpv-rust ];
 

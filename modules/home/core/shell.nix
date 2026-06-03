@@ -234,6 +234,6 @@
     hexyl # hex viewer (Rust)
     bandwhich # network monitor (Rust)
     grex # regex generator (Rust)
-    nixfmt-rfc-style # Nix formatter
+    nixfmt # Nix formatter
   ];
 }

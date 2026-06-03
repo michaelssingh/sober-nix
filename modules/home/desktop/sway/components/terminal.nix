@@ -7,7 +7,7 @@
         dpi-aware = "yes";
         font = "FiraCode Nerd Font Mono:size=10";
       };
-      colors = {
+      colors-dark = {
         alpha = 1;
         background = "1a1b26";
         foreground = "c0caf5";
