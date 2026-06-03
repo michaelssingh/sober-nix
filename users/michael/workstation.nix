@@ -97,8 +97,8 @@ in
       notification-error-fg = "#c0caf5";
       notification-warning-bg = "#e0af68";
       notification-warning-fg = "#24283b";
-      highlight-color = "#e0af68";
-      highlight-active-color = "#9ece6a";
+      # highlight-color = "#e0af68";
+      # highlight-active-color = "#9ece6a";
       completion-bg = "#1f2335";
       completion-fg = "#a9b1d6";
       completion-highlight-bg = "#414868";

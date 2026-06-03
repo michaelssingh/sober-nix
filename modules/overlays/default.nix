@@ -5,7 +5,7 @@
     import ./gemini.nix { inherit inputs; } final prev // {
       tyto = final.callPackage ../../packages/tyto { };
       unstable = import inputs.nixpkgs-unstable {
-        system = final.system;
+        system = final.stdenv.hostPlatform.system;
         config.allowUnfree = true;
       };
     };
@@ -16,22 +16,22 @@
     # coreutils = prev.coreutils.override { ... };
     
     senpai = prev.senpai.overrideAttrs (old: {
-      version = "master-${inputs.senpai-src.shortRev or "latest"}";
-      src = inputs.senpai-src;
+      version = "0.5.0";
+      src = final.fetchFromSourcehut {
+        owner = "~delthas";
+        repo = "senpai";
+        rev = "v0.5.0";
+        sha256 = "sha256-VjXgKdy4IpBhAP6uw/NtlexPki7nJzQi/HuY/+5lE/o=";
+      };
       vendorHash = "sha256-4Ax9YVa9z1Unk3Z2iy9ZEqKjNmdgK0aF4GrD9ucXtjk=";
       ldflags = [
-        "-X git.sr.ht/~delthas/senpai.version=master-${builtins.substring 0 7 (inputs.senpai-src.rev or "latest")}"
+        "-X git.sr.ht/~delthas/senpai.version=v0.5.0"
       ];
     });
 
-    senpai-dev = prev.senpai.overrideAttrs (old: {
-      pname = "senpai-dev";
-      version = "dev-${inputs.senpai-dev-src.shortRev or "latest"}";
-      src = inputs.senpai-dev-src;
-      vendorHash = "sha256-4Ax9YVa9z1Unk3Z2iy9ZEqKjNmdgK0aF4GrD9ucXtjk=";
-      postInstall = (old.postInstall or "") + ''
-        mv $out/bin/senpai $out/bin/senpai-dev
-      '';
+    neomutt = prev.neomutt.overrideAttrs (old: {
+      version = "20260504";
+      src = inputs.neomutt-src;
     });
 
     hydroxide = prev.hydroxide.overrideAttrs (old: rec {

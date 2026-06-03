@@ -85,13 +85,6 @@
         ];
       }
       {
-        url = "https://planet.nixos.org/rss20.xml";
-        tags = [
-          "tech"
-          "nix"
-        ];
-      }
-      {
         url = "https://lwn.net/headlines/rss";
         tags = [
           "tech"

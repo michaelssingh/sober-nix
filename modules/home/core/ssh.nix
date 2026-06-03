@@ -1,5 +1,7 @@
 { pkgs, ... }:
 {
+  services.ssh-agent.enable = true;
+
   programs.ssh = {
     enable = true;
     enableDefaultConfig = false;
@@ -19,16 +21,11 @@
 
       "eu.nixbuild.net" = {
         hostname = "eu.nixbuild.net";
-        user = "michael";
         identityFile = "~/.ssh/nixbuild";
         extraOptions = {
           PubkeyAcceptedKeyTypes = "ssh-ed25519";
           ServerAliveInterval = "60";
-          RequestTTY = "no";
-          Compression = "yes";
-          ControlMaster = "auto";
-          ControlPath = "/tmp/ssh-%r@%h:%p";
-          ControlPersist = "10m";
+          IPQoS = "throughput";
         };
       };
 
@@ -51,7 +48,4 @@
       };
     };
   };
-
-  # Use the systemd-managed ssh-agent
-  services.ssh-agent.enable = true;
 }
