@@ -44,7 +44,7 @@ pkgs.dockerTools.buildLayeredImage {
     };
     Env = [
       "PATH=/bin"
-      "SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt"
+      "SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
     ];
   };
 }

@@ -29,12 +29,15 @@
       cmp-path
       cmp_luasnip
       luasnip
-      (nvim-treesitter.withPlugins (p: [
+      (pkgs.vimPlugins.nvim-treesitter.withPlugins (p: [
         p.nix
         p.lua
         p.vim
         p.bash
         p.markdown
+        p.c
+        p.go
+        p.rust
       ]))
       tokyonight-nvim
       telescope-nvim
@@ -46,6 +49,8 @@
       oil-nvim
       toggleterm-nvim
     ];
-    extraLuaConfig = builtins.readFile ./config.lua;
+    withRuby = false;
+    withPython3 = false;
+    initLua = builtins.readFile ./config.lua;
   };
 }

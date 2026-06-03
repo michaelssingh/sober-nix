@@ -135,22 +135,27 @@ require("ibl").setup {
   indent = { char = "▏" },
 }
 
-require('nvim-treesitter.configs').setup({
-  -- Add these three lines to satisfy the LSP's type checking
-  ensure_installed = {},
-  sync_install = false,
-  auto_install = false,
-  modules = {},
+local status_ok, treesitter = pcall(require, 'nvim-treesitter.configs')
+if status_ok then
+  treesitter.setup({
+    -- Add these three lines to satisfy the LSP's type checking
+    ensure_installed = {},
+    sync_install = false,
+    auto_install = false,
+    modules = {},
 
-  ignore_install = {}, -- Also helpful to keep the LSP happy
+    ignore_install = {}, -- Also helpful to keep the LSP happy
 
-  highlight = {
-    enable = true,
-  },
-  indent = {
-    enable = true
-  },
-})
+    highlight = {
+      enable = true,
+    },
+    indent = {
+      enable = true
+    },
+  })
+else
+  vim.notify("Treesitter not found, skipping configuration", vim.log.levels.WARN)
+end
 
 -- 5. LSP & Autocompletion Setup
 local cmp = require('cmp')

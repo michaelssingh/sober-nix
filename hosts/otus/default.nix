@@ -23,7 +23,7 @@
 
   # --- ENABLE FEATURES ---
   # Remote Nix Builders
-  sober.services.nix-remote-builder.enable = true;
+  sober.services.nix-remote-builder.enable = false;
 
   # Transmission
   services.transmission.enable = true;
@@ -83,23 +83,28 @@
   };
   programs.dconf.enable = true;
 
+  programs.ssh.knownHosts = {
+    nixbuild = {
+      hostNames = [ "eu.nixbuild.net" ];
+      publicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPIQCZc54poJ8vqawd8TraNryQeJnvH1eLpIDgbiqymM";
+    };
+  };
+
   nix = {
     distributedBuilds = true;
-
-    buildMachines = [
-      {
-        hostName = "eu.nixbuild.net";
-        sshUser = "michael";
-        protocol = "ssh-ng";
-        system = "x86_64-linux";
-        maxJobs = 100;
-        speedFactor = 2;
-        supportedFeatures = [
-          "benchmark"
-          "big-parallel"
-        ];
-      }
-    ];
+buildMachines = [
+    {
+      hostName = "eu.nixbuild.net";
+      protocol = "ssh-ng";
+      system = "x86_64-linux";
+      maxJobs = 100;
+      speedFactor = 2;
+      supportedFeatures = [
+        "benchmark"
+        "big-parallel"
+      ];
+    }
+  ];
   };
 
   # Bridge the user's SSH agent to the Nix daemon
@@ -113,7 +118,6 @@
     extraGroups = [
       "networkmanager"
       "wheel"
-      # "docker"
     ];
     shell = pkgs.fish;
     # initialPassword = "password";

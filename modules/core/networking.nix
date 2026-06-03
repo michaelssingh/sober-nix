@@ -25,12 +25,14 @@
     (lib.mkIf config.sober.core.networking.secure-dns.enable {
       services.resolved = {
         enable = true;
-        dnssec = "true";
-        domains = [ "~." ];
-        dnsovertls = "true";
-        extraConfig = ''
-          DNS=9.9.9.9#dns.quad9.net 149.112.112.112#dns.quad9.net 1.1.1.1#cloudflare-dns.com 1.0.0.1#cloudflare-dns.com
-        '';
+        settings = {
+          Resolve = {
+            DNSSEC = "true";
+            Domains = [ "~." ];
+            DNSOverTLS = "true";
+            DNS = "9.9.9.9#dns.quad9.net 149.112.112.112#dns.quad9.net 1.1.1.1#cloudflare-dns.com 1.0.0.1#cloudflare-dns.com";
+          };
+        };
       };
     })
     (lib.mkIf config.sober.core.networking.mac-rotation.enable {

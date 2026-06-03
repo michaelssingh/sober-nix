@@ -9,6 +9,7 @@
 
     # Workstation-specific features
     ../../modules/home/core/irc
+    ../../modules/home/core/matrix.nix
     ../../modules/home/features/workstation.nix
     ../../modules/home/features/youtube.nix
     ../../modules/home/features/blogs.nix
