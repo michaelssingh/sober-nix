@@ -10,7 +10,7 @@ Hosts are named after Owl genera to reflect the system's identity (Observation, 
 | **Otus** | Lenovo IdeaPad Slim 1-14AST-05 | `x86_64-linux` | Workstation | *The Scops Owl* - Small, adaptable. |
 | **Athene** | Fly.io MicroVM (256MB) | `x86_64-linux` | IRC Bouncer | *The Little Owl* - Small, vigilant. |
 | **Bubo** | Fly.io MicroVM (512MB) | `x86_64-linux` | Git Forge | *The Eagle-Owl* - Large, sovereign, powerful. |
-| **Clare** | Fly.io MicroVM (256MB) | `x86_64-linux` | IRC SSH Portal | *The Burrowing Owl* - Underground, connective. |
+| **Clare** | Fly.io MicroVM (256MB) | `x86_64-linux` | IRC SSH Portal | *The Claymore Protagonist* - Determined, half-yoma warrior. |
 | **Glaucidium** | Fly.io MicroVM (256MB) | `x86_64-linux` | VPN Gateway | *The Pygmy Owl* - Tiny but fierce. |
 | **Strix** | Fly.io MicroVM (256MB) | `x86_64-linux` | Pastebin | *The Wood Owl* - Silent, record-keeping. |
 | **Styx** | Fly.io MicroVM (2048MB) | `x86_64-linux` | Nix Builder | *The Stygian Owl* - Dark, constructing. |
