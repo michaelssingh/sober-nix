@@ -50,6 +50,18 @@
           UserKnownHostsFile = "/dev/null";
         };
       };
+
+      "sober-bubo.fly.dev" = {
+        hostname = "sober-bubo.fly.dev";
+        port = 2222;
+        user = "git";
+        identityFile = "~/.ssh/github";
+        extraOptions = {
+          AddressFamily = "inet6";
+          StrictHostKeyChecking = "no";
+          UserKnownHostsFile = "/dev/null";
+        };
+      };
     };
   };
 }
