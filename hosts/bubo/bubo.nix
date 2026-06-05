@@ -50,12 +50,38 @@ let
     mkdir -p /data/forgejo/custom/public/css
     cp ${tokyoNightCss} /data/forgejo/custom/public/css/theme-tokyo-night.css
     
-    # Ensure the git user owns the data folder
-    chown -R git:git /data/forgejo
-
     # Dynamically set ROOT_URL if FLY_APP_NAME is present
     APP_NAME="''${FLY_APP_NAME:-sober-bubo}"
-    export GITEA__server__ROOT_URL="https://$APP_NAME.fly.dev/"
+    
+    if [ ! -f /data/forgejo/custom/conf/app.ini ]; then
+      echo "Initializing minimal app.ini configuration..."
+      mkdir -p /data/forgejo/custom/conf
+      cat <<EOF > /data/forgejo/custom/conf/app.ini
+[security]
+INSTALL_LOCK = true
+
+[database]
+DB_TYPE = sqlite3
+PATH = /data/forgejo/data/gitea.db
+
+[server]
+ROOT_URL = https://$APP_NAME.fly.dev/
+HTTP_PORT = 3000
+START_SSH_SERVER = true
+SSH_PORT = 2222
+SSH_LISTEN_PORT = 2222
+
+[service]
+DISABLE_REGISTRATION = true
+
+[ui]
+THEMES = forgejo-auto,forgejo-light,forgejo-dark,tokyo-night
+DEFAULT_THEME = tokyo-night
+EOF
+    fi
+
+    # Ensure the git user owns the data folder
+    chown -R git:git /data/forgejo
 
     echo "Starting Forgejo Git Forge as git user..."
     exec ${pkgs.su-exec}/bin/su-exec git ${pkgs.forgejo}/bin/forgejo web
