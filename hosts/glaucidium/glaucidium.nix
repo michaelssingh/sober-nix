@@ -43,12 +43,12 @@ let
     echo "🛡️ Setting up NAT and Forwarding..."
     ${pkgs.iptables-legacy}/bin/iptables-legacy -A FORWARD -i wg0 -j ACCEPT
     ${pkgs.iptables-legacy}/bin/iptables-legacy -A FORWARD -o wg0 -m state --state RELATED,ESTABLISHED -j ACCEPT
-    ${pkgs.iptables-legacy}/bin/iptables-legacy -t nat -A POSTROUTING -o eth0 -j MASQUERADE
+    ${pkgs.iptables-legacy}/bin/iptables-legacy -t nat -A POSTROUTING -s 10.13.13.0/24 -o eth0 -j MASQUERADE
 
     # IPv6 rules
     ${pkgs.iptables-legacy}/bin/ip6tables-legacy -A FORWARD -i wg0 -j ACCEPT
     ${pkgs.iptables-legacy}/bin/ip6tables-legacy -A FORWARD -o wg0 -m state --state RELATED,ESTABLISHED -j ACCEPT
-    ${pkgs.iptables-legacy}/bin/ip6tables-legacy -t nat -A POSTROUTING -o eth0 -j MASQUERADE
+    ${pkgs.iptables-legacy}/bin/ip6tables-legacy -t nat -A POSTROUTING -s fd00::/64 -o eth0 -j MASQUERADE
 
     # 5. Start WireGuard
     echo "⚡ Starting WireGuard..."
