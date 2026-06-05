@@ -9,6 +9,30 @@ let
     mkdir -p /data/forgejo/data
     mkdir -p /data/forgejo/repositories
 
+    # Dynamically write default app.ini if missing to skip the installation wizard
+    APP_NAME="''${FLY_APP_NAME:-sober-bubo}"
+    if [ ! -f /data/forgejo/custom/conf/app.ini ]; then
+      echo "Initializing minimal app.ini configuration..."
+      cat <<EOF > /data/forgejo/custom/conf/app.ini
+[security]
+INSTALL_LOCK = true
+
+[database]
+DB_TYPE = sqlite3
+PATH = /data/forgejo/data/gitea.db
+
+[server]
+ROOT_URL = https://$APP_NAME.fly.dev/
+HTTP_PORT = 3000
+START_SSH_SERVER = true
+SSH_PORT = 2222
+SSH_LISTEN_PORT = 2222
+
+[service]
+DISABLE_REGISTRATION = true
+EOF
+    fi
+
     # Ensure the git user owns the data directory
     chown git:git /data/forgejo
     chown -R git:git /data/forgejo
