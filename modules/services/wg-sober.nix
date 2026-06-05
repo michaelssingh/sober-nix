@@ -30,14 +30,20 @@ in
 
     networking.wg-quick.interfaces."${cfg.interface}" = {
       autostart = true;
-      address = [ "10.13.13.2/32" ];
+      address = [
+        "10.13.13.2/32"
+        "fd00::2/128"
+      ];
       privateKeyFile = config.sops.secrets.wg_sober_otus_private.path;
       mtu = 1280;
 
       peers = [
         {
           publicKey = "BgF0yad/27+0o74CldVXUWtkS+h4VsT1nAPEkKD3VHo=";
-          allowedIPs = [ "0.0.0.0/0" ];
+          allowedIPs = [
+            "0.0.0.0/0"
+            "::/0"
+          ];
           endpoint = "188.93.147.190:51820";
           persistentKeepalive = 25;
         }
