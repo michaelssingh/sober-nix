@@ -53,7 +53,6 @@ in
         };
         webpage = {
           darkmode.enabled = false;
-          preferred_color_scheme = "light";
         };
       };
       fonts.default_family = "FiraCode Nerd Font Mono";
