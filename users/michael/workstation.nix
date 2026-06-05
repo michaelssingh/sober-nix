@@ -74,6 +74,7 @@ in
     dict
     rbw
     qutebrowser
+    antigravity
   ];
   programs.zathura = {
     enable = true;
