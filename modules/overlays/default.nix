@@ -4,6 +4,7 @@
   additions = final: prev: 
     import ./gemini.nix { inherit inputs; } final prev // {
       tyto = final.callPackage ../../packages/tyto { };
+      antigravity = final.callPackage ../../packages/antigravity { };
       unstable = import inputs.nixpkgs-unstable {
         system = final.stdenv.hostPlatform.system;
         config.allowUnfree = true;

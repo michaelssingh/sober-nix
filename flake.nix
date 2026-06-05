@@ -84,10 +84,12 @@
 
       packages."x86_64-linux" = {
         tyto = pkgs.callPackage ./packages/tyto { };
+        antigravity = pkgs.callPackage ./packages/antigravity { };
         raki-api = pkgs.callPackage ./packages/raki-api { };
         athene-image = import ./hosts/athene/athene.nix { inherit pkgs; lib = nixpkgs.lib; };
         clare-image = import ./hosts/clare/clare.nix { inherit pkgs; lib = nixpkgs.lib; };
         glaucidium-image = import ./hosts/glaucidium/glaucidium.nix { inherit pkgs; lib = nixpkgs.lib; };
+        strix-image = import ./hosts/strix/strix.nix { inherit pkgs; lib = nixpkgs.lib; };
         styx-image = import ./hosts/styx/styx.nix { 
           inherit pkgs; 
           lib = nixpkgs.lib; 
