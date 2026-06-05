@@ -11,14 +11,14 @@ REGISTRY="registry.fly.io/$APP_NAME:latest"
 
 echo "🦉 [SOBER] Starting deployment for: $HOST_NAME ($APP_NAME)"
 
-# 1. Build via nixbuild.net (Offload CPU/RAM work)
+# 1. Build via nixbuild.net
 echo "🔨 1/3: Building $IMAGE_ATTR via nixbuild.net..."
-(cd "$DIR/../.." && nix build .#$IMAGE_ATTR) 
+(cd "$DIR/../../.." && nix build "git+file://$PWD?submodules=1#$IMAGE_ATTR")
 
 # 2. Push via Skopeo (Daemonless)
 echo "🚀 2/3: Pushing image to Fly registry..."
 skopeo copy \
-  docker-archive:$(readlink -f "$DIR/../../result") \
+  docker-archive:$(readlink -f "$DIR/../../../result") \
   docker://$REGISTRY \
   --dest-creds x:$(fly auth token)
 

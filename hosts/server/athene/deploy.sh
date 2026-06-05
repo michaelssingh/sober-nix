@@ -2,6 +2,7 @@
 # SOBER Deploy: Automates Build -> Push -> Deploy for Fly.io Nix containers
 set -e
 
+# Configuration
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 HOST_NAME=$(basename "$DIR")
 APP_NAME="sober-$HOST_NAME"
@@ -10,20 +11,20 @@ REGISTRY="registry.fly.io/$APP_NAME:latest"
 
 echo "🦉 [SOBER] Starting deployment for: $HOST_NAME ($APP_NAME)"
 
-# 1. Build
-echo "🔨 1/3: Building $IMAGE_ATTR..."
-(cd "$DIR/../.." && nix build .#$IMAGE_ATTR)
+# 1. Build via nixbuild.net (Offload CPU/RAM work)
+echo "🔨 1/3: Building $IMAGE_ATTR via nixbuild.net..."
+(cd "$DIR/../../.." && nix build .#$IMAGE_ATTR) 
 
-# 2. Push via Skopeo
+# 2. Push via Skopeo (Daemonless)
 echo "🚀 2/3: Pushing image to Fly registry..."
 skopeo copy \
-  docker-archive:$(readlink -f "$DIR/../../result") \
+  docker-archive:$(readlink -f "$DIR/../../../result") \
   docker://$REGISTRY \
   --dest-creds x:$(fly auth token)
 
 # 3. Deploy
 echo "🚢 3/3: Executing fly deploy..."
 cd "$DIR"
-fly deploy --image $REGISTRY --yes
+fly deploy --image $REGISTRY
 
 echo "✅ [SOBER] Deployment of $HOST_NAME complete!"

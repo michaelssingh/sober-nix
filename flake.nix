@@ -53,6 +53,8 @@
       user = "michael";
       pkgs = nixpkgs.legacyPackages."x86_64-linux";
       overlays = import ./modules/overlays { inherit inputs; };
+      soberLib = import ./lib { inherit pkgs; };
+      publicKeys = import ./lib/public-keys.nix;
     in
     {
       nixosConfigurations = {
@@ -61,8 +63,8 @@
 
           modules = [
             sops-nix.nixosModules.sops
-            ./hosts/otus/hardware-configuration.nix
-            ./hosts/otus/default.nix
+            ./hosts/workstation/otus/hardware-configuration.nix
+            ./hosts/workstation/otus/default.nix
 
             {
               nixpkgs.overlays = [
@@ -87,15 +89,14 @@
         antigravity = pkgs.callPackage ./packages/antigravity { };
         raki-api = pkgs.callPackage ./packages/raki-api { };
         strix-paste = pkgs.callPackage ./packages/strix-paste { };
-        athene-image = import ./hosts/athene/athene.nix { inherit pkgs; lib = nixpkgs.lib; };
-        clare-image = import ./hosts/clare/clare.nix { inherit pkgs; lib = nixpkgs.lib; };
-        glaucidium-image = import ./hosts/glaucidium/glaucidium.nix { inherit pkgs; lib = nixpkgs.lib; };
-        strix-image = import ./hosts/strix/strix.nix { inherit pkgs; lib = nixpkgs.lib; };
-        bubo-image = import ./hosts/bubo/bubo.nix { inherit pkgs; lib = nixpkgs.lib; };
-        styx-image = import ./hosts/styx/styx.nix { 
-          inherit pkgs; 
+        athene-image = import ./hosts/server/athene { inherit pkgs soberLib; lib = nixpkgs.lib; };
+        clare-image = import ./hosts/server/clare { inherit pkgs soberLib; lib = nixpkgs.lib; };
+        glaucidium-image = import ./hosts/server/glaucidium { inherit pkgs soberLib; lib = nixpkgs.lib; };
+        strix-image = import ./hosts/server/strix { inherit pkgs soberLib; lib = nixpkgs.lib; };
+        bubo-image = import ./hosts/server/bubo { inherit pkgs soberLib; lib = nixpkgs.lib; };
+        styx-image = import ./hosts/server/styx { 
+          inherit pkgs soberLib publicKeys; 
           lib = nixpkgs.lib; 
-          publicKeys = (import ./modules/core/public-keys.nix { lib = nixpkgs.lib; }).config.sober.core.public-keys;
         };
       };
 
