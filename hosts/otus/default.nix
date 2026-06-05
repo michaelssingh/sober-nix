@@ -101,19 +101,19 @@
 
   nix = {
     distributedBuilds = true;
-buildMachines = [
-    {
-      hostName = "eu.nixbuild.net";
-      protocol = "ssh-ng";
-      system = "x86_64-linux";
-      maxJobs = 100;
-      speedFactor = 2;
-      supportedFeatures = [
-        "benchmark"
-        "big-parallel"
-      ];
-    }
-  ];
+    buildMachines = [
+      {
+        hostName = "eu.nixbuild.net";
+        protocol = "ssh-ng";
+        system = "x86_64-linux";
+        maxJobs = 100;
+        speedFactor = 2;
+        supportedFeatures = [
+          "benchmark"
+          "big-parallel"
+        ];
+      }
+    ];
   };
 
   # Bridge the user's SSH agent to the Nix daemon
