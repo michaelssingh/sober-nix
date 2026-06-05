@@ -9,6 +9,9 @@ let
     mkdir -p /data/forgejo/data
     mkdir -p /data/forgejo/repositories
 
+    # Ensure /tmp has correct sticky permissions for temp files
+    chmod 1777 /tmp
+
     # Dynamically write default app.ini if missing to skip the installation wizard
     APP_NAME="''${FLY_APP_NAME:-sober-bubo}"
     if [ ! -f /data/forgejo/custom/conf/app.ini ]; then
