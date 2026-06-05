@@ -4,14 +4,14 @@ let
   # The wireguard config
   # Note: private key should be provided via ENV or a file in the volume
   wgConfig = pkgs.writeText "wg0.conf-partial" ''
-    Address = 10.13.13.1/24
+    Address = 10.13.13.1/24, fd00::1/64
     ListenPort = 51820
     MTU = 1280
 
     [Peer]
     # Otus Client
     PublicKey = 23wz66STtDjKTiL9ipLykJy7ElCVkRGR/4js7pm7MzM=
-    AllowedIPs = 10.13.13.2/32
+    AllowedIPs = 10.13.13.2/32, fd00::2/128
   '';
 
   entrypoint = pkgs.writeShellScriptBin "entrypoint" ''
@@ -44,6 +44,11 @@ let
     ${pkgs.iptables-legacy}/bin/iptables-legacy -A FORWARD -i wg0 -j ACCEPT
     ${pkgs.iptables-legacy}/bin/iptables-legacy -A FORWARD -o wg0 -m state --state RELATED,ESTABLISHED -j ACCEPT
     ${pkgs.iptables-legacy}/bin/iptables-legacy -t nat -A POSTROUTING -o eth0 -j MASQUERADE
+
+    # IPv6 rules
+    ${pkgs.iptables-legacy}/bin/ip6tables-legacy -A FORWARD -i wg0 -j ACCEPT
+    ${pkgs.iptables-legacy}/bin/ip6tables-legacy -A FORWARD -o wg0 -m state --state RELATED,ESTABLISHED -j ACCEPT
+    ${pkgs.iptables-legacy}/bin/ip6tables-legacy -t nat -A POSTROUTING -o eth0 -j MASQUERADE
 
     # 5. Start WireGuard
     echo "⚡ Starting WireGuard..."
