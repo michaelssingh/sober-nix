@@ -44,7 +44,7 @@ in
             "0.0.0.0/0"
             "::/0"
           ];
-          endpoint = "188.93.147.190:51820";
+          endpoint = "sober-glaucidium.internal:51820";
           persistentKeepalive = 25;
         }
       ];
