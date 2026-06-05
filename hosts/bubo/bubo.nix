@@ -45,17 +45,20 @@ let
 
   entrypoint = pkgs.writeShellScriptBin "entrypoint" ''
     set -e
-
-    # Create directories for customization
+    
+    # Create directories for customization and data
     mkdir -p /data/forgejo/custom/public/css
     cp ${tokyoNightCss} /data/forgejo/custom/public/css/theme-tokyo-night.css
+    
+    # Ensure the git user owns the data folder
+    chown -R git:git /data/forgejo
 
     # Dynamically set ROOT_URL if FLY_APP_NAME is present
     APP_NAME="''${FLY_APP_NAME:-sober-bubo}"
     export GITEA__server__ROOT_URL="https://$APP_NAME.fly.dev/"
 
-    echo "Starting Forgejo Git Forge..."
-    exec ${pkgs.forgejo}/bin/forgejo web
+    echo "Starting Forgejo Git Forge as git user..."
+    exec ${pkgs.su-exec}/bin/su-exec git ${pkgs.forgejo}/bin/forgejo web
   '';
 in
 pkgs.dockerTools.buildLayeredImage {
@@ -64,6 +67,7 @@ pkgs.dockerTools.buildLayeredImage {
 
   contents = [
     pkgs.forgejo
+    pkgs.su-exec
     pkgs.bash
     pkgs.coreutils
     pkgs.git
@@ -71,9 +75,11 @@ pkgs.dockerTools.buildLayeredImage {
     entrypoint
     (pkgs.writeTextDir "etc/passwd" ''
       root:x:0:0::/root:/bin/bash
+      git:x:1000:1000:Git User:/data/forgejo:/bin/bash
     '')
     (pkgs.writeTextDir "etc/group" ''
       root:x:0:
+      git:x:1000:
     '')
   ];
 
@@ -85,7 +91,7 @@ pkgs.dockerTools.buildLayeredImage {
     };
     Env = [
       "PATH=/bin"
-      "USER=root"
+      "USER=git"
       "HOME=/data/forgejo"
       "GITEA_WORK_DIR=/data/forgejo"
       "GITEA__database__DB_TYPE=sqlite3"
