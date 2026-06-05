@@ -190,4 +190,16 @@
   security.sudo.extraConfig = ''
     Defaults timestamp_timeout=-1
   '';
+
+  security.sudo.extraRules = [
+    {
+      users = [ "michael" ];
+      commands = [
+        {
+          command = "/run/current-system/sw/bin/nixos-rebuild";
+          options = [ "NOPASSWD" ];
+        }
+      ];
+    }
+  ];
 }
