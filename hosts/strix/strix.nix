@@ -37,7 +37,7 @@ let
     sed "s|@URL@|$PUBLIC_URL|g" ${rustypasteConfigTemplate} > /etc/rustypaste/config.toml
 
     export CONFIG="/etc/rustypaste/config.toml"
-    
+
     # Run rustypaste
     exec ${pkgs.rustypaste}/bin/rustypaste
   '';
