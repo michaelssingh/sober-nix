@@ -9,21 +9,21 @@
 {
   imports = [
     ./hardware-configuration.nix
-    ../../modules/core
-    ../../modules/roles/workstation
-    ../../modules/services/kanata.nix
-    ../../modules/services/greetd.nix
-    ../../modules/core/perf-lowend.nix
-    ../../modules/services/nix-remote-builder.nix
-    ../../modules/services/wg-fly.nix
-    ../../modules/services/wg-sober.nix
+    ../../../modules/core
+    ../../../modules/roles/workstation
+    ../../../modules/services/kanata.nix
+    ../../../modules/services/greetd.nix
+    ../../../modules/core/perf-lowend.nix
+    ../../../modules/services/nix-remote-builder.nix
+    ../../../modules/services/wg-fly.nix
+    ../../../modules/services/wg-sober.nix
   ];
 
   home-manager.backupFileExtension = "backup";
 
   # --- ENABLE FEATURES ---
   # Remote Nix Builders
-  sober.services.nix-remote-builder.enable = true;
+  sober.services.nix-remote-builder.enable = false;
 
   # Transmission
   services.transmission.enable = true;
