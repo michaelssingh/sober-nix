@@ -47,4 +47,9 @@
 ## Fly.io MicroVM Hosts
 - Fly.io hosts are built as OCI Docker images using `dockerTools.buildLayeredImage` (defined in `flake.nix` under packages).
 - **Strix**: Hosts a private `rustypaste` pastebin service. Paste creation is secured using the `AUTH_TOKEN` environment variable, which is set at runtime as a Fly.io secret.
+- **Styx**: Hosts a private Nix remote builder service.
+  - SSH runs on port `2222` with authorization configured for the Fly SSH key.
+  - Nested sandboxing is disabled (`sandbox = false`) and the build users group is empty (`build-users-group =`) inside the container to work around lack of nested user namespace/cgroup support in the container environment.
+  - Accessible via the Flycast host `sober-styx.flycast` over the Fly WireGuard interface, allowing the Fly Proxy to automatically start/scale the MicroVM on demand when an SSH connection is initiated by a Nix build.
+
 
