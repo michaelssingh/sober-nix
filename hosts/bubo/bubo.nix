@@ -82,7 +82,8 @@ DEFAULT_THEME = tokyo-night
 EOF
     fi
 
-    # Ensure the git user owns the data folder
+    # Ensure the git user owns all of /data/forgejo (including the dir itself)
+    chown git:git /data/forgejo
     chown -R git:git /data/forgejo
 
     echo "Starting Forgejo Git Forge as git user..."
@@ -100,6 +101,7 @@ pkgs.dockerTools.buildLayeredImage {
     pkgs.coreutils
     pkgs.git
     pkgs.cacert
+    pkgs.sqlite
     entrypoint
     (pkgs.writeTextDir "etc/passwd" ''
       root:x:0:0::/root:/bin/bash
