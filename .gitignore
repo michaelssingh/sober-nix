@@ -1,3 +1,6 @@
+# Core dumps
+core.*
+
 # Direnv cache
 .direnv/
 
