@@ -97,7 +97,7 @@ pkgs.dockerTools.buildLayeredImage {
   contents = [
     pkgs.forgejo
     pkgs.su-exec
-    pkgs.bash
+    pkgs.bashInteractive
     pkgs.coreutils
     pkgs.git
     pkgs.cacert
