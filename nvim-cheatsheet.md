@@ -63,6 +63,15 @@ The **Leader** key is set to `Space`.
 | `<leader>hu` | Undo stage hunk |
 | `<leader>hr` | Reset hunk |
 
+### Treesitter Structural Editing
+| Key | Action |
+|-----|--------|
+| `<C-Space>` | Incremental selection (init/increase) |
+| `<C-s>` | Expand to scope |
+| `<C-BS>` | Decremental selection |
+| `af/if` | Around/Inside Function |
+| `ac/ic` | Around/Inside Class |
+
 ### Terminal (ToggleTerm)
 | Key | Action |
 |-----|--------|

@@ -31,7 +31,6 @@
         nicks self "#bb9af7"
     }
     shortcuts {
-        Alt+u set-editor "/upload\n"
     }
   '';
 }
