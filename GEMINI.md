@@ -43,3 +43,8 @@
     - `emailPersonal = "michaelssingh@protonmail.com";`
     - `emailWork = "michael@sober.fyi";`
 - Use these variables consistently across configurations to ensure accurate and maintainable settings.
+
+## Fly.io MicroVM Hosts
+- Fly.io hosts are built as OCI Docker images using `dockerTools.buildLayeredImage` (defined in `flake.nix` under packages).
+- **Strix**: Hosts a private `rustypaste` pastebin service. Paste creation is secured using the `AUTH_TOKEN` environment variable, which is set at runtime as a Fly.io secret.
+
