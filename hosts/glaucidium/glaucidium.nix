@@ -22,6 +22,7 @@ let
     ${pkgs.hostname}/bin/hostname -F /etc/hostname || echo "⚠️ Could not set hostname"
 
     # 1. Setup Tun device
+    mkdir -p /var/empty
     mkdir -p /dev/net
     if [ ! -c /dev/net/tun ]; then
         mknod /dev/net/tun c 10 200
@@ -72,6 +73,14 @@ pkgs.dockerTools.buildLayeredImage {
     pkgs.procps
     pkgs.hostname
     entrypoint
+    (pkgs.writeTextDir "etc/passwd" ''
+      root:x:0:0::/root:${pkgs.bash}/bin/bash
+      sshd:x:74:74:Privilege-separated SSH:/var/empty:/bin/nologin
+    '')
+    (pkgs.writeTextDir "etc/group" ''
+      root:x:0:
+      sshd:x:74:
+    '')
   ];
 
   config = {
