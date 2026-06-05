@@ -91,6 +91,7 @@
         clare-image = import ./hosts/clare/clare.nix { inherit pkgs; lib = nixpkgs.lib; };
         glaucidium-image = import ./hosts/glaucidium/glaucidium.nix { inherit pkgs; lib = nixpkgs.lib; };
         strix-image = import ./hosts/strix/strix.nix { inherit pkgs; lib = nixpkgs.lib; };
+        bubo-image = import ./hosts/bubo/bubo.nix { inherit pkgs; lib = nixpkgs.lib; };
         styx-image = import ./hosts/styx/styx.nix { 
           inherit pkgs; 
           lib = nixpkgs.lib; 
