@@ -41,10 +41,10 @@ in
         {
           publicKey = "BgF0yad/27+0o74CldVXUWtkS+h4VsT1nAPEkKD3VHo=";
           allowedIPs = [
-            "10.13.13.0/24"
-            "fd00::/64"
+            "0.0.0.0/0"
+            "::/0"
           ];
-          endpoint = "sober-glaucidium.internal:51820";
+          endpoint = "37.16.14.96:51820";
           persistentKeepalive = 25;
         }
       ];
