@@ -2,8 +2,8 @@
 
 This repository contains the declarative NixOS system configurations for the **SOBER** (Systems Oriented Business Engineering & Research) infrastructure. It uses **Nix Flakes** to manage multiple hosts and architectures from a single source of truth.
 
-## 🦉 Naming Convention: The Owl Schema
-Hosts are named after Owl genera to reflect the system's identity (Observation, Wisdom, Adaptability).
+## 🦉 Naming Convention: Owl Schema & Anime Characters
+Hosts are primarily named after Owl genera (to reflect the system's identity: Observation, Wisdom, Adaptability) alongside notable anime characters.
 
 | Hostname | Hardware | Architecture | Role | Vibe |
 | :--- | :--- | :--- | :--- | :--- |
