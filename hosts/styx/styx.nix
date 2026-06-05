@@ -54,6 +54,11 @@ pkgs.dockerTools.buildLayeredImage {
       root:x:0:
       sshd:x:74:
     '')
+    (pkgs.writeTextDir "etc/nix/nix.conf" ''
+      build-users-group =
+      sandbox = false
+      experimental-features = nix-command flakes
+    '')
   ];
 
   config = {
