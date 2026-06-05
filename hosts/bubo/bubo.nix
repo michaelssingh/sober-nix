@@ -45,7 +45,7 @@ let
 
   entrypoint = pkgs.writeShellScriptBin "entrypoint" ''
     set -e
-    
+
     # Create directories for customization
     mkdir -p /data/forgejo/custom/public/css
     cp ${tokyoNightCss} /data/forgejo/custom/public/css/theme-tokyo-night.css
