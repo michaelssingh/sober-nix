@@ -75,6 +75,7 @@ in
     rbw
     qutebrowser
     antigravity
+    strix-paste
   ];
   programs.zathura = {
     enable = true;

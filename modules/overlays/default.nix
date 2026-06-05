@@ -5,6 +5,7 @@
     import ./gemini.nix { inherit inputs; } final prev // {
       tyto = final.callPackage ../../packages/tyto { };
       antigravity = final.callPackage ../../packages/antigravity { };
+      strix-paste = final.callPackage ../../packages/strix-paste { };
       unstable = import inputs.nixpkgs-unstable {
         system = final.stdenv.hostPlatform.system;
         config.allowUnfree = true;
