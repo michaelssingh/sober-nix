@@ -22,6 +22,10 @@ let
     [paste]
     random_url = { type = "petname", words = 2, separator = "-" }
     default_extension = "txt"
+
+    [[paste.mime_override]]
+    mime = "text/plain; charset=utf-8"
+    regex = "^.*\\.(nix|go|sh|conf|toml|yaml|yml|json|txt|md|log|kbd|diff|patch|ini|cfg)$"
   '';
 
   entrypoint = pkgs.writeShellScriptBin "entrypoint" ''
