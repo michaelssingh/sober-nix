@@ -46,8 +46,10 @@ let
   entrypoint = pkgs.writeShellScriptBin "entrypoint" ''
     set -e
     
-    # Create directories for customization and data
+    # Create all necessary directories
     mkdir -p /data/forgejo/custom/public/css
+    mkdir -p /data/forgejo/repositories
+    mkdir -p /data/forgejo/data
     cp ${tokyoNightCss} /data/forgejo/custom/public/css/theme-tokyo-night.css
     
     # Dynamically set ROOT_URL if FLY_APP_NAME is present
