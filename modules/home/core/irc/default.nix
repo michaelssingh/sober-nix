@@ -9,7 +9,7 @@
   sops.secrets.soju_password = { };
 
   xdg.configFile."senpai/senpai.scfg".text = ''
-    address irc+insecure://sober-athene.internal:6697
+    address irc+insecure://sober-athene.flycast:6697
     nickname init
     realname michael
     username init
