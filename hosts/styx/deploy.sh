@@ -11,9 +11,9 @@ REGISTRY="registry.fly.io/$APP_NAME:latest"
 
 echo "🦉 [SOBER] Starting deployment for: $HOST_NAME ($APP_NAME)"
 
-# 1. Build via nixbuild.net (Offload CPU/RAM work)
-echo "🔨 1/3: Building $IMAGE_ATTR via nixbuild.net..."
-(cd "$DIR/../.." && nix build .#$IMAGE_ATTR --builders 'ssh://eu.nixbuild.net' --max-jobs 0)
+# 1. Build (Offload CPU/RAM work via remote builder)
+echo "🔨 1/3: Building $IMAGE_ATTR..."
+(cd "$DIR/../.." && nix build .#$IMAGE_ATTR)
 
 # 2. Push via Skopeo (Daemonless)
 echo "🚀 2/3: Pushing image to Fly registry..."
