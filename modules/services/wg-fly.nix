@@ -52,7 +52,7 @@ in
       # internal DNS server does not support them.
       postUp = ''
         ${pkgs.systemd}/bin/resolvectl dns ${cfg.interface} fdaa:3:7a15::3
-        ${pkgs.systemd}/bin/resolvectl domain ${cfg.interface} "~internal"
+        ${pkgs.systemd}/bin/resolvectl domain ${cfg.interface} "~internal" "~flycast"
         ${pkgs.systemd}/bin/resolvectl dnssec ${cfg.interface} no
         ${pkgs.systemd}/bin/resolvectl dnsovertls ${cfg.interface} no
       '';
