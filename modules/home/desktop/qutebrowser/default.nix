@@ -51,8 +51,12 @@ in
           bg = theme.colors.background;
           fg = theme.colors.foreground;
         };
+        webpage = {
+          darkmode.enabled = true;
+          preferred_color_scheme = "dark";
+        };
       };
-      fonts.default_family = "monospace";
+      fonts.default_family = "FiraCode Nerd Font Mono";
       qt.args = [
         "disable-features=Vp9VideoDecoder,Av1VideoDecoder"
       ];
@@ -60,6 +64,7 @@ in
     searchEngines = {
       "DEFAULT" = "https://duckduckgo.com/?q={}";
       "g" = "https://google.com/search?q={}";
+      "ai" = "https://www.google.com/search?q={}&v=ai&udm=50&ntc=1";
     };
     keyBindings = {
       normal = {

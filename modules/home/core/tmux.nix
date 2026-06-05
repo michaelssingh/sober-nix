@@ -23,7 +23,7 @@
       # OSC 8 Passthrough & Hyperlink Support
       set -as terminal-features ",foot:hyperlinks"
       set -as terminal-overrides ",foot:HLS=\E]8;%p1%s;%p2%s\E\\"
-      set -g default-terminal "foot"
+      set -g default-terminal "tmux-256color"
 
       # Status bar - simple, clean, Tokyonight inspired
       set -g status-style "bg=#1a1b26,fg=#c0caf5"

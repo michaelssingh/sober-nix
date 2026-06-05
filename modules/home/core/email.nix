@@ -54,6 +54,28 @@
     };
   };
 
+  systemd.user.services.mbsync = {
+    Unit = {
+      Description = "mbsync synchronization";
+    };
+    Service = {
+      ExecStart = "${pkgs.isync}/bin/mbsync -a";
+    };
+  };
+
+  systemd.user.timers.mbsync = {
+    Unit = {
+      Description = "mbsync synchronization timer";
+    };
+    Timer = {
+      OnCalendar = "*:0/5";
+      Persistent = true;
+    };
+    Install = {
+      WantedBy = [ "timers.target" ];
+    };
+  };
+
   systemd.user.services.hydroxide = {
     Unit = {
       Description = "Hydroxide Proton Mail Bridge";
