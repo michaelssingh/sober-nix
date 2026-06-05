@@ -6,8 +6,4 @@ primary_region = "fra"
   cpus = 1
   memory_mb = 256
 
-[[services]]
-  protocol = "udp"
-  internal_port = 51820
-  [[services.ports]]
-    port = 51820
+
