@@ -24,6 +24,6 @@ skopeo copy \
 # 3. Deploy
 echo "🚢 3/3: Executing fly deploy..."
 cd "$DIR"
-fly deploy --image $REGISTRY
+fly deploy --image $REGISTRY --yes
 
 echo "✅ [SOBER] Deployment of $HOST_NAME complete!"
