@@ -23,6 +23,10 @@ soberLib.mkContainerImage {
     # Create the sqlite and uploads directories on the persistent Fly.io volume
     ${pkgs.coreutils}/bin/mkdir -p /var/lib/soju/uploads
     
+    # Symlink config to default path so that sojuctl/sojudb default configurations work
+    ${pkgs.coreutils}/bin/mkdir -p /etc/soju
+    ${pkgs.coreutils}/bin/ln -sf ${sojuConfig} /etc/soju/config
+
     # Launch Soju pointing to the read-only Nix store configuration
     exec ${pkgs.soju}/bin/soju -config ${sojuConfig}
   '';
