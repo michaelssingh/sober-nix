@@ -135,27 +135,25 @@ require("ibl").setup {
   indent = { char = "▏" },
 }
 
-local status_ok, treesitter = pcall(require, 'nvim-treesitter.configs')
-if status_ok then
-  treesitter.setup({
-    -- Add these three lines to satisfy the LSP's type checking
-    ensure_installed = {},
-    sync_install = false,
-    auto_install = false,
-    modules = {},
+-- 1. Core Treesitter Configuration
+require('nvim-treesitter.config').setup({
+  highlight = { enable = true },
+  indent = { enable = true },
+})
 
-    ignore_install = {}, -- Also helpful to keep the LSP happy
-
-    highlight = {
-      enable = true,
+-- 2. Treesitter Textobjects Configuration
+require("nvim-treesitter-textobjects").setup({
+  select = {
+    enable = true,
+    lookahead = true, -- Automatically jump forward to the next textobject
+    keymaps = {
+      ["af"] = "@function.outer",
+      ["if"] = "@function.inner",
+      ["ac"] = "@class.outer",
+      ["ic"] = "@class.inner",
     },
-    indent = {
-      enable = true
-    },
-  })
-else
-  vim.notify("Treesitter not found, skipping configuration", vim.log.levels.WARN)
-end
+  },
+})
 
 -- 5. LSP & Autocompletion Setup
 local cmp = require('cmp')
@@ -176,13 +174,13 @@ vim.api.nvim_create_autocmd('LspAttach', {
     vim.keymap.set('n', ']d', vim.diagnostic.goto_next, { buffer = bufnr, desc = "Next Diagnostic" })
 
     -- 2. Enable Inlay Hints (0.10+)
-    if client.supports_method('textDocument/inlayHint') then
+    if client:supports_method('textDocument/inlayHint') then
       vim.lsp.inlay_hint.enable(true, { bufnr = bufnr })
     end
 
     -- 3. Auto-format on Save
     -- Only if the server supports it
-    if client.supports_method('textDocument/formatting') then
+    if client:supports_method('textDocument/formatting') then
       vim.api.nvim_create_autocmd('BufWritePre', {
         buffer = bufnr,
         callback = function()
@@ -272,7 +270,8 @@ vim.lsp.config('nixd', {
       },
       options = {
         home_manager = {
-          expr = '(builtins.getFlake "${workspaceFolder}").nixosConfigurations.otus.options.home-manager.users.type.getSubOptions [ ]'
+          expr =
+          '(builtins.getFlake "${workspaceFolder}").nixosConfigurations.otus.options.home-manager.users.type.getSubOptions [ ]'
         },
         nixos = {
           expr = '(builtins.getFlake "${workspaceFolder}").nixosConfigurations.otus.options'
@@ -345,6 +344,14 @@ vim.keymap.set("n", "<leader>rs", ":LspRestart<CR>", { desc = "Restart LSP" })
 -- 8. Autocommands
 -- Fast Saving
 vim.keymap.set("n", "<leader>w", "<CMD>w<CR>", { desc = "Save File" })
+
+-- Map gotmpl to correct filetype
+vim.api.nvim_create_autocmd({ "BufRead", "BufNewFile" }, {
+  pattern = "*.gotmpl",
+  callback = function()
+    vim.bo.filetype = "gotmpl"
+  end,
+})
 
 -- Fast Quitting
 vim.keymap.set("n", "<leader>q", ":q<CR>", { desc = "Exit editor" })

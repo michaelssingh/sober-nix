@@ -8,6 +8,8 @@
     extraPackages = with pkgs; [
       ripgrep
       fd
+      tree-sitter
+      nodejs
     ];
     plugins = with pkgs.vimPlugins; [
       (pkgs.vimUtils.buildVimPlugin {
@@ -29,7 +31,7 @@
       cmp-path
       cmp_luasnip
       luasnip
-      (pkgs.vimPlugins.nvim-treesitter.withPlugins (p: [
+      (nvim-treesitter.withPlugins (p: [
         p.nix
         p.lua
         p.vim
@@ -39,6 +41,7 @@
         p.go
         p.rust
       ]))
+      nvim-treesitter-textobjects
       tokyonight-nvim
       telescope-nvim
       telescope-fzf-native-nvim

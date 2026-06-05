@@ -18,11 +18,11 @@
   ];
 
   # Workstation-specific Neovim Extensions (Treesitter grammars)
-  programs.neovim.plugins = with pkgs.vimPlugins; [
-    (nvim-treesitter.withPlugins (p: [
-      p.c
-      p.go
-      p.rust
-    ]))
-  ];
+  # programs.neovim.plugins = with pkgs.vimPlugins; [
+  #   (nvim-treesitter-legacy.withPlugins (p: [
+  #     p.c
+  #     p.go
+  #     p.rust
+  #   ]))
+  # ];
 }

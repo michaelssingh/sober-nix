@@ -13,17 +13,23 @@
 
       settings = {
         # General application settings
-        notifications.enabled = true;
-        
+        # Configure notifications
+        notifications = {
+          enabled = true;
+          show_message = true;
+          via = "desktop";
+        };
+
         # Configure image previews
         # iamb supports Sixel, which works well with Foot
         image_preview = {
           protocol.type = "sixel";
         };
-        
+
         # UI Preferences
         message.read_receipt_send = true;
         message.typing_notice_send = true;
+        username_display = "username";
       };
     };
   };
