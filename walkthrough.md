@@ -9,6 +9,10 @@ Implemented the `mkContainerImage` helper function with the following properties
 - **Flag-driven Hardening (`harden = true` by default)**: Strips out developmental/interactive shells (`bashInteractive`) and debug packages (like `coreutils` in the path). Standard setup actions (like `mkdir`, `chmod`, `chown`) are executed using absolute Nix store paths (e.g. `${pkgs.coreutils}/bin/mkdir`) so they are never exposed in `/bin` or `/usr/bin` within the runtime environment.
 - **Git Hook support (`usrBinEnv = true` option)**: Restricts `/usr/bin/env` symlink generation exclusively to `sober-bubo` where Git hook shebangs need to locate `/usr/bin/env bash`.
 - **Automatic Writable `/tmp`**: Places a sticky-bit permissioned `/tmp` (`1777`) into all base container environments to guarantee standard application runtimes have a writable temp location out of the box.
+- **Consolidated Environment Layers (`pkgs.symlinkJoin`)**: Consolidates layout files and directory configurations into a single OCI layer to prevent exceeding the standard 124-layer limit.
+- **Dynamic Bin Search Path**: Dynamically maps active packages to generate a correct, minimal `$PATH` inside the container environment using `pkgs.lib.makeBinPath`, preventing runtime command-not-found crashes.
+- **Line Break and Shell Name Safety**: Corrected string mapping to prevent empty blank lines inside `/etc/passwd` and `/etc/group` (which emit warning logs in container utilities), and dynamically resolves the shell path (mapping `bash-interactive` to `bash` binaries).
+- **Core Dump Git Isolation**: Added `core.*` to `.gitignore` to prevent committing memory core dumps that exhaust memory on resource-constrained microVMs during git pushes.
 
 ### 2. Decoupled Static Configs: [lib/public-keys.nix](file:///home/michael/git/sober-nix/lib/public-keys.nix)
 - Centralized all system SSH and WireGuard keys as static Nix data, renaming the SSH key option from `github` to `forge` to generalize it since it is used on multiple Git hosts.
