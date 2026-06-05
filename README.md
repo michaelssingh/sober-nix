@@ -21,15 +21,27 @@ The project follows a **System-Centric** layout, separating hardware (Hosts) fro
 
 ```text
 ~/git/sober-nix/
-├── hosts/              # 🖥️ Hardware-specific entry points
-│   └── otus/           # Lenovo IdeaPad Slim 1-14AST-05
-├── modules/            # 🧱 Reusable logic "Bricks"
-│   ├── core/           # System-wide foundational settings
-│   ├── home/           # User-space configs (Firefox, Nvim, Sway, Shell)
+├── cmd/                # 🛠️ Command line scripts and repository utility tools
+├── docs/               # 📖 Documentation and system cheatsheets
+├── hosts/              # 🖥️ Hardware and host-specific entry points
+│   ├── otus/           # Lenovo IdeaPad Slim 1-14AST-05 Workstation
+│   ├── athene/         # Fly.io MicroVM - Soju IRC Bouncer
+│   ├── bubo/           # Fly.io MicroVM - Forgejo Git Forge
+│   ├── clare/          # Fly.io MicroVM - IRC SSH Portal
+│   ├── glaucidium/     # Fly.io MicroVM - WireGuard VPN Gateway
+│   ├── strix/          # Fly.io MicroVM - rustypaste Pastebin
+│   └── styx/           # Fly.io MicroVM - Nix Remote Builder
+├── modules/            # 🧱 Reusable NixOS and Home Manager logic modules
+│   ├── core/           # System-wide foundational settings (e.g., SSH keys)
+│   ├── home/           # User-space configs (Firefox, Nvim, Shell, features)
+│   ├── overlays/       # Nixpkgs additions and modifications
 │   ├── roles/          # High-level abstractions (e.g., Workstation role)
-│   └── services/       # System services (Greetd, Kanata keyboard mapper)
-├── users/              # 👤 User profile composition
+│   └── services/       # System services and background daemons
+├── packages/           # 📦 Custom Nix packages (e.g., antigravity, typos, etc.)
+├── secrets/            # 🔑 Age-encrypted credentials managed by sops-nix
+├── users/              # 👤 User profile compositions
 │   └── michael/        # Profile variants (Core, Server, Workstation)
-├── flake.nix           # The orchestration brain
-└── flake.lock          # Reproducible dependency pin
+├── flake.nix           # The orchestration brain and flake output definitions
+├── flake.lock          # Reproducible dependency pin
+└── GEMINI.md           # Shared configuration and memory rules for Gemini CLI
 ```
