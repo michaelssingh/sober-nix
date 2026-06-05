@@ -52,8 +52,8 @@ in
           fg = theme.colors.foreground;
         };
         webpage = {
-          darkmode.enabled = true;
-          preferred_color_scheme = "dark";
+          darkmode.enabled = false;
+          preferred_color_scheme = "light";
         };
       };
       fonts.default_family = "FiraCode Nerd Font Mono";
