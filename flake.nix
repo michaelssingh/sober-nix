@@ -86,6 +86,7 @@
         tyto = pkgs.callPackage ./packages/tyto { };
         antigravity = pkgs.callPackage ./packages/antigravity { };
         raki-api = pkgs.callPackage ./packages/raki-api { };
+        strix-paste = pkgs.callPackage ./packages/strix-paste { };
         athene-image = import ./hosts/athene/athene.nix { inherit pkgs; lib = nixpkgs.lib; };
         clare-image = import ./hosts/clare/clare.nix { inherit pkgs; lib = nixpkgs.lib; };
         glaucidium-image = import ./hosts/glaucidium/glaucidium.nix { inherit pkgs; lib = nixpkgs.lib; };
