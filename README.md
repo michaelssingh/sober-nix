@@ -10,6 +10,7 @@ Hosts are named after Owl genera to reflect the system's identity (Observation, 
 | **Otus** | Lenovo IdeaPad Slim 1-14AST-05 | `x86_64-linux` | Workstation | *The Scops Owl* - Small, adaptable. |
 | **Athene** | Fly.io MicroVM (256MB) | `x86_64-linux` | IRC Bouncer | *The Little Owl* - Small, vigilant. |
 | **Glaucidium** | Fly.io MicroVM (256MB) | `x86_64-linux` | VPN Gateway | *The Pygmy Owl* - Tiny but fierce. |
+| **Strix** | Fly.io MicroVM (256MB) | `x86_64-linux` | Pastebin | *The Wood Owl* - Silent, record-keeping. |
 
 ## 📂 Directory Layout
 
