@@ -52,8 +52,14 @@ in
     };
 
     systemd.services."wg-quick-${cfg.interface}" = {
-      after = [ "wg-quick-wg-fly.service" ];
-      wants = [ "wg-quick-wg-fly.service" ];
+      after = [
+        "wg-quick-wg-fly.service"
+        "systemd-resolved.service"
+      ];
+      wants = [
+        "wg-quick-wg-fly.service"
+        "systemd-resolved.service"
+      ];
     };
   };
 }

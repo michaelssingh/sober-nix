@@ -60,6 +60,20 @@ in
 
     systemd.services."wg-quick-${cfg.interface}" = {
       before = [ "wg-quick-wg-sober.service" ];
+      after = [ "systemd-resolved.service" ];
+      wants = [ "systemd-resolved.service" ];
+      preStart = ''
+        echo "Waiting for DNS resolution of iad2.gateway.6pn.dev..."
+        for i in {1..30}; do
+          if getent hosts iad2.gateway.6pn.dev >/dev/null 2>&1; then
+            echo "DNS is ready."
+            exit 0
+          fi
+          sleep 1
+        done
+        echo "DNS resolution timeout for iad2.gateway.6pn.dev"
+        exit 1
+      '';
     };
   };
 }
