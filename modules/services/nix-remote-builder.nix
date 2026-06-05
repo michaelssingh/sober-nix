@@ -29,7 +29,7 @@ in
 
       # Prefer remote builds over local ones
       settings.builders-use-substitutes = true;
-      settings.max-jobs = lib.mkForce 0;
+      # settings.max-jobs = lib.mkForce 0;
 
       buildMachines = [
         {

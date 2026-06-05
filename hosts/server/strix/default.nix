@@ -1,4 +1,4 @@
-{ pkgs, lib, ... }:
+{ pkgs, soberLib, ... }:
 
 let
   rustypasteConfigTemplate = pkgs.writeText "config-template.toml" ''
@@ -27,52 +27,25 @@ let
     mime = "text/plain; charset=utf-8"
     regex = "^.*\\.(nix|go|sh|conf|toml|yaml|yml|json|txt|md|log|kbd|diff|patch|ini|cfg)$"
   '';
+in
+soberLib.mkContainerImage {
+  name = "sober-strix";
+  packages = [ pkgs.rustypaste pkgs.gnused ];
+  harden = true;
+  exposedPorts = {
+    "8000/tcp" = {};
+  };
+  entrypoint = ''
+    ${pkgs.coreutils}/bin/mkdir -p /data/upload
 
-  entrypoint = pkgs.writeShellScriptBin "entrypoint" ''
-    set -e
-    mkdir -p /data/upload
-
-    # Set public URL dynamically based on Fly.io app name
     APP_NAME="''${FLY_APP_NAME:-sober-strix}"
     PUBLIC_URL="https://$APP_NAME.fly.dev"
 
     echo "Configuring rustypaste with URL: $PUBLIC_URL"
-    mkdir -p /etc/rustypaste
-    sed "s|@URL@|$PUBLIC_URL|g" ${rustypasteConfigTemplate} > /etc/rustypaste/config.toml
+    ${pkgs.coreutils}/bin/mkdir -p /etc/rustypaste
+    ${pkgs.gnused}/bin/sed "s|@URL@|$PUBLIC_URL|g" ${rustypasteConfigTemplate} > /etc/rustypaste/config.toml
 
     export CONFIG="/etc/rustypaste/config.toml"
-
-    # Run rustypaste
     exec ${pkgs.rustypaste}/bin/rustypaste
   '';
-in
-pkgs.dockerTools.buildLayeredImage {
-  name = "sober-strix";
-  tag = "latest";
-
-  contents = [
-    pkgs.rustypaste
-    pkgs.bash
-    pkgs.coreutils
-    pkgs.gnused
-    pkgs.cacert
-    entrypoint
-    (pkgs.writeTextDir "etc/passwd" ''
-      root:x:0:0::/root:/bin/bash
-    '')
-    (pkgs.writeTextDir "etc/group" ''
-      root:x:0:
-    '')
-  ];
-
-  config = {
-    Entrypoint = [ "${entrypoint}/bin/entrypoint" ];
-    ExposedPorts = {
-      "8000/tcp" = { };
-    };
-    Env = [
-      "PATH=/bin"
-      "SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
-    ];
-  };
 }

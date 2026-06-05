@@ -15,3 +15,7 @@ primary_region = "ewr"
 
   [[services.ports]]
     port = 2222
+
+[mounts]
+  source = "styx_data"
+  destination = "/data"
