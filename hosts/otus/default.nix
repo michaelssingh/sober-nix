@@ -90,6 +90,16 @@
     };
   };
 
+  programs.ssh.extraConfig = ''
+    Host sober-styx.internal
+      HostName sober-styx.flycast
+      Port 2222
+      User root
+      IdentityFile /home/michael/.ssh/fly
+      StrictHostKeyChecking no
+      UserKnownHostsFile /dev/null
+  '';
+
   nix = {
     distributedBuilds = true;
 buildMachines = [

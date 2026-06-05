@@ -41,10 +41,14 @@
       };
 
       "sober-styx.internal" = {
-        hostname = "fdaa:3:7a15:a7b:4d:9be5:53d9:2";
+        hostname = "sober-styx.flycast";
         port = 2222;
         user = "root";
         identityFile = "~/.ssh/fly";
+        extraOptions = {
+          StrictHostKeyChecking = "no";
+          UserKnownHostsFile = "/dev/null";
+        };
       };
     };
   };
