@@ -40,6 +40,16 @@ EOF
     echo "Starting Forgejo as git user..."
     exec ${pkgs.su-exec}/bin/su-exec git ${pkgs.forgejo}/bin/forgejo web
   '';
+
+  usrBinEnv = pkgs.runCommand "usr-bin-env" {} ''
+    mkdir -p $out/usr/bin
+    ln -s ${pkgs.coreutils}/bin/env $out/usr/bin/env
+  '';
+
+  tmpDir = pkgs.runCommand "tmp-dir" {} ''
+    mkdir -p $out/tmp
+    chmod 1777 $out/tmp
+  '';
 in
 pkgs.dockerTools.buildLayeredImage {
   name = "sober-bubo";
@@ -53,6 +63,8 @@ pkgs.dockerTools.buildLayeredImage {
     pkgs.git
     pkgs.cacert
     entrypoint
+    usrBinEnv
+    tmpDir
     (pkgs.writeTextDir "etc/passwd" ''
       root:x:0:0::/root:/bin/bash
       git:x:1000:1000:Git User:/data/forgejo:/bin/bash
