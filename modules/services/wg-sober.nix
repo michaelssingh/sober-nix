@@ -44,7 +44,7 @@ in
             "0.0.0.0/0"
             "::/0"
           ];
-          endpoint = "37.16.14.96:51820";
+          endpoint = "sober-glaucidium.fly.dev:51820";
           persistentKeepalive = 25;
         }
       ];
