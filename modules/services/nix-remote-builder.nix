@@ -32,7 +32,7 @@ in
 
       buildMachines = [
         {
-          hostName = "sober-styx.internal";
+          hostName = "sober-styx.flycast";
           system = "x86_64-linux";
           protocol = "ssh-ng";
           maxJobs = 4;

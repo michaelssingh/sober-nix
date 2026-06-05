@@ -91,8 +91,7 @@
   };
 
   programs.ssh.extraConfig = ''
-    Host sober-styx.internal
-      HostName sober-styx.flycast
+    Host sober-styx.flycast
       Port 2222
       User root
       IdentityFile /home/michael/.ssh/fly

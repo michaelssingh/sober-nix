@@ -29,8 +29,8 @@
         };
       };
 
-      "athene.internal" = {
-        hostname = "fdaa:3:7a15:a7b:572:11c:754f:2";
+      "sober-athene.flycast" = {
+        hostname = "sober-athene.flycast";
         port = 2222;
         user = "root";
         identityFile = "~/.ssh/fly";
@@ -40,7 +40,7 @@
         };
       };
 
-      "sober-styx.internal" = {
+      "sober-styx.flycast" = {
         hostname = "sober-styx.flycast";
         port = 2222;
         user = "root";
