@@ -16,6 +16,11 @@
   programs.git = {
     enable = true;
 
+    signing = {
+      key = "${config.home.homeDirectory}/.ssh/github";
+      signByDefault = true;
+    };
+
     # Everything moves into 'settings' now
     settings = {
       user = {
@@ -27,6 +32,9 @@
       };
       # Add any other extraConfig items here directly
       pull.rebase = true;
+      gpg = {
+        format = "ssh";
+      };
     };
   };
 
