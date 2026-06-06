@@ -9,7 +9,7 @@
       set fish_greeting # Disable greeting
 
       # Automatically add sops-decrypted SSH keys on login
-      ssh-add ~/.ssh/nixbuild ~/.ssh/fly ~/.ssh/github 2>/dev/null
+      ssh-add ~/.ssh/nixbuild ~/.ssh/fly ~/.ssh/github ~/.ssh/hashnix 2>/dev/null
 
       # --- 1. Tokyonight Fish Color Palette ---
       set -g fish_color_normal "#c0caf5"
