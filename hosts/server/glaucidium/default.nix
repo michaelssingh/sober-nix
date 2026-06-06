@@ -31,7 +31,7 @@ soberLib.mkContainerImage {
     };
   };
   exposedPorts = {
-    "51820/udp" = {};
+    "51820/udp" = { };
   };
   entrypoint = ''
     echo "glaucidium" > /etc/hostname
