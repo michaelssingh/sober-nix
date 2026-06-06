@@ -13,7 +13,13 @@ let
 
   matrirc = pkgs.callPackage ../../../packages/matrirc { };
 
-  mautrix-googlechat = unstable.mautrix-googlechat.override { python3 = unstable.python312; };
+  mautrix-googlechat = (unstable.mautrix-googlechat.override {
+    python3 = unstable.python312;
+  }).overrideAttrs (oldAttrs: {
+    propagatedBuildInputs = oldAttrs.propagatedBuildInputs ++ [
+      unstable.python312Packages.async-timeout
+    ];
+  });
 
   # The configuration profile for the Soju IRC bouncer
   sojuConfig = pkgs.writeText "soju.conf" ''
