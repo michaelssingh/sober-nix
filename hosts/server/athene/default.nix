@@ -92,6 +92,8 @@ soberLib.mkContainerImage {
           .appservice.hostname = "127.0.0.1" |
           .appservice.port = 29318 |
           .appservice.database = "sqlite:///var/lib/soju/mautrix-googlechat/mautrix-googlechat.db" |
+          .appservice.namespaces.users[0].regex = "@googlechat_.*:sober\\.fyi" |
+          .appservice.namespaces.users[1].regex = "@googlechatbot:sober\\.fyi" |
           .encryption.allow = false |
           .encryption.default = false
         ' /var/lib/soju/mautrix-googlechat/config.yaml
