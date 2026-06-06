@@ -5,6 +5,7 @@
     # LSP & Dev Tools
     nixd
     lua-language-server
+    harper
 
     # C
     gcc
