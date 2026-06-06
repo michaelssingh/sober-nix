@@ -4,6 +4,7 @@
   additions = final: prev: 
     import ./gemini.nix { inherit inputs; } final prev // {
       tyto = final.callPackage ../../packages/tyto { };
+      goanime = final.callPackage ../../packages/goanime { };
       antigravity = final.callPackage ../../packages/antigravity { };
       strix-paste = final.callPackage ../../packages/strix-paste { };
       matrirc = final.callPackage ../../packages/matrirc { };
