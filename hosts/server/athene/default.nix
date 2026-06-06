@@ -13,6 +13,8 @@ let
 
   matrirc = pkgs.callPackage ../../../packages/matrirc { };
 
+  mautrix-googlechat = unstable.mautrix-googlechat.override { python3 = unstable.python312; };
+
   # The configuration profile for the Soju IRC bouncer
   sojuConfig = pkgs.writeText "soju.conf" ''
     listen irc+insecure://0.0.0.0:6697
@@ -43,7 +45,7 @@ soberLib.mkContainerImage {
   packages = [
     pkgs.soju
     unstable.matrix-conduit
-    unstable.mautrix-googlechat
+    mautrix-googlechat
     matrirc
     pkgs.yq-go
     pkgs.sqlite
@@ -67,12 +69,12 @@ soberLib.mkContainerImage {
 
     # 1. Start Conduit Matrix homeserver in the background
     echo "Starting Conduit homeserver..."
-    CONDUIT_CONFIG=${conduitConfig} ${unstable.matrix-conduit}/bin/matrix-conduit &
+    CONDUIT_CONFIG=${conduitConfig} ${unstable.matrix-conduit}/bin/conduit &
 
     # 2. Setup and start mautrix-googlechat bridge in the background
     if [ ! -f /var/lib/soju/mautrix-googlechat/config.yaml ]; then
         echo "Initializing mautrix-googlechat configuration..."
-        ${unstable.mautrix-googlechat}/bin/mautrix-googlechat -e -c /var/lib/soju/mautrix-googlechat/config.yaml
+        ${mautrix-googlechat}/bin/mautrix-googlechat -e -c /var/lib/soju/mautrix-googlechat/config.yaml
 
         echo "Patching config.yaml keys..."
         ${pkgs.yq-go}/bin/yq -i '
@@ -87,13 +89,13 @@ soberLib.mkContainerImage {
         ' /var/lib/soju/mautrix-googlechat/config.yaml
 
         echo "Generating appservice registration file..."
-        ${unstable.mautrix-googlechat}/bin/mautrix-googlechat -g \
+        ${mautrix-googlechat}/bin/mautrix-googlechat -g \
           -c /var/lib/soju/mautrix-googlechat/config.yaml \
           -r /var/lib/soju/mautrix-googlechat/registration.yaml
     fi
 
     echo "Starting mautrix-googlechat bridge..."
-    ${unstable.mautrix-googlechat}/bin/mautrix-googlechat -c /var/lib/soju/mautrix-googlechat/config.yaml &
+    ${mautrix-googlechat}/bin/mautrix-googlechat -c /var/lib/soju/mautrix-googlechat/config.yaml &
 
     # 3. Start matrirc gateway in the background
     echo "Starting matrirc..."
