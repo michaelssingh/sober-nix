@@ -13,7 +13,7 @@
         };
         athene = {
           user_id = "@init:athene.local";
-          url = "http://localhost:6167";
+          url = "http://sober-athene.flycast:6167";
         };
       };
 

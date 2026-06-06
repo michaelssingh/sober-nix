@@ -29,3 +29,9 @@ primary_region = "ewr"
     port = 443
     handlers = ["tls", "http"]
 
+[[services]]
+  protocol = "tcp"
+  internal_port = 6167
+  [[services.ports]]
+    port = 6167
+
