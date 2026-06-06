@@ -16,8 +16,9 @@ let
   mautrix-googlechat = (unstable.mautrix-googlechat.override {
     python3 = unstable.python312;
   }).overrideAttrs (oldAttrs: {
-    propagatedBuildInputs = oldAttrs.propagatedBuildInputs ++ [
+    propagatedBuildInputs = (builtins.filter (p: p.pname or "" != "protobuf") oldAttrs.propagatedBuildInputs) ++ [
       unstable.python312Packages.async-timeout
+      unstable.python312Packages.protobuf4
     ];
   });
 
