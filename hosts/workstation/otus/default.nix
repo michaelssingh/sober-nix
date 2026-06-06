@@ -184,6 +184,9 @@
   # --- System State ---
   # Force rebuild
   nixpkgs.config.allowUnfree = true;
+  nixpkgs.config.permittedInsecurePackages = [
+    "olm-3.2.16"
+  ];
   system.stateVersion = "25.11";
 
   # Remember password forever until session ends
