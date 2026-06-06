@@ -86,6 +86,7 @@
 
       packages."x86_64-linux" = {
         tyto = pkgs.callPackage ./packages/tyto { };
+        goanime = pkgs.callPackage ./packages/goanime { };
         antigravity = pkgs.callPackage ./packages/antigravity { };
         raki-api = pkgs.callPackage ./packages/raki-api { };
         strix-paste = pkgs.callPackage ./packages/strix-paste { };
