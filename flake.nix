@@ -89,6 +89,7 @@
         antigravity = pkgs.callPackage ./packages/antigravity { };
         raki-api = pkgs.callPackage ./packages/raki-api { };
         strix-paste = pkgs.callPackage ./packages/strix-paste { };
+        matrirc = pkgs.callPackage ./packages/matrirc { };
         athene-image = import ./hosts/server/athene { inherit pkgs soberLib; lib = nixpkgs.lib; };
         clare-image = import ./hosts/server/clare { inherit pkgs soberLib; lib = nixpkgs.lib; };
         glaucidium-image = import ./hosts/server/glaucidium { inherit pkgs soberLib; lib = nixpkgs.lib; };
