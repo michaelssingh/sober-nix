@@ -95,7 +95,10 @@ soberLib.mkContainerImage {
           .appservice.namespaces.users[0].regex = "@googlechat_.*:sober\\.fyi" |
           .appservice.namespaces.users[1].regex = "@googlechatbot:sober\\.fyi" |
           .encryption.allow = false |
-          .encryption.default = false
+          .encryption.default = false |
+          del(.bridge.permissions) |
+          .bridge.permissions["sober.fyi"] = "user" |
+          .bridge.permissions["@init:sober.fyi"] = "admin"
         ' /var/lib/soju/mautrix-googlechat/config.yaml
 
         echo "Generating appservice registration file..."
