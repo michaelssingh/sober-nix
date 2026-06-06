@@ -13,6 +13,12 @@
         };
       };
 
+      "hashnix.club" = {
+        hostname = "hashnix.club";
+        user = "init";
+        identityFile = "~/.ssh/hashnix";
+      };
+
       "github.com" = {
         hostname = "github.com";
         user = "git";
