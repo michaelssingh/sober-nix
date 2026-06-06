@@ -49,8 +49,9 @@
     };
     aerc = {
       enable = true;
-      # Per-account settings are handled by Home Manager
-      extraConfig = { };
+      extraAccounts = {
+        source = "maildir://~/Maildir/protonmail";
+      };
     };
   };
 
@@ -59,7 +60,10 @@
       Description = "mbsync synchronization";
     };
     Service = {
-      ExecStart = "${pkgs.isync}/bin/mbsync -a";
+      ExecStart = "${pkgs.writeShellScript "mbsync-and-notmuch" ''
+        ${pkgs.isync}/bin/mbsync -a
+        ${pkgs.notmuch}/bin/notmuch new
+      ''}";
     };
   };
 
