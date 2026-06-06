@@ -11,6 +11,7 @@
       border-size = 2;
       padding = "10";
       default-timeout = 5000;
+      layer = "overlay";
     };
   };
 }
