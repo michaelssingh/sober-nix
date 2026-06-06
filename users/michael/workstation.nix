@@ -80,6 +80,7 @@ in
     qutebrowser
     antigravity
     strix-paste
+    nheko
   ];
   programs.zathura = {
     enable = true;
