@@ -50,6 +50,7 @@
     pkgs.chafa
     pkgs.ani-skip
     pkgs.tyto
+    pkgs.goanime
     (pkgs.writeShellApplication {
       name = "ani-cli";
       runtimeInputs = [
