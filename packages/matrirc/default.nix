@@ -1,0 +1,29 @@
+{ lib
+, rustPlatform
+, fetchFromGitHub
+, openssl
+, pkg-config
+}:
+
+rustPlatform.buildRustPackage rec {
+  pname = "matrirc";
+  version = "unstable-2026-06-06";
+
+  src = fetchFromGitHub {
+    owner = "martinetd";
+    repo = "matrirc";
+    rev = "45f4d6d5482293162c48a77505fcb20cb0d9278b";
+    sha256 = "058vrs90hp78qnvjnmrcd2fin736n1v2k29a5wv0jb2h2c540nhh";
+  };
+
+  cargoHash = lib.fakeHash;
+
+  nativeBuildInputs = [ pkg-config ];
+  buildInputs = [ openssl ];
+
+  meta = with lib; {
+    description = "An IRC gateway to Matrix";
+    homepage = "https://github.com/martinetd/matrirc";
+    maintainers = [ ];
+  };
+}
