@@ -1,6 +1,13 @@
-{ pkgs, soberLib, ... }:
+{ pkgs, soberLib, inputs, ... }:
 
 let
+  unstable = import inputs.nixpkgs-unstable {
+    system = pkgs.system;
+    config.allowUnfree = true;
+  };
+
+  matrirc = pkgs.callPackage ../../../packages/matrirc { };
+
   # The configuration profile for the Soju IRC bouncer
   sojuConfig = pkgs.writeText "soju.conf" ''
     listen irc+insecure://0.0.0.0:6697
@@ -30,9 +37,9 @@ soberLib.mkContainerImage {
   harden = false; # Needed to run multiple background services and dynamic commands
   packages = [
     pkgs.soju
-    pkgs.unstable.matrix-conduit
-    pkgs.unstable.mautrix-googlechat
-    pkgs.matrirc
+    unstable.matrix-conduit
+    unstable.mautrix-googlechat
+    matrirc
     pkgs.yq-go
     pkgs.sqlite
     pkgs.curl
@@ -55,12 +62,12 @@ soberLib.mkContainerImage {
 
     # 1. Start Conduit Matrix homeserver in the background
     echo "Starting Conduit homeserver..."
-    CONDUIT_CONFIG=${conduitConfig} ${pkgs.unstable.matrix-conduit}/bin/matrix-conduit &
+    CONDUIT_CONFIG=${conduitConfig} ${unstable.matrix-conduit}/bin/matrix-conduit &
 
     # 2. Setup and start mautrix-googlechat bridge in the background
     if [ ! -f /var/lib/soju/mautrix-googlechat/config.yaml ]; then
         echo "Initializing mautrix-googlechat configuration..."
-        ${pkgs.unstable.mautrix-googlechat}/bin/mautrix-googlechat -e -c /var/lib/soju/mautrix-googlechat/config.yaml
+        ${unstable.mautrix-googlechat}/bin/mautrix-googlechat -e -c /var/lib/soju/mautrix-googlechat/config.yaml
 
         echo "Patching config.yaml keys..."
         ${pkgs.yq-go}/bin/yq -i '
@@ -75,17 +82,17 @@ soberLib.mkContainerImage {
         ' /var/lib/soju/mautrix-googlechat/config.yaml
 
         echo "Generating appservice registration file..."
-        ${pkgs.unstable.mautrix-googlechat}/bin/mautrix-googlechat -g \
+        ${unstable.mautrix-googlechat}/bin/mautrix-googlechat -g \
           -c /var/lib/soju/mautrix-googlechat/config.yaml \
           -r /var/lib/soju/mautrix-googlechat/registration.yaml
     fi
 
     echo "Starting mautrix-googlechat bridge..."
-    ${pkgs.unstable.mautrix-googlechat}/bin/mautrix-googlechat -c /var/lib/soju/mautrix-googlechat/config.yaml &
+    ${unstable.mautrix-googlechat}/bin/mautrix-googlechat -c /var/lib/soju/mautrix-googlechat/config.yaml &
 
     # 3. Start matrirc gateway in the background
     echo "Starting matrirc..."
-    ${pkgs.matrirc}/bin/matrirc \
+    ${matrirc}/bin/matrirc \
         -l 127.0.0.1:6668 \
         --allow-register \
         --state-dir /var/lib/soju/matrirc &
