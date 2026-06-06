@@ -3,7 +3,12 @@
 let
   unstable = import inputs.nixpkgs-unstable {
     system = pkgs.system;
-    config.allowUnfree = true;
+    config = {
+      allowUnfree = true;
+      permittedInsecurePackages = [
+        "olm-3.2.16"
+      ];
+    };
   };
 
   matrirc = pkgs.callPackage ../../../packages/matrirc { };
