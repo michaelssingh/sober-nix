@@ -26,7 +26,7 @@ let
     listen irc+insecure://0.0.0.0:6697
     listen unix+admin:///var/lib/soju/admin.sock
     listen http+insecure://0.0.0.0:8080
-    http-ingress https://sober-athene.fly.dev
+    http-ingress http://sober-athene.flycast
     file-upload fs /var/lib/soju/uploads
     db sqlite3 /var/lib/soju/soju.db
   '';
@@ -80,7 +80,8 @@ soberLib.mkContainerImage {
     # 2. Setup and start mautrix-googlechat bridge in the background
     if [ ! -f /var/lib/soju/mautrix-googlechat/config.yaml ]; then
         echo "Initializing mautrix-googlechat configuration..."
-        ${mautrix-googlechat}/bin/mautrix-googlechat -e -c /var/lib/soju/mautrix-googlechat/config.yaml
+        cp ${mautrix-googlechat}/share/mautrix-googlechat/example-config.yaml /var/lib/soju/mautrix-googlechat/config.yaml
+        chmod +w /var/lib/soju/mautrix-googlechat/config.yaml
 
         echo "Patching config.yaml keys..."
         ${pkgs.yq-go}/bin/yq -i '
