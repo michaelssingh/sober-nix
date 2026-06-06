@@ -30,6 +30,10 @@
         "*"
         "!\"~\""
       ];
+      extraConfig.channel = {
+        Sync = "All";
+        Expunge = "Both";
+      };
       extraConfig.account = {
         Timeout = "300";
       };
