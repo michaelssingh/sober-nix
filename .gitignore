@@ -20,3 +20,8 @@ secrets/*.yaml
 GEMINI.md
 packages/ergo/
 packages/neomutt/
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.backup
