@@ -167,11 +167,7 @@ vim.api.nvim_create_autocmd('LspAttach', {
 
     -- 1. Buffer-local Mappings
     local opts = { buffer = bufnr }
-    vim.keymap.set('n', 'gd', vim.lsp.buf.definition, { buffer = bufnr, desc = "Go to Definition" })
-    vim.keymap.set('n', 'K', vim.lsp.buf.hover, { buffer = bufnr, desc = "Docs" })
     vim.keymap.set('n', '<leader>e', vim.diagnostic.open_float, { buffer = bufnr, desc = "Line Diagnostics" })
-    vim.keymap.set('n', '[d', vim.diagnostic.goto_prev, { buffer = bufnr, desc = "Prev Diagnostic" })
-    vim.keymap.set('n', ']d', vim.diagnostic.goto_next, { buffer = bufnr, desc = "Next Diagnostic" })
 
     -- 2. Enable Inlay Hints (0.10+)
     if client:supports_method('textDocument/inlayHint') then
@@ -293,13 +289,35 @@ vim.lsp.config('harper_ls', {
 -- This triggers filetype-based automatic start
 vim.lsp.enable({ 'gopls', 'rust_analyzer', 'clangd', 'lua_ls', 'nixd', 'harper_ls' })
 
+-- LSP Floating Window Borders (Rounded)
+local border = "rounded"
+vim.lsp.handlers["textDocument/hover"] = function(err, result, ctx, config)
+  config = config or {}
+  config.border = border
+  return vim.lsp.handlers.hover(err, result, ctx, config)
+end
+
+vim.lsp.handlers["textDocument/signatureHelp"] = function(err, result, ctx, config)
+  config = config or {}
+  config.border = border
+  return vim.lsp.handlers.signature_help(err, result, ctx, config)
+end
+
 -- 6. Diagnostics UI
 vim.diagnostic.config({
-  virtual_text = { prefix = '●', spacing = 4 },
+  virtual_text = {
+    prefix = '●',
+    spacing = 4,
+    severity = { min = vim.diagnostic.severity.WARN }, -- Hide HINT (spell checker) and INFO virtual text; keep underlines
+  },
   signs = true,
   underline = true,
   update_in_insert = false,
   severity_sort = true,
+  float = {
+    border = "rounded",
+    source = "always",
+  },
 })
 
 local signs = { Error = "󰅚 ", Warn = "󰀪 ", Hint = "󰌶 ", Info = "➔ " }
