@@ -63,6 +63,7 @@ in
     path = "/home/michael/.ssh/hashnix";
     mode = "0600";
   };
+
   # GUI-Only Packages
   home.packages = with pkgs; [
     foot
