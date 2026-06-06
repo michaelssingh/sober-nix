@@ -65,6 +65,11 @@ soberLib.mkContainerImage {
     "6167/tcp" = {};
   };
   entrypoint = ''
+    # Configure aggressive TCP keepalive settings to clean up dead connections quickly
+    echo 300 > /proc/sys/net/ipv4/tcp_keepalive_time
+    echo 15 > /proc/sys/net/ipv4/tcp_keepalive_intvl
+    echo 5 > /proc/sys/net/ipv4/tcp_keepalive_probes
+
     # Create persistent directories inside the mounted volume
     ${pkgs.coreutils}/bin/mkdir -p /var/lib/soju/uploads
     ${pkgs.coreutils}/bin/mkdir -p /var/lib/soju/conduit
