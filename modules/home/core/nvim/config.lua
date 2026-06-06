@@ -281,9 +281,17 @@ vim.lsp.config('nixd', {
   },
 })
 
+vim.lsp.config('harper_ls', {
+  settings = {
+    ["harper-ls"] = {
+      userDictPath = "~/dict.txt",
+    }
+  }
+})
+
 -- Enable Servers
 -- This triggers filetype-based automatic start
-vim.lsp.enable({ 'gopls', 'rust_analyzer', 'clangd', 'lua_ls', 'nixd' })
+vim.lsp.enable({ 'gopls', 'rust_analyzer', 'clangd', 'lua_ls', 'nixd', 'harper_ls' })
 
 -- 6. Diagnostics UI
 vim.diagnostic.config({
