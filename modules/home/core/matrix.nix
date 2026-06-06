@@ -36,6 +36,9 @@
         message.read_receipt_send = true;
         message.typing_notice_send = true;
         username_display = "username";
+
+        # Disable encryption by default so unencrypted bridges (e.g. googlechat) work
+        default_room_settings.encryption = false;
       };
     };
   };
