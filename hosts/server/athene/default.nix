@@ -36,7 +36,7 @@ let
     [global]
     server_name = "athene.local"
     port = 6167
-    address = "127.0.0.1"
+    address = "0.0.0.0"
     database_path = "/var/lib/soju/conduit"
     database_backend = "rocksdb"
     allow_registration = true
@@ -61,6 +61,7 @@ soberLib.mkContainerImage {
   exposedPorts = {
     "6697/tcp" = {};
     "8080/tcp" = {};
+    "6167/tcp" = {};
   };
   entrypoint = ''
     # Create persistent directories inside the mounted volume
