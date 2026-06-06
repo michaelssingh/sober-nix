@@ -34,7 +34,7 @@ let
   # Declarative configuration for the local Conduit homeserver
   conduitConfig = pkgs.writeText "conduit.toml" ''
     [global]
-    server_name = "athene.local"
+    server_name = "sober.fyi"
     port = 6167
     address = "0.0.0.0"
     database_path = "/var/lib/soju/conduit"
@@ -87,7 +87,7 @@ soberLib.mkContainerImage {
         echo "Patching config.yaml keys..."
         ${pkgs.yq-go}/bin/yq -i '
           .homeserver.address = "http://localhost:6167" |
-          .homeserver.domain = "athene.local" |
+          .homeserver.domain = "sober.fyi" |
           .appservice.address = "http://localhost:29318" |
           .appservice.hostname = "127.0.0.1" |
           .appservice.port = 29318 |

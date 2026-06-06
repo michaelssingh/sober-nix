@@ -12,7 +12,7 @@
           user_id = "@michaelssingh:matrix.org";
         };
         athene = {
-          user_id = "@init:athene.local";
+          user_id = "@init:sober.fyi";
           url = "http://sober-athene.flycast:6167";
         };
       };
