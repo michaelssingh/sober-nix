@@ -12,6 +12,7 @@
       padding = "10";
       default-timeout = 5000;
       layer = "overlay";
+      on-notify = "exec ${pkgs.pipewire}/bin/pw-play ${./tri-tone.mp3}";
     };
   };
 }
