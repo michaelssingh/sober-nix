@@ -1,4 +1,9 @@
-{ pkgs, soberLib, inputs, ... }:
+{
+  pkgs,
+  soberLib,
+  inputs,
+  ...
+}:
 
 let
   unstable = import inputs.nixpkgs-unstable {
@@ -13,21 +18,25 @@ let
 
   matrirc = pkgs.callPackage ../../../packages/matrirc { };
 
-  mautrix-googlechat = (unstable.mautrix-googlechat.override {
-    python3 = unstable.python312;
-  }).overrideAttrs (oldAttrs: {
-    propagatedBuildInputs = (builtins.filter (p: p.pname or "" != "protobuf") oldAttrs.propagatedBuildInputs) ++ [
-      unstable.python312Packages.async-timeout
-      unstable.python312Packages.protobuf4
-    ];
-  });
+  mautrix-googlechat =
+    (unstable.mautrix-googlechat.override {
+      python3 = unstable.python312;
+    }).overrideAttrs
+      (oldAttrs: {
+        propagatedBuildInputs =
+          (builtins.filter (p: p.pname or "" != "protobuf") oldAttrs.propagatedBuildInputs)
+          ++ [
+            unstable.python312Packages.async-timeout
+            unstable.python312Packages.protobuf4
+          ];
+      });
 
   # The configuration profile for the Soju IRC bouncer
   sojuConfig = pkgs.writeText "soju.conf" ''
     listen irc+insecure://0.0.0.0:6697
     listen unix+admin:///var/lib/soju/admin.sock
     listen http+insecure://0.0.0.0:8080
-    http-ingress http://sober-athene.flycast
+    http-ingress http://sober-athene.fly.dev
     file-upload fs /var/lib/soju/uploads
     db sqlite3 /var/lib/soju/soju.db
   '';
@@ -60,9 +69,9 @@ soberLib.mkContainerImage {
     pkgs.coreutils
   ];
   exposedPorts = {
-    "6697/tcp" = {};
-    "8080/tcp" = {};
-    "6167/tcp" = {};
+    "6697/tcp" = { };
+    "8080/tcp" = { };
+    "6167/tcp" = { };
   };
   entrypoint = ''
     # Configure aggressive TCP keepalive settings to clean up dead connections quickly
