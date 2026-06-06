@@ -7,8 +7,14 @@
     settings = {
       default_profile = "matrix.org";
 
-      profiles."matrix.org" = {
-        user_id = "@michaelssingh:matrix.org";
+      profiles = {
+        "matrix.org" = {
+          user_id = "@michaelssingh:matrix.org";
+        };
+        athene = {
+          user_id = "@init:athene.local";
+          url = "http://localhost:6167";
+        };
       };
 
       settings = {
