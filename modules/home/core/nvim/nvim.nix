@@ -48,8 +48,17 @@ in
       indent-blankline-nvim
       oil-nvim
       toggleterm-nvim
-      # Treesitter
-      nvim-treesitter.withAllGrammars
+      # Treesitter (Optimized grammar list)
+      (nvim-treesitter.withPlugins (p: [
+        p.nix
+        p.lua
+        p.vim
+        p.bash
+        p.markdown
+        p.c
+        p.go
+        p.rust
+      ]))
       nvim-treesitter-textobjects
     ];
     withRuby = false;
