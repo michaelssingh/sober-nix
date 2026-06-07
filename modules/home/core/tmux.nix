@@ -1,7 +1,13 @@
-{ pkgs, ... }:
+{ pkgs, config, lib, ... }:
 
 {
-  programs.tmux = {
+  options.sober.isRemote = lib.mkOption {
+    type = lib.types.bool;
+    default = false;
+    description = "Whether the host is a remote server (e.g., hashnix, bubo).";
+  };
+
+  config.programs.tmux = {
     enable = true;
     clock24 = true;
     mouse = true;
@@ -16,6 +22,9 @@
       set -g focus-events on
       set -g renumber-windows on
       set -g set-clipboard on
+
+      # Dynamic status position
+      set -g status-position ${if config.sober.isRemote then "top" else "bottom"}
 
       # Ensure mouse events are passed to applications
       set -g mouse on
