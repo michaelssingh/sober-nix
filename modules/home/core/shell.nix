@@ -41,7 +41,16 @@
       os = ''
         nh os switch $argv /home/michael/git/sober-nix
       '';
+      wg-down = ''
+        echo "Restarting WireGuard services in order..."
+        sudo systemctl stop wg-quick-wg-sober
+        sudo systemctl stop wg-quick-wg-fly
 
+        sudo systemctl start wg-quick-wg-fly
+        sleep 2
+        sudo systemctl start wg-quick-wg-sober
+        echo "WireGuard services restarted."
+      '';
       wg-up = ''
         echo "Restarting WireGuard services in order..."
         sudo systemctl stop wg-quick-wg-sober
