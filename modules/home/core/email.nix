@@ -36,6 +36,7 @@
       };
       extraConfig.account = {
         Timeout = "300";
+        PipelineDepth = "1";
       };
     };
     notmuch.enable = true;

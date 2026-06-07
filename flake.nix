@@ -108,6 +108,11 @@
           extraSpecialArgs = { inherit inputs user; };
           modules = [ ./users/${user}/server.nix ];
         };
+        "init@hashnix" = home-manager.lib.homeManagerConfiguration {
+          inherit pkgs;
+          extraSpecialArgs = { inherit inputs; };
+          modules = [ ./users/init/hashnix.nix ];
+        };
       };
       # --- The DevShell for repo maintenance ---
       devShells."x86_64-linux".default = pkgs.mkShell {
