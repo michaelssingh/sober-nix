@@ -1,4 +1,4 @@
-{ config, pkgs, inputs, ... }:
+{ config, pkgs, inputs, lib, ... }:
 
 {
   home.username = "init";
@@ -64,7 +64,7 @@
   # CRITICAL: This block copies the Bash config from the Nix store to real files.
   # This prevents the "broken symlink" issue on the host shell while keeping
   # the configuration codified in your Flake.
-  home.activation.syncBashConfig = config.lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+  home.activation.syncBashConfig = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
     $DRY_RUN_CMD rm -f $HOME/.bashrc $HOME/.bash_profile
     $DRY_RUN_CMD cp ${config.home.file.".bashrc".source} $HOME/.bashrc
     $DRY_RUN_CMD cp ${config.home.file.".bash_profile".source} $HOME/.bash_profile
