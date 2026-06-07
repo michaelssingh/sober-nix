@@ -125,10 +125,11 @@ in
         red = colors.red;
         yellow = colors.yellow;
         bg = colors.bg;
+        fg = colors.fg;
       };
 
       directory = {
-        style = colors.blue;
+        style = "blue";
         read_only = " 🔒";
       };
 
@@ -141,6 +142,19 @@ in
       nix_shell = {
         symbol = "❄️ ";
         style = "purple bold";
+      };
+      
+      git_branch = {
+        style = "purple";
+      };
+      
+      username = {
+        style_user = "fg";
+        style_root = "red";
+      };
+      
+      hostname = {
+        style = "blue";
       };
     };
   };
