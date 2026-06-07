@@ -115,7 +115,7 @@ in
     settings = {
       add_newline = false;
       format = "$directory $username\n$character";
-      right_format = "$git_branch $cmd_duration $hostname";
+      right_format = "$hostname $git_branch $cmd_duration";
       palette = "tokyonight";
 
       palettes.tokyonight = {
