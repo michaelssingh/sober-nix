@@ -1,25 +1,25 @@
-{ pkgs, ... }:
+{ pkgs, config, ... }:
 let
-  theme = import ../../core/theme.nix;
+  colors = config.sober.theme.current.colors;
 in
 {
   programs.zathura = {
     enable = true;
     options = {
-      default-bg = theme.colors.background;
-      default-fg = theme.colors.foreground;
-      statusbar-bg = theme.colors.background;
-      statusbar-fg = theme.colors.foreground;
-      inputbar-bg = theme.colors.background;
-      inputbar-fg = theme.colors.foreground;
-      completion-bg = theme.colors.background;
-      completion-fg = theme.colors.blue;
-      completion-highlight-bg = theme.colors.blue;
-      completion-highlight-fg = theme.colors.background;
-      highlight-color = theme.colors.yellow;
-      highlight-active-color = theme.colors.red;
-      notification-bg = theme.colors.background;
-      notification-fg = theme.colors.foreground;
+      default-bg = colors.bg;
+      default-fg = colors.fg;
+      statusbar-bg = colors.bg;
+      statusbar-fg = colors.fg;
+      inputbar-bg = colors.bg;
+      inputbar-fg = colors.fg;
+      completion-bg = colors.bg;
+      completion-fg = colors.blue;
+      completion-highlight-bg = colors.blue;
+      completion-highlight-fg = colors.bg;
+      highlight-color = colors.yellow;
+      highlight-active-color = colors.red;
+      notification-bg = colors.bg;
+      notification-fg = colors.fg;
     };
   };
 }

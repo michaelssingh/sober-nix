@@ -1,4 +1,12 @@
-{ pkgs, inputs, ... }:
+{ pkgs, config, ... }:
+
+let
+  # Dynamically inject the theme style into the Lua config
+  luaConfig = builtins.replaceStrings 
+    [ "style = \"storm\"" ] 
+    [ "style = \"${config.sober.theme.current.variant}\"" ] 
+    (builtins.readFile ./config.lua);
+in
 {
   programs.neovim = {
     enable = true;
@@ -10,6 +18,14 @@
       fd
       tree-sitter
       nodejs
+      # LSPs
+      gopls
+      rust-analyzer
+      clang-tools
+      lua-language-server
+      nixd
+      nixfmt-rfc-style
+      harper
     ];
     plugins = with pkgs.vimPlugins; [
       nvim-lspconfig
@@ -22,20 +38,10 @@
       cmp-path
       cmp_luasnip
       luasnip
-      (nvim-treesitter.withPlugins (p: [
-        p.nix
-        p.lua
-        p.vim
-        p.bash
-        p.markdown
-        p.c
-        p.go
-        p.rust
-      ]))
-      nvim-treesitter-textobjects
-      tokyonight-nvim
+      # UI
       telescope-nvim
       telescope-fzf-native-nvim
+      tokyonight-nvim
       which-key-nvim
       gitsigns-nvim
       lualine-nvim
@@ -45,6 +51,6 @@
     ];
     withRuby = false;
     withPython3 = false;
-    initLua = builtins.readFile ./config.lua;
+    initLua = luaConfig;
   };
 }
