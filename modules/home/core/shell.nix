@@ -157,6 +157,7 @@ in
       hostname = {
         style = "blue";
       };
+
     };
   };
 
