@@ -114,7 +114,7 @@ in
     enableFishIntegration = true;
     settings = {
       add_newline = false;
-      format = "$directory $username $hostname $git_branch $cmd_duration $character";
+      format = "$directory $username $hostname $git_branch $cmd_duration\n$character";
       palette = "tokyonight";
 
       palettes.tokyonight = {
