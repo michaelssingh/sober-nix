@@ -18,7 +18,7 @@
           owner = "kiddos";
           repo = "gemini.nvim";
           rev = "master";
-          sha256 = "0gr2wyblr9vzxkwl045mz7sc8v36l10909bpmrlsz1ym0h9qskb7";
+          sha256 = "sha256-fBbBzxN0vjtZgczL7YoN8QJu3HNPRU0OmmSPSsAT1w4=";
         };
       })
       nvim-lspconfig
