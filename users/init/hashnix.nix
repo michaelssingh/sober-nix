@@ -52,7 +52,7 @@ in
   home.homeDirectory = "/home/init";
   home.stateVersion = "24.11";
 
-  # Set remote flag for conditional configs (e.g. tmux bar at top)
+  # Global Sober System Options
   sober.isRemote = true;
 
   # Let Home Manager install and manage itself.
@@ -62,10 +62,12 @@ in
   nix.package = pkgs.nix;
   nix.settings.experimental-features = [ "nix-command" "flakes" ];
 
-  # Import your existing core modules
+  # Import core modules
   imports = [
+    ../../modules/home/core/sober.nix
     ../../modules/home/core/nvim/nvim.nix
     ../../modules/home/core/tmux.nix
+    ../../modules/home/core/shell.nix
   ];
 
   # Additional packages for the pubnix environment
@@ -91,28 +93,4 @@ in
     $DRY_RUN_CMD cp ${config.home.file.".dreamrc_source".source} $HOME/.dreamrc
     $DRY_RUN_CMD chmod 644 $HOME/.bashrc $HOME/.bash_profile $HOME/.dreamrc
   '';
-
-  # Fish remains declarative and is only used inside the chroot
-  programs.fish = {
-    enable = true;
-    shellAliases = {
-      hms = "home-manager switch --flake github:michaelssingh/sober-nix#init@hashnix --extra-experimental-features 'nix-command flakes' --refresh";
-    };
-    interactiveShellInit = ''
-      set -g fish_greeting
-    '';
-    shellInit = ''
-      # Source Nix environment in chroot
-      if test -e ~/.nix-profile/etc/profile.d/nix.fish
-        source ~/.nix-profile/etc/profile.d/nix.fish
-      end
-      fish_add_path -g ~/.nix-profile/bin
-    '';
-  };
-
-  programs.starship = {
-    enable = true;
-    enableFishIntegration = true;
-    enableBashIntegration = false; # Prevent starship from trying to load in host bash
-  };
 }
