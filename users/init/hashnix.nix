@@ -28,13 +28,8 @@
     nix # Ensure nix is in the profile path
   ];
 
-  # Shell Configuration
-  programs.bash = {
-    enable = true;
-    shellAliases = {
-      hms = "home-manager switch --flake github:michaelssingh/sober-nix#init@hashnix --extra-experimental-features 'nix-command flakes' --refresh";
-    };
-  };
+  # Shell Configuration (Manual management for host compatibility)
+  programs.bash.enable = false;
 
   programs.fish = {
     enable = true;
