@@ -114,23 +114,21 @@ in
     enableFishIntegration = true;
     settings = {
       add_newline = false;
-      format = "$directory $username\n$character";
-      right_format = "$hostname $git_branch $cmd_duration";
+      format = "$directory\n$character";
+      right_format = "$all";
       palette = "tokyonight";
 
       palettes.tokyonight = {
-        bg = colors.bg;
-        fg = colors.fg;
-        red = colors.red;
-        green = colors.green;
-        yellow = colors.yellow;
         blue = colors.blue;
         purple = colors.magenta;
-        cyan = colors.cyan;
+        green = colors.green;
+        red = colors.red;
+        yellow = colors.yellow;
+        bg = colors.bg;
       };
 
       directory = {
-        style = "blue";
+        style = colors.blue;
         read_only = " 🔒";
       };
 
@@ -143,19 +141,6 @@ in
       nix_shell = {
         symbol = "❄️ ";
         style = "purple bold";
-      };
-      
-      git_branch = {
-        style = "purple";
-      };
-      
-      username = {
-        style_user = "fg";
-        style_root = "red";
-      };
-      
-      hostname = {
-        style = "blue";
       };
     };
   };
