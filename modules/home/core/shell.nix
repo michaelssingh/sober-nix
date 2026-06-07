@@ -27,13 +27,10 @@ in
       end
 
       function wg-down
-        echo "Restarting WireGuard services in order..."
+        echo "Stopping WireGuard services..."
         sudo systemctl stop wg-quick-wg-sober
         sudo systemctl stop wg-quick-wg-fly
-        sudo systemctl start wg-quick-wg-fly
-        sleep 2
-        sudo systemctl start wg-quick-wg-sober
-        echo "WireGuard services restarted."
+        echo "WireGuard services stopped."
       end
       '' else ""}
 
