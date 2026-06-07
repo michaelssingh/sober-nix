@@ -27,9 +27,19 @@
     git
   ];
 
-  # Fish Shell Configuration
+  # Shell Configuration
+  programs.bash = {
+    enable = true;
+    shellAliases = {
+      hms = "home-manager switch --flake github:michaelssingh/sober-nix#init@hashnix --extra-experimental-features 'nix-command flakes' --refresh";
+    };
+  };
+
   programs.fish = {
     enable = true;
+    shellAliases = {
+      hms = "home-manager switch --flake github:michaelssingh/sober-nix#init@hashnix --extra-experimental-features 'nix-command flakes' --refresh";
+    };
     interactiveShellInit = ''
       set -g fish_greeting
     '';
