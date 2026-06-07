@@ -139,9 +139,9 @@ in
         error_symbol = if config.sober.isRemote then "[Ω](red)" else "[λ](red)";
       };
 
-      # The "Owl" Identity for Nix Shells ❄️
+      # The "Hash" Identity for Nix Shells #
       nix_shell = {
-        symbol = "❄️ ";
+        symbol = "# ";
         style = "purple bold";
       };
       
