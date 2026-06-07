@@ -55,6 +55,11 @@
       fi
     '';
     profileExtra = ''
+      # Source .bashrc to ensure aliases and colors are loaded on login
+      if [ -f ~/.bashrc ]; then
+        . ~/.bashrc
+      fi
+
       if [[ $- == *i* ]] && [ -z "$TMUX" ]; then
         tmux -L host -f ~/.tmux-host.conf has-session -t host 2>/dev/null || tmux -L host -f ~/.tmux-host.conf new-session -d -s host -n dream 'dream'
       fi
