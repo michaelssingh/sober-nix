@@ -34,6 +34,18 @@ let
       tmux -L host -f ~/.tmux-host.conf has-session -t host 2>/dev/null || tmux -L host -f ~/.tmux-host.conf new-session -d -s host -n dream 'dream'
     fi
   '';
+
+  dreamrcText = ''
+    # --- init's Dream Config (Declarative) ---
+    DREAM_PRINT_TIMESTAMPS=true
+    DREAM_PRINT_COLORS=true
+    DREAM_TIMESTAMP_COLOR="cyan"
+    DREAM_BRACKET_COLOR="blue"
+    DREAM_BRACE_COLOR="magenta"
+    DREAM_ANGLEBRACKET_COLOR="yellow"
+    DREAM_TIMESTAMP_FORMAT="%H:%M"
+    DREAM_ALERT_ON_USERNAME=true
+  '';
 in
 {
   home.username = "init";
@@ -69,13 +81,15 @@ in
   # 2. Define clean "source" files in the store
   home.file.".bashrc_source".text = bashrcText;
   home.file.".bash_profile_source".text = bashProfileText;
+  home.file.".dreamrc_source".text = dreamrcText;
 
   # 3. Activation script to sync these as real files to the host
-  home.activation.syncBashConfig = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-    $DRY_RUN_CMD rm -f $HOME/.bashrc $HOME/.bash_profile
+  home.activation.syncHostConfig = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+    $DRY_RUN_CMD rm -f $HOME/.bashrc $HOME/.bash_profile $HOME/.dreamrc
     $DRY_RUN_CMD cp ${config.home.file.".bashrc_source".source} $HOME/.bashrc
     $DRY_RUN_CMD cp ${config.home.file.".bash_profile_source".source} $HOME/.bash_profile
-    $DRY_RUN_CMD chmod 644 $HOME/.bashrc $HOME/.bash_profile
+    $DRY_RUN_CMD cp ${config.home.file.".dreamrc_source".source} $HOME/.dreamrc
+    $DRY_RUN_CMD chmod 644 $HOME/.bashrc $HOME/.bash_profile $HOME/.dreamrc
   '';
 
   # Fish remains declarative and is only used inside the chroot
