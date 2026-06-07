@@ -48,6 +48,9 @@ in
       indent-blankline-nvim
       oil-nvim
       toggleterm-nvim
+      # Treesitter
+      nvim-treesitter.withAllGrammars
+      nvim-treesitter-textobjects
     ];
     withRuby = false;
     withPython3 = false;
