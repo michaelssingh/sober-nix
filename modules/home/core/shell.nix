@@ -119,13 +119,14 @@ in
       palette = "tokyonight";
 
       palettes.tokyonight = {
-        blue = colors.blue;
-        purple = colors.magenta;
-        green = colors.green;
-        red = colors.red;
-        yellow = colors.yellow;
         bg = colors.bg;
         fg = colors.fg;
+        red = colors.red;
+        green = colors.green;
+        yellow = colors.yellow;
+        blue = colors.blue;
+        purple = colors.magenta;
+        cyan = colors.cyan;
       };
 
       directory = {
