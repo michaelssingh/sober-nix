@@ -5,6 +5,9 @@
   home.homeDirectory = "/home/init";
   home.stateVersion = "24.11";
 
+  # Set remote flag for conditional configs (e.g. tmux bar at top)
+  sober.isRemote = true;
+
   # Let Home Manager install and manage itself.
   programs.home-manager.enable = true;
 
