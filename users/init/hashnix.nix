@@ -68,6 +68,9 @@ in
     ../../modules/home/core/tmux.nix
   ];
 
+  # Force tmux to use fish shell
+  programs.tmux.shell = "${pkgs.fish}/bin/fish";
+
   # Additional packages for the pubnix environment
   home.packages = with pkgs; [
     htop
