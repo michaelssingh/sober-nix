@@ -9,6 +9,7 @@ in
     enable = true;
 
     interactiveShellInit = ''
+      ${if config.sober.isRemote then "fish_add_path ~/.nix-profile/bin" else ""}
       set fish_greeting # Disable greeting
 
       # Automatically add sops-decrypted SSH keys on login
@@ -95,7 +96,9 @@ in
 
       # Media Queue
       mpv = "mpv-queue";
-    };
+    } // (if config.sober.isRemote then {
+      hms = "home-manager switch --flake github:michaelssingh/sober-nix#init@hashnix --extra-experimental-features 'nix-command flakes' --refresh";
+    } else {});
   };
 
   # --- 2. The Prompt (Starship) ---
