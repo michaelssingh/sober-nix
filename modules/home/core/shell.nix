@@ -119,16 +119,18 @@ in
       palette = "tokyonight";
 
       palettes.tokyonight = {
+        bg = colors.bg;
+        fg = colors.fg;
+        red = colors.red;
+        green = colors.green;
+        yellow = colors.yellow;
         blue = colors.blue;
         purple = colors.magenta;
-        green = colors.green;
-        red = colors.red;
-        yellow = colors.yellow;
-        bg = colors.bg;
+        cyan = colors.cyan;
       };
 
       directory = {
-        style = colors.blue;
+        style = "blue";
         read_only = " 🔒";
       };
 
@@ -141,6 +143,19 @@ in
       nix_shell = {
         symbol = "❄️ ";
         style = "purple bold";
+      };
+
+      git_branch = {
+        style = "purple";
+      };
+
+      username = {
+        style_user = "fg";
+        style_root = "red";
+      };
+
+      hostname = {
+        style = "blue";
       };
     };
   };
