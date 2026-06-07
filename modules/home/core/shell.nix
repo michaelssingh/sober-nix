@@ -146,8 +146,6 @@ in
         style = colors.blue;
       };
     };
-
-    };
   };
 
   # --- 3. Navigation Tools ---
