@@ -114,23 +114,11 @@ in
     enableFishIntegration = true;
     settings = {
       add_newline = false;
-      format = "$directory\n$character";
-      right_format = "$all";
-      palette = "tokyonight";
-
-      palettes.tokyonight = {
-        bg = colors.bg;
-        fg = colors.fg;
-        red = colors.red;
-        green = colors.green;
-        yellow = colors.yellow;
-        blue = colors.blue;
-        purple = colors.magenta;
-        cyan = colors.cyan;
-      };
+      format = "$directory $username\n$character";
+      right_format = "$hostname $git_branch $cmd_duration";
 
       directory = {
-        style = "blue";
+        style = colors.blue;
         read_only = " 🔒";
       };
 
@@ -142,21 +130,22 @@ in
       # The "Owl" Identity for Nix Shells ❄️
       nix_shell = {
         symbol = "❄️ ";
-        style = "purple bold";
+        style = "${colors.magenta} bold";
       };
 
       git_branch = {
-        style = "purple";
+        style = colors.magenta;
       };
 
       username = {
-        style_user = "fg";
-        style_root = "red";
+        style_user = colors.fg;
+        style_root = colors.red;
       };
 
       hostname = {
-        style = "blue";
+        style = colors.blue;
       };
+    };
 
     };
   };
