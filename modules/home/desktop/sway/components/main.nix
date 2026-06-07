@@ -5,7 +5,7 @@
   ...
 }:
 let
-  theme = import ../../../core/theme.nix;
+  colors = config.sober.theme.current.colors;
 in
 {
   wayland.windowManager.sway = {
@@ -48,28 +48,28 @@ in
         size = 9.0;
       };
 
-      # 2. The Tokyo Night Palette
+      # 2. Dynamic Design System Palette
       colors = {
         focused = {
-          border = theme.colors.blue;
-          background = theme.colors.blue;
-          text = theme.colors.background;
-          indicator = theme.colors.magenta;
-          childBorder = theme.colors.blue;
+          border = colors.blue;
+          background = colors.blue;
+          text = colors.bg;
+          indicator = colors.magenta;
+          childBorder = colors.blue;
         };
         unfocused = {
-          border = theme.colors.background;
-          background = theme.colors.background;
-          text = theme.colors.comment;
-          indicator = theme.colors.background;
-          childBorder = theme.colors.background;
+          border = colors.bg;
+          background = colors.bg;
+          text = colors.comment;
+          indicator = colors.bg;
+          childBorder = colors.bg;
         };
         urgent = {
-          border = theme.colors.red;
-          background = theme.colors.red;
-          text = theme.colors.background;
-          indicator = theme.colors.red;
-          childBorder = theme.colors.red;
+          border = colors.red;
+          background = colors.red;
+          text = colors.bg;
+          indicator = colors.red;
+          childBorder = colors.red;
         };
       };
 

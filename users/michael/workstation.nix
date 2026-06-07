@@ -1,14 +1,16 @@
-{ pkgs, inputs, ... }:
+{ pkgs, inputs, config, ... }:
 
 let
   emailPersonal = "michaelssingh@protonmail.com";
   emailWork = "michael@sober.fyi";
-  theme = import ../../modules/home/core/theme.nix;
+  # Use the dynamic system theme instead of static import
+  colors = config.sober.theme.current.colors;
 in
 {
   imports = [
     inputs.sops-nix.homeManagerModules.sops
     ./core.nix
+    ../../modules/home/core/sober.nix
 
     # Workstation only modules
     ../../modules/home/desktop/sway
@@ -26,20 +28,6 @@ in
       base_url = "https://vault.bitwarden.com";
       identity_url = "https://identity.bitwarden.com";
       pinentry = pkgs.pinentry-tty;
-      # pinentry = pkgs.writeShellScriptBin "pinentry-bemenu-tokyonight" ''
-      #   ${pkgs.pinentry-bemenu}/bin/pinentry-bemenu \
-      #     --nb="${theme.colors.background}" \
-      #     --nf="${theme.colors.foreground}" \
-      #     --hb="${theme.colors.blue}" \
-      #     --hf="${theme.colors.foreground}" \
-      #     --sb="${theme.colors.blue}" \
-      #     --sf="${theme.colors.foreground}" \
-      #     --fb="${theme.colors.background}" \
-      #     --ff="${theme.colors.foreground}" \
-      #     --tb="${theme.colors.background}" \
-      #     --tf="${theme.colors.blue}" \
-      #     "$@"
-      # '';
     };
   };
 
@@ -82,6 +70,7 @@ in
     strix-paste
     nheko
   ];
+
   programs.zathura = {
     enable = true;
     package = pkgs.zathura.override {
@@ -91,27 +80,25 @@ in
       ];
     };
     options = {
-      # Tokyonight Storm Palette
-      default-bg = "#24283b";
-      default-fg = "#c0caf5";
-      statusbar-bg = "#1f2335";
-      statusbar-fg = "#a9b1d6";
-      inputbar-bg = "#24283b";
-      inputbar-fg = "#ff9e64";
-      notification-bg = "#24283b";
-      notification-fg = "#c0caf5";
-      notification-error-bg = "#f7768e";
-      notification-error-fg = "#c0caf5";
-      notification-warning-bg = "#e0af68";
-      notification-warning-fg = "#24283b";
-      # highlight-color = "#e0af68";
-      # highlight-active-color = "#9ece6a";
-      completion-bg = "#1f2335";
-      completion-fg = "#a9b1d6";
-      completion-highlight-bg = "#414868";
-      completion-highlight-fg = "#c0caf5";
-      recolor-lightcolor = "#24283b";
-      recolor-darkcolor = "#c0caf5";
+      # Dynamic Palette from System Theme
+      default-bg = colors.bg;
+      default-fg = colors.fg;
+      statusbar-bg = colors.black;
+      statusbar-fg = colors.white;
+      inputbar-bg = colors.bg;
+      inputbar-fg = colors.yellow;
+      notification-bg = colors.bg;
+      notification-fg = colors.fg;
+      notification-error-bg = colors.red;
+      notification-error-fg = colors.fg;
+      notification-warning-bg = colors.yellow;
+      notification-warning-fg = colors.bg;
+      completion-bg = colors.black;
+      completion-fg = colors.white;
+      completion-highlight-bg = colors.comment;
+      completion-highlight-fg = colors.fg;
+      recolor-lightcolor = colors.bg;
+      recolor-darkcolor = colors.fg;
       recolor = true; # Enable dark mode rendering by default
     };
   };

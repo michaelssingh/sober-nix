@@ -1,5 +1,8 @@
-{ pkgs, ... }:
+{ pkgs, config, ... }:
 
+let
+  colors = config.sober.theme.current.colors;
+in
 {
   # --- 1. The Shell (Fish) ---
   programs.fish = {
@@ -11,27 +14,27 @@
       # Automatically add sops-decrypted SSH keys on login
       ssh-add ~/.ssh/nixbuild ~/.ssh/fly ~/.ssh/github ~/.ssh/hashnix 2>/dev/null
 
-      # --- 1. Tokyonight Fish Color Palette ---
-      set -g fish_color_normal "#c0caf5"
-      set -g fish_color_command "#7dcfff"
-      set -g fish_color_keyword "#bb9af7"
-      set -g fish_color_quote "#e0af68"
-      set -g fish_color_redirection "#c0caf5"
+      # --- 1. Dynamic Fish Color Palette ---
+      set -g fish_color_normal "${colors.fg}"
+      set -g fish_color_command "${colors.cyan}"
+      set -g fish_color_keyword "${colors.magenta}"
+      set -g fish_color_quote "${colors.yellow}"
+      set -g fish_color_redirection "${colors.fg}"
       set -g fish_color_end "#ff9e64"
-      set -g fish_color_error "#f7768e"
+      set -g fish_color_error "${colors.red}"
       set -g fish_color_param "#9d7cd8"
-      set -g fish_color_comment "#565f89"
+      set -g fish_color_comment "${colors.comment}"
       set -g fish_color_selection --background="#283457"
       set -g fish_color_search_match --background="#283457"
-      set -g fish_color_operator "#9ece6a"
-      set -g fish_color_escape "#bb9af7"
-      set -g fish_color_autosuggestion "#565f89"
+      set -g fish_color_operator "${colors.green}"
+      set -g fish_color_escape "${colors.magenta}"
+      set -g fish_color_autosuggestion "${colors.comment}"
 
       # --- 2. Completion Pager Colors
-      set -g fish_pager_color_progress "#565f89"
-      set -g fish_pager_color_prefix "#7dcfff"
-      set -g fish_pager_color_completion "#c0caf5"
-      set -g fish_pager_color_description "#565f89"
+      set -g fish_pager_color_progress "${colors.comment}"
+      set -g fish_pager_color_prefix "${colors.cyan}"
+      set -g fish_pager_color_completion "${colors.fg}"
+      set -g fish_pager_color_description "${colors.comment}"
 
       # --- 3. Completion Behavior Settings ---
       # Tab through completions instead of just listing them
@@ -106,22 +109,22 @@
       palette = "tokyonight";
 
       palettes.tokyonight = {
-        blue = "#7aa2f7";
-        purple = "#bb9af7";
-        green = "#9ece6a";
-        red = "#f7768e";
-        yellow = "#e0af68";
-        bg = "#1a1b26";
+        blue = colors.blue;
+        purple = colors.magenta;
+        green = colors.green;
+        red = colors.red;
+        yellow = colors.yellow;
+        bg = colors.bg;
       };
 
       directory = {
-        style = "blue";
+        style = colors.blue;
         read_only = " 🔒";
       };
 
       character = {
-        success_symbol = "[λ](green)";
-        error_symbol = "[λ](red)";
+        success_symbol = if config.sober.isRemote then "[Ω](cyan)" else "[λ](green)";
+        error_symbol = if config.sober.isRemote then "[Ω](red)" else "[λ](red)";
       };
 
       # The "Owl" Identity for Nix Shells ❄️
@@ -165,26 +168,26 @@
         temperature_type = "c";
       };
       colors = {
-        table_header_color = "#7dcfff";
-        all_cpu_color = "#7dcfff";
-        avg_cpu_color = "#bb9af7";
+        table_header_color = colors.cyan;
+        all_cpu_color = colors.cyan;
+        avg_cpu_color = colors.magenta;
         cpu_core_colors = [
-          "#7aa2f7"
-          "#bb9af7"
-          "#9ece6a"
-          "#e0af68"
+          colors.blue
+          colors.magenta
+          colors.green
+          colors.yellow
           "#ff9e64"
-          "#f7768e"
+          colors.red
         ];
-        ram_color = "#9ece6a";
-        swap_color = "#e0af68";
-        rx_color = "#9ece6a";
-        tx_color = "#f7768e";
-        widget_title_color = "#bb9af7";
-        border_color = "#565f89";
-        selected_border_color = "#7aa2f7";
-        text_color = "#c0caf5";
-        graph_color = "#a9b1d6";
+        ram_color = colors.green;
+        swap_color = colors.yellow;
+        rx_color = colors.green;
+        tx_color = colors.red;
+        widget_title_color = colors.magenta;
+        border_color = colors.comment;
+        selected_border_color = colors.accent;
+        text_color = colors.fg;
+        graph_color = colors.white;
       };
     };
   };

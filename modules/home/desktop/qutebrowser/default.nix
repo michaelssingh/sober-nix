@@ -1,7 +1,7 @@
-{ pkgs, ... }:
+{ pkgs, config, ... }:
 
 let
-  theme = import ../../core/theme.nix;
+  colors = config.sober.theme.current.colors;
   play-smart = ./play-smart.py;
 in
 {
@@ -13,43 +13,43 @@ in
     settings = {
       colors = {
         tabs = {
-          bar.bg = theme.colors.background;
-          indicator.start = theme.colors.blue;
-          indicator.stop = theme.colors.green;
-          odd.bg = theme.colors.background;
-          odd.fg = theme.colors.foreground;
-          even.bg = theme.colors.background;
-          even.fg = theme.colors.foreground;
-          selected.odd.bg = theme.colors.blue;
-          selected.odd.fg = theme.colors.background;
-          selected.even.bg = theme.colors.blue;
-          selected.even.fg = theme.colors.background;
+          bar.bg = colors.bg;
+          indicator.start = colors.blue;
+          indicator.stop = colors.green;
+          odd.bg = colors.bg;
+          odd.fg = colors.fg;
+          even.bg = colors.bg;
+          even.fg = colors.fg;
+          selected.odd.bg = colors.blue;
+          selected.odd.fg = colors.bg;
+          selected.even.bg = colors.blue;
+          selected.even.fg = colors.bg;
         };
         statusbar = {
-          normal.bg = theme.colors.background;
-          normal.fg = theme.colors.foreground;
+          normal.bg = colors.bg;
+          normal.fg = colors.fg;
         };
         completion = {
-          fg = theme.colors.foreground;
-          odd.bg = theme.colors.background;
-          even.bg = theme.colors.background;
-          item.selected.bg = theme.colors.blue;
-          item.selected.fg = theme.colors.background;
-          match.fg = theme.colors.red;
+          fg = colors.fg;
+          odd.bg = colors.bg;
+          even.bg = colors.bg;
+          item.selected.bg = colors.blue;
+          item.selected.fg = colors.bg;
+          match.fg = colors.red;
         };
         hints = {
-          bg = theme.colors.yellow;
-          fg = theme.colors.background;
-          match.fg = theme.colors.foreground;
+          bg = colors.yellow;
+          fg = colors.bg;
+          match.fg = colors.fg;
         };
         downloads = {
-          bar.bg = theme.colors.background;
-          start.bg = theme.colors.blue;
-          stop.bg = theme.colors.green;
+          bar.bg = colors.bg;
+          start.bg = colors.blue;
+          stop.bg = colors.green;
         };
         keyhint = {
-          bg = theme.colors.background;
-          fg = theme.colors.foreground;
+          bg = colors.bg;
+          fg = colors.fg;
         };
         webpage = {
           darkmode.enabled = false;

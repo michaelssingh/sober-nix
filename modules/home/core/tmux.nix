@@ -1,12 +1,6 @@
 { pkgs, config, lib, ... }:
 
 {
-  options.sober.isRemote = lib.mkOption {
-    type = lib.types.bool;
-    default = false;
-    description = "Whether the host is a remote server (e.g., hashnix, bubo).";
-  };
-
   config.programs.tmux = {
     enable = true;
     clock24 = true;
@@ -17,7 +11,9 @@
     terminal = "tmux-256color";
     shell = "${pkgs.fish}/bin/fish";
 
-    extraConfig = ''
+    extraConfig = let
+      colors = config.sober.theme.current.colors;
+    in ''
       # --- Sane Defaults ---
       set -g escape-time 10
       set -g focus-events on
@@ -35,18 +31,18 @@
       set -as terminal-overrides ",foot:HLS=\E]8;%p1%s;%p2%s\E\\"
       set -g default-terminal "tmux-256color"
 
-      # Status bar - simple, clean, Tokyonight inspired
-      set -g status-style "bg=#1a1b26,fg=#c0caf5"
+      # Status bar - Dynamic Design System
+      set -g status-style "bg=${colors.bg},fg=${colors.fg}"
       set -g status-left " #S "
       set -g status-right " %H:%M "
 
-      set -g window-status-current-style "bg=#7aa2f7,fg=#1a1b26"
+      set -g window-status-current-style "bg=${colors.accent},fg=${colors.bg}"
       set -g window-status-current-format " #I:#W "
       set -g window-status-format " #I:#W "
 
       # Pane borders
-      set -g pane-border-style "fg=#565f89"
-      set -g pane-active-border-style "fg=#7aa2f7"
+      set -g pane-border-style "fg=${colors.comment}"
+      set -g pane-active-border-style "fg=${colors.accent}"
 
       # --- Keybindings ---
       # Send prefix to underlying application (e.g., jump to beginning of line)
