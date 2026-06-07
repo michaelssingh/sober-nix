@@ -93,12 +93,14 @@ in
       gemini = "gemini-cli";
       chat = "gemini-cli";
       ai = "clemini";
-
-      # Media Queue
+    } // (if !config.sober.isRemote then {
+      # Workstation-only aliases
+      os = "nh os switch $argv /home/michael/git/sober-nix";
       mpv = "mpv-queue";
-    } // (if config.sober.isRemote then {
+    } else {
+      # Remote-only aliases
       hms = "PATH=$PATH:~/.nix-profile/bin home-manager switch --flake github:michaelssingh/sober-nix#init@hashnix --extra-experimental-features 'nix-command flakes' --refresh";
-    } else {});
+    });
   };
 
   # --- 2. The Prompt (Starship) ---
