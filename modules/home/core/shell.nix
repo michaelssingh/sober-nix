@@ -15,6 +15,28 @@ in
       # Automatically add sops-decrypted SSH keys on login
       ssh-add ~/.ssh/nixbuild ~/.ssh/fly ~/.ssh/github ~/.ssh/hashnix 2>/dev/null
 
+      ${if !config.sober.isRemote then ''
+      function wg-up
+        echo "Restarting WireGuard services in order..."
+        sudo systemctl stop wg-quick-wg-sober
+        sudo systemctl stop wg-quick-wg-fly
+        sudo systemctl start wg-quick-wg-fly
+        sleep 2
+        sudo systemctl start wg-quick-wg-sober
+        echo "WireGuard services restarted."
+      end
+
+      function wg-down
+        echo "Restarting WireGuard services in order..."
+        sudo systemctl stop wg-quick-wg-sober
+        sudo systemctl stop wg-quick-wg-fly
+        sudo systemctl start wg-quick-wg-fly
+        sleep 2
+        sudo systemctl start wg-quick-wg-sober
+        echo "WireGuard services restarted."
+      end
+      '' else ""}
+
       # --- 1. Dynamic Fish Color Palette ---
       set -g fish_color_normal "${colors.fg}"
       set -g fish_color_command "${colors.cyan}"
@@ -45,26 +67,6 @@ in
       os = ''
         nh os switch $argv /home/michael/git/sober-nix
       '';
-      wg-down = ''
-        echo "Restarting WireGuard services in order..."
-        sudo systemctl stop wg-quick-wg-sober
-        sudo systemctl stop wg-quick-wg-fly
-
-        sudo systemctl start wg-quick-wg-fly
-        sleep 2
-        sudo systemctl start wg-quick-wg-sober
-        echo "WireGuard services restarted."
-      '';
-      wg-up = ''
-        echo "Restarting WireGuard services in order..."
-        sudo systemctl stop wg-quick-wg-sober
-        sudo systemctl stop wg-quick-wg-fly
-
-        sudo systemctl start wg-quick-wg-fly
-        sleep 2
-        sudo systemctl start wg-quick-wg-sober
-        echo "WireGuard services restarted."
-      '';
     };
     shellAliases = {
       # Replace standard ls with eza
@@ -93,14 +95,20 @@ in
       gemini = "gemini-cli";
       chat = "gemini-cli";
       ai = "clemini";
-    } // (if !config.sober.isRemote then {
-      # Workstation-only aliases
-      os = "nh os switch $argv /home/michael/git/sober-nix";
-      mpv = "mpv-queue";
-    } else {
-      # Remote-only aliases
-      hms = "PATH=$PATH:~/.nix-profile/bin home-manager switch --flake github:michaelssingh/sober-nix#init@hashnix --extra-experimental-features 'nix-command flakes' --refresh";
-    });
+    }
+    // (
+      if !config.sober.isRemote then
+        {
+          # Workstation-only aliases
+          os = "nh os switch $argv /home/michael/git/sober-nix";
+          mpv = "mpv-queue";
+        }
+      else
+        {
+          # Remote-only aliases
+          hms = "PATH=$PATH:~/.nix-profile/bin home-manager switch --flake github:michaelssingh/sober-nix#init@hashnix --extra-experimental-features 'nix-command flakes' --refresh";
+        }
+    );
   };
 
   # --- 2. The Prompt (Starship) ---
