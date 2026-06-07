@@ -114,8 +114,8 @@ in
     enableFishIntegration = true;
     settings = {
       add_newline = false;
-      format = "$directory $username\n$character";
-      right_format = "$hostname $git_branch $cmd_duration";
+      format = "$directory\n$character";
+      right_format = "$all";
 
       directory = {
         style = colors.blue;
