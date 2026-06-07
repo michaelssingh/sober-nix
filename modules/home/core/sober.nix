@@ -13,6 +13,11 @@ in
       default = false;
       description = "Whether the host is a remote server (e.g., hashnix, bubo).";
     };
+    timezone = lib.mkOption {
+      type = lib.types.str;
+      default = "America/Barbados";
+      description = "Default timezone for the system.";
+    };
     theme = {
       active = lib.mkOption {
         type = lib.types.enum (builtins.attrNames themes);

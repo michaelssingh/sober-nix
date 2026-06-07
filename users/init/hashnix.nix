@@ -55,6 +55,10 @@ in
   # Global Sober System Options
   sober.isRemote = true;
 
+  home.sessionVariables = {
+    TZ = config.sober.timezone;
+  };
+
   # Let Home Manager install and manage itself.
   programs.home-manager.enable = true;
 
