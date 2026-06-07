@@ -67,7 +67,8 @@
   home.activation.syncBashConfig = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
     $DRY_RUN_CMD rm -f $HOME/.bashrc $HOME/.bash_profile
     $DRY_RUN_CMD cp ${config.home.file.".bashrc".source} $HOME/.bashrc
-    $DRY_RUN_CMD cp ${config.home.file.".bash_profile".source} $HOME/.bash_profile
+    # Home Manager generates .profile for login shell config
+    $DRY_RUN_CMD cp ${config.home.file.".profile".source} $HOME/.bash_profile
     $DRY_RUN_CMD chmod 644 $HOME/.bashrc $HOME/.bash_profile
   '';
 
