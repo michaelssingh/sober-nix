@@ -4,7 +4,6 @@
 
 set -euo pipefail
 
-USER_BIN="$HOME/bin"
 NIX_CHROOT="$HOME/nix-user-chroot"
 NIX_STORE="$HOME/.nix"
 FLAKE_URI="github:michaelssingh/sober-nix#init@hashnix"
@@ -65,10 +64,11 @@ BASHPROF
 echo "✓ Shell configurations restored."
 
 # 4. Re-link Environment via Home Manager
+# We use 'nix run' because the local home-manager binary path (~/.nix-profile) may be broken.
 echo "⠋ Re-applying Home Manager configuration from Flake..."
 "$NIX_CHROOT" "$NIX_STORE" bash -l -c "
-    export PATH=\$PATH:\$HOME/.nix-profile/bin
-    home-manager switch --flake $FLAKE_URI --extra-experimental-features 'nix-command flakes' -b backup --refresh
+    # Use the absolute path to the nix binary in the default profile
+    /nix/var/nix/profiles/default/bin/nix run --extra-experimental-features 'nix-command flakes' github:nix-community/home-manager/release-24.11 -- switch --flake $FLAKE_URI --extra-experimental-features 'nix-command flakes' -b backup --refresh
 "
 
 echo "✓ Environment successfully restored!"
