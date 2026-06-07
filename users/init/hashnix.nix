@@ -8,6 +8,10 @@
   # Let Home Manager install and manage itself.
   programs.home-manager.enable = true;
 
+  # Enable Nix Flakes permanently via Home Manager
+  nix.package = pkgs.nix;
+  nix.settings.experimental-features = [ "nix-command" "flakes" ];
+
   # Import your existing core modules
   imports = [
     ../../modules/home/core/nvim/nvim.nix
