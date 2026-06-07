@@ -25,6 +25,7 @@
   home.packages = with pkgs; [
     htop
     git
+    nix # Ensure nix is in the profile path
   ];
 
   # Shell Configuration
