@@ -14,7 +14,10 @@
   # Usage: mt <host>
   programs.fish.functions = {
     mt = ''
-      mosh $argv -- tmux new-session -A -s main
+      mosh --predict=never $argv -- tmux new-session -A -s main
+    '';
+    mosh = ''
+      command mosh --predict=never $argv
     '';
   };
 }
