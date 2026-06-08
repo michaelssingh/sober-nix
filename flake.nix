@@ -91,14 +91,29 @@
         raki-api = pkgs.callPackage ./packages/raki-api { };
         strix-paste = pkgs.callPackage ./packages/strix-paste { };
         matrirc = pkgs.callPackage ./packages/matrirc { };
-        athene-image = import ./hosts/server/athene { inherit pkgs soberLib inputs; lib = nixpkgs.lib; };
-        clare-image = import ./hosts/server/clare { inherit pkgs soberLib; lib = nixpkgs.lib; };
-        glaucidium-image = import ./hosts/server/glaucidium { inherit pkgs soberLib; lib = nixpkgs.lib; };
-        strix-image = import ./hosts/server/strix { inherit pkgs soberLib; lib = nixpkgs.lib; };
-        bubo-image = import ./hosts/server/bubo { inherit pkgs soberLib; lib = nixpkgs.lib; };
-        styx-image = import ./hosts/server/styx { 
-          inherit pkgs soberLib publicKeys; 
-          lib = nixpkgs.lib; 
+        athene-image = import ./hosts/server/athene {
+          inherit pkgs soberLib inputs;
+          lib = nixpkgs.lib;
+        };
+        clare-image = import ./hosts/server/clare {
+          inherit pkgs soberLib;
+          lib = nixpkgs.lib;
+        };
+        glaucidium-image = import ./hosts/server/glaucidium {
+          inherit pkgs soberLib;
+          lib = nixpkgs.lib;
+        };
+        strix-image = import ./hosts/server/strix {
+          inherit pkgs soberLib;
+          lib = nixpkgs.lib;
+        };
+        bubo-image = import ./hosts/server/bubo {
+          inherit pkgs soberLib;
+          lib = nixpkgs.lib;
+        };
+        styx-image = import ./hosts/server/styx {
+          inherit pkgs soberLib publicKeys;
+          lib = nixpkgs.lib;
         };
       };
 

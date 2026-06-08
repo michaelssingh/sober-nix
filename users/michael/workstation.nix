@@ -11,6 +11,7 @@ in
     inputs.sops-nix.homeManagerModules.sops
     ./core.nix
     ../../modules/home/core/sober.nix
+    ../../modules/home/core/mosh.nix
 
     # Workstation only modules
     ../../modules/home/desktop/sway
