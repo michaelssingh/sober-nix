@@ -79,6 +79,10 @@ in
     htop
     git
     nix # Ensure nix is in the profile path
+    mtr
+    tcpdump
+    bind
+    curl
   ];
 
   # 1. Disable HM's bash management to remove all Nix boilerplate from host files
