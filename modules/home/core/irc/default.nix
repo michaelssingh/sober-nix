@@ -31,7 +31,7 @@
         nicks self "#bb9af7"
     }
     shortcuts {
-        laptop set-editor "Lenovo IdeaPad Slim 1-14AST-05"
+        Alt+l set-editor "Lenovo IdeaPad Slim 1-14AST-05"
     }
   '';
 }
