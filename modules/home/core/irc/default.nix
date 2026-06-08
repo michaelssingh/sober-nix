@@ -31,6 +31,7 @@
         nicks self "#bb9af7"
     }
     shortcuts {
+        laptop "Lenovo IdeaPad Slim 1-14AST-05"
     }
   '';
 }
