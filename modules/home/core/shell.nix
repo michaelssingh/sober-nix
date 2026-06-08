@@ -36,6 +36,7 @@ in
       function lofi
         echo "Starting background lofi streams..."
         mpv --no-video --really-quiet --no-terminal --force-window=no --loop-playlist=inf \
+          "https://www.youtube.com/watch?v=am1VJP0RnmQ" \
           "https://www.youtube.com/watch?v=vO8OZ8o6SkQ" \
           "https://www.youtube.com/watch?v=_ITiwPMUzho" &
       end
