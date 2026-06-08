@@ -1,9 +1,7 @@
 { pkgs, ... }:
 
 {
-  programs.mosh = {
-    enable = true;
-  };
+  home.packages = [ pkgs.mosh ];
 
   home.sessionVariables = {
     # Disable predictive echo (the annoying underlines) globally
