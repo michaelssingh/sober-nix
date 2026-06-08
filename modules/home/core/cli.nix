@@ -14,6 +14,7 @@
     pkgs.harper
     pkgs.imv
     pkgs.yazi
+    pkgs.typioca
 
     # Media
    pkgs.castero
