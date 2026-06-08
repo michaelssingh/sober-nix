@@ -15,6 +15,9 @@
     pkgs.imv
     pkgs.yazi
     pkgs.typioca
+    pkgs.gtypist
+    pkgs.ttyper
+    pkgs.tt
 
     # Media
    pkgs.castero
