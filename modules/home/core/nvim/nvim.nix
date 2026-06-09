@@ -24,7 +24,7 @@ in
       clang-tools
       lua-language-server
       nixd
-      nixfmt-rfc-style
+      nixfmt
       harper
     ];
     plugins = with pkgs.vimPlugins; [
