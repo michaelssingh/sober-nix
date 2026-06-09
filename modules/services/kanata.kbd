@@ -85,8 +85,8 @@
   _    _    _    _    _    _    _    _    _    _    _    _    _
   _    _    _    _    _    _    _    _    _    _    _    _    _    _
   _    _    _    _    _    _    _    bspc del  _    _    _    _    _
-  _    _    _    _    _    _    C-bspc C-bspc C-del C-del _ _ _
-  _    _    _    _    _    _    @del_ln_b @del_ln_f _ _ _ _
+  _    _    _    _    _    _    C-w  C-w  C-k  C-k  _ _ _
+  _    _    _    _    _    _    C-u @del_ln_f _ _ _ _
   _    _    _              _              _    _
 )
 
