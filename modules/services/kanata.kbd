@@ -11,25 +11,25 @@
 )
 
 (defvar
-  tap 200 
-  hold 200 
+  tap 150
+  hold 150 
 )
 
 (defalias
   ;; Essential: Caps is Escape on tap, Control on hold
-  cap (tap-hold-press 200 200 esc lctl)
+  cap (tap-hold-press $tap $hold esc lctl)
   
-  ;; Home Row Simlayers
-  f_mode (tap-hold $tap $hold f (layer-toggle f-mode))
-  d_mode (tap-hold $tap $hold d (layer-toggle d-mode))
-  s_mode (tap-hold $tap $hold s (layer-toggle s-mode))
-  a_mode (tap-hold $tap $hold a (layer-toggle a-mode))
-  q_mode (tap-hold $tap $hold q (layer-toggle q-mode))
-  w_mode (tap-hold $tap $hold w (layer-toggle w-mode))
-  e_mode (tap-hold $tap $hold e (layer-toggle e-mode))
-  r_mode (tap-hold $tap $hold r (layer-toggle r-mode))
-  c_mode (tap-hold $tap $hold c (layer-toggle c-mode))
-  v_mode (tap-hold $tap $hold v (layer-toggle v-mode))
+  ;; Home Row Simlayers (Optimized release behavior)
+  f_mode (tap-hold-release-keys $tap $hold f (layer-toggle f-mode) (f))
+  d_mode (tap-hold-release-keys $tap $hold d (layer-toggle d-mode) (d))
+  s_mode (tap-hold-release-keys $tap $hold s (layer-toggle s-mode) (s))
+  a_mode (tap-hold-release-keys $tap $hold a (layer-toggle a-mode) (a))
+  q_mode (tap-hold-release-keys $tap $hold q (layer-toggle q-mode) (q))
+  w_mode (tap-hold-release-keys $tap $hold w (layer-toggle w-mode) (w))
+  e_mode (tap-hold-release-keys $tap $hold e (layer-toggle e-mode) (e))
+  r_mode (tap-hold-release-keys $tap $hold r (layer-toggle r-mode) (r))
+  c_mode (tap-hold-release-keys $tap $hold c (layer-toggle c-mode) (c))
+  v_mode (tap-hold-release-keys $tap $hold v (layer-toggle v-mode) (v))
 
   sft_sl (tap-hold-press $tap $hold / rsft)
   del_ln_b (macro S-home bspc)

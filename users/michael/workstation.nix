@@ -62,6 +62,8 @@ in
     mode = "0600";
   };
 
+  sober.theme.active = "tokyonight-day";
+
   # GUI-Only Packages
   home.packages = with pkgs; [
     foot

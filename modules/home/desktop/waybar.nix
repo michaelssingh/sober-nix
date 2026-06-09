@@ -56,12 +56,15 @@ in
         };
         disk = {
           format = "󰋊 {percentage_used}%";
+          path = "/";
         };
         temperature = {
+          hwmon-path = "/sys/class/hwmon/hwmon0/temp1_input";
           format = " {temperatureC}°C";
         };
         pulseaudio = {
           format = "{icon} {volume}%";
+          format-muted = "󰖁 {volume}%";
           format-icons = {
             default = [
               "󰕿"
