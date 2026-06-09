@@ -1,8 +1,14 @@
-{ config, lib, pkgs, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
 
 let
   isFly = config.home.username == "root";
-  dataPath = if isFly then "/var/lib/nix_persist/soju" else "${config.home.homeDirectory}/.local/share/soju";
+  dataPath =
+    if isFly then "/var/lib/nix_persist/soju" else "${config.home.homeDirectory}/.local/share/soju";
 in
 {
   home.packages = [ pkgs.soju ];
@@ -16,7 +22,7 @@ in
     db sqlite3 ${dataPath}/soju.db
   '';
 
-  home.activation.provision-soju-dir = lib.hm.dag.entryAfter ["writeBoundary"] ''
+  home.activation.provision-soju-dir = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
     mkdir -p "${dataPath}/uploads"
   '';
 }

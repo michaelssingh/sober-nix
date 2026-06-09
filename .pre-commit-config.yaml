@@ -7,3 +7,26 @@ repos:
         description: Detect hardcoded secrets using Gitleaks
         entry: gitleaks protect --verbose --redact --staged
         language: system
+
+  - repo: local
+    hooks:
+      - id: nixfmt
+        name: nixfmt
+        description: Format Nix files
+        entry: nixfmt
+        language: system
+        files: \.nix$
+        
+      - id: deadnix
+        name: deadnix
+        description: Find dead Nix code
+        entry: deadnix --edit
+        language: system
+        files: \.nix$
+
+      - id: statix
+        name: statix
+        description: Lints and suggestions for Nix code
+        entry: sh -c 'for f in "$@"; do statix fix "$f"; done' --
+        language: system
+        files: \.nix$

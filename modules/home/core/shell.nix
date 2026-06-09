@@ -15,32 +15,37 @@ in
       # Automatically add sops-decrypted SSH keys on login
       ssh-add ~/.ssh/nixbuild ~/.ssh/fly ~/.ssh/github ~/.ssh/hashnix 2>/dev/null
 
-      ${if !config.sober.isRemote then ''
-      function wg-up
-        echo "Restarting WireGuard services in order..."
-        sudo systemctl stop wg-quick-wg-sober
-        sudo systemctl stop wg-quick-wg-fly
-        sudo systemctl start wg-quick-wg-fly
-        sleep 2
-        sudo systemctl start wg-quick-wg-sober
-        echo "WireGuard services restarted."
-      end
+      ${
+        if !config.sober.isRemote then
+          ''
+            function wg-up
+              echo "Restarting WireGuard services in order..."
+              sudo systemctl stop wg-quick-wg-sober
+              sudo systemctl stop wg-quick-wg-fly
+              sudo systemctl start wg-quick-wg-fly
+              sleep 2
+              sudo systemctl start wg-quick-wg-sober
+              echo "WireGuard services restarted."
+            end
 
-      function wg-down
-        echo "Stopping WireGuard services..."
-        sudo systemctl stop wg-quick-wg-sober
-        sudo systemctl stop wg-quick-wg-fly
-        echo "WireGuard services stopped."
-      end
+            function wg-down
+              echo "Stopping WireGuard services..."
+              sudo systemctl stop wg-quick-wg-sober
+              sudo systemctl stop wg-quick-wg-fly
+              echo "WireGuard services stopped."
+            end
 
-      function lofi
-        echo "Starting background lofi streams..."
-        mpv --no-video --really-quiet --no-terminal --force-window=no --loop-playlist=inf \
-          "https://www.youtube.com/watch?v=am1VJP0RnmQ" \
-          "https://www.youtube.com/watch?v=vO8OZ8o6SkQ" \
-          "https://www.youtube.com/watch?v=_ITiwPMUzho" &
-      end
-      '' else ""}
+            function lofi
+              echo "Starting background lofi streams..."
+              mpv --no-video --really-quiet --no-terminal --force-window=no --loop-playlist=inf \
+                "https://www.youtube.com/watch?v=am1VJP0RnmQ" \
+                "https://www.youtube.com/watch?v=vO8OZ8o6SkQ" \
+                "https://www.youtube.com/watch?v=_ITiwPMUzho" &
+            end
+          ''
+        else
+          ""
+      }
 
       # --- 1. Dynamic Fish Color Palette ---
       set -g fish_color_normal "${colors.fg}"

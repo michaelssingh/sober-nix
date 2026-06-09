@@ -1,6 +1,5 @@
 # home/features/youtube.nix
 {
-  config,
   pkgs,
   lib,
   ...
@@ -53,5 +52,5 @@ in
       bind-key j down
       bind-key k up
     '';
-    };
+  };
 }

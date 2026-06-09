@@ -30,10 +30,13 @@ let
 in
 soberLib.mkContainerImage {
   name = "sober-strix";
-  packages = [ pkgs.rustypaste pkgs.gnused ];
+  packages = [
+    pkgs.rustypaste
+    pkgs.gnused
+  ];
   harden = true;
   exposedPorts = {
-    "8000/tcp" = {};
+    "8000/tcp" = { };
   };
   entrypoint = ''
     ${pkgs.coreutils}/bin/mkdir -p /data/upload

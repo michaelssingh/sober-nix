@@ -1,8 +1,10 @@
 { inputs, ... }:
 {
   # This 'additions' overlay adds new packages not in nixpkgs
-  additions = final: prev: 
-    import ./gemini.nix { inherit inputs; } final prev // {
+  additions =
+    final: prev:
+    import ./gemini.nix { inherit inputs; } final prev
+    // {
       tyto = final.callPackage ../../packages/tyto { };
       goanime = final.callPackage ../../packages/goanime { };
       antigravity = final.callPackage ../../packages/antigravity { };
@@ -18,8 +20,8 @@
   modifications = final: prev: {
     # Example: pinning an existing package to a specific version
     # coreutils = prev.coreutils.override { ... };
-    
-    senpai = prev.senpai.overrideAttrs (old: {
+
+    senpai = prev.senpai.overrideAttrs (_old: {
       version = "0.5.0";
       src = final.fetchFromSourcehut {
         owner = "~delthas";
@@ -33,12 +35,12 @@
       ];
     });
 
-    neomutt = prev.neomutt.overrideAttrs (old: {
+    neomutt = prev.neomutt.overrideAttrs (_old: {
       version = "20260504";
       src = inputs.neomutt-src;
     });
 
-    hydroxide = prev.hydroxide.overrideAttrs (old: rec {
+    hydroxide = prev.hydroxide.overrideAttrs (_old: rec {
       version = "0.2.32";
       src = final.fetchFromGitHub {
         owner = "emersion";

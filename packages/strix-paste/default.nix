@@ -1,8 +1,8 @@
 {
-	lib,
-	buildGoModule,
-	makeWrapper,
-	wl-clipboard,
+  lib,
+  buildGoModule,
+  makeWrapper,
+  wl-clipboard,
 }:
 
 buildGoModule {

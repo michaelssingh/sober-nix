@@ -1,10 +1,9 @@
-{ pkgs, ... }:
-{
+_: {
   services.ssh-agent.enable = true;
 
   programs.ssh = {
     enable = true;
-    
+
     # In newer HM, enableDefaultConfig might be deprecated or unchanged, let's keep it if no warning
     enableDefaultConfig = false;
 

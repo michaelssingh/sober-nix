@@ -1,4 +1,9 @@
-{ config, lib, pkgs, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
 
 {
   options = {
@@ -8,7 +13,7 @@
   config = lib.mkIf config.sober.core.perf.lowend.enable {
     # Speed up system with alternative kernel/scheduler
     boot.kernelPackages = pkgs.linuxPackages_xanmod;
-    
+
     # Efficient swap management for limited RAM
     swapDevices = [ ];
     zramSwap = {
@@ -31,7 +36,7 @@
       freeSwapThreshold = 5;
     };
     services.fstrim.enable = lib.mkDefault true;
-    
+
     # Performance governance
     powerManagement.cpuFreqGovernor = "performance";
 

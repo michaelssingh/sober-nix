@@ -2,10 +2,11 @@
 
 let
   # Dynamically inject the theme style into the Lua config
-  luaConfig = builtins.replaceStrings 
-    [ "style = \"storm\"" ] 
-    [ "style = \"${config.sober.theme.current.variant}\"" ] 
-    (builtins.readFile ./config.lua);
+  luaConfig =
+    builtins.replaceStrings
+      [ "style = \"storm\"" ]
+      [ "style = \"${config.sober.theme.current.variant}\"" ]
+      (builtins.readFile ./config.lua);
 in
 {
   programs.neovim = {

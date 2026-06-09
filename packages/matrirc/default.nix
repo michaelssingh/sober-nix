@@ -1,9 +1,10 @@
-{ lib
-, rustPlatform
-, fetchFromGitHub
-, openssl
-, pkg-config
-, sqlite
+{
+  lib,
+  rustPlatform,
+  fetchFromGitHub,
+  openssl,
+  pkg-config,
+  sqlite,
 }:
 
 rustPlatform.buildRustPackage rec {
@@ -20,7 +21,10 @@ rustPlatform.buildRustPackage rec {
   cargoHash = "sha256-PaEh0uaftDiOxvzPsaGGU2jutkB69Xu1Z91Co9NFUC4=";
 
   nativeBuildInputs = [ pkg-config ];
-  buildInputs = [ openssl sqlite ];
+  buildInputs = [
+    openssl
+    sqlite
+  ];
 
   meta = with lib; {
     description = "An IRC gateway to Matrix";

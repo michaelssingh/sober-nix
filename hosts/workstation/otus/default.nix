@@ -1,6 +1,5 @@
 {
   pkgs,
-  lib,
   user,
   inputs,
   ...
@@ -27,7 +26,8 @@
 
   # Transmission
   services.transmission.enable = true;
-  services.transmission.package = inputs.nixpkgs-pinned.legacyPackages.${pkgs.stdenv.hostPlatform.system}.transmission_4;
+  services.transmission.package =
+    inputs.nixpkgs-pinned.legacyPackages.${pkgs.stdenv.hostPlatform.system}.transmission_4;
   services.transmission.settings.download-dir = "/home/michael/torrents/download";
   services.transmission.settings.watch-dir = "/home/michael/torrents/watch";
   services.transmission.settings.watch-dir-enabled = true;

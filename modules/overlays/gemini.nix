@@ -1,5 +1,4 @@
-{ inputs }:
-final: prev: {
+_: final: prev: {
   gemini-cli = final.stdenv.mkDerivation {
     pname = "gemini-cli";
     version = "0.42.0";

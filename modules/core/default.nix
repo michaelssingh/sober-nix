@@ -16,7 +16,10 @@
     ];
 
     # Security: Only allow root and our main user to use remote builders
-    trusted-users = [ "root" "michael" ];
+    trusted-users = [
+      "root"
+      "michael"
+    ];
 
     # Optimizations
 

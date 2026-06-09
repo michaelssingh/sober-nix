@@ -20,7 +20,7 @@
     pkgs.tt
 
     # Media
-   pkgs.castero
+    pkgs.castero
     pkgs.kjv
 
   ];
