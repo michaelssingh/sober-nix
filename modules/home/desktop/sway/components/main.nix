@@ -83,9 +83,18 @@ in
           "XF86MonBrightnessDown" = "exec brightnessctl set 5%-";
 
           # Volume (Pipewire/Wireplumber)
-          "XF86AudioRaiseVolume" = "exec wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+";
+          "XF86AudioRaiseVolume" = "exec wpctl set-volume -l 1.0 @DEFAULT_AUDIO_SINK@ 5%+";
           "XF86AudioLowerVolume" = "exec wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-";
           "XF86AudioMute" = "exec wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle";
+          "XF86AudioMicMute" = "exec wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle";
+
+          # IdeaPad System Keys
+          "XF86TouchpadToggle" = "input \"type:touchpad\" events toggle";
+          "XF86RFKill" = "exec rfkill toggle all";
+          "XF86Display" = "exec wlr-randr --output eDP-1 --toggle";
+
+          # Screenshots
+          "Print" = "exec grimshot --notify savecopy anything";
 
           "${modifier}+Return" = null;
           "${modifier}+c" = "exec makoctl dismiss --all";
@@ -93,7 +102,6 @@ in
           "${modifier}+d" = "exec fuzzel";
           "${modifier}+Shift+d" = "exec dict-lookup";
           "${modifier}+b" = "exec qutebrowser";
-          "${modifier}+Shift+p" = "exec grimshot --notify savecopy anything";
           "${modifier}+Shift+n" = "exec makoctl restore";
           "${modifier}+Shift+e" =
             "exec swaylock -f -i ${./../bg.jpg} --indicator-radius 100 --indicator-thickness 7 --ring-color bb9af7 --key-hl-color 9ece6a";

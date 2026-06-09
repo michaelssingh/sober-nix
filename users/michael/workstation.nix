@@ -36,6 +36,15 @@ in
     };
   };
 
+  xdg.userDirs = {
+    enable = true;
+    createDirectories = true;
+    setSessionVariables = true;
+    extraConfig = {
+      SCREENSHOTS = "${config.home.homeDirectory}/pictures/screenshots";
+    };
+  };
+
   # Sops-Nix Key Source for Home-Manager
   sops.age.keyFile = "/home/michael/.config/sops/age/keys.txt";
   sops.defaultSopsFile = ../../secrets/secrets.yaml;
