@@ -153,6 +153,8 @@
           powertop # Power management
           sops
           age
+          gitleaks # Secret scanning
+          pre-commit # Git hooks framework
         ];
       };
     };
