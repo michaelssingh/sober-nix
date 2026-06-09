@@ -61,7 +61,7 @@ in
     neomutt
     swaylock
     swayidle
-    (inputs.nixpkgs-pinned.legacyPackages.${pkgs.system}.transmission_4)
+    (inputs.nixpkgs-pinned.legacyPackages.${pkgs.stdenv.hostPlatform.system}.transmission_4)
     stig
     chawan
     dict
