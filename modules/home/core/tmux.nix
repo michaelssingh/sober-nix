@@ -34,7 +34,7 @@
       # Status bar - Dynamic Design System
       set -g status-style "bg=${colors.bg},fg=${colors.fg}"
       set -g status-left " #S "
-      set -g status-right "${if config.sober.isRemote then "#[fg=${colors.accent}] ${config.home.username}@hashnix.club #[default]" else " %H:%M "}"
+      set -g status-right "${if config.sober.isRemote then "#[fg=${colors.accent}] ${config.home.username}@remote-host #[default]" else " %H:%M "}"
 
       set -g window-status-current-style "bg=${colors.accent},fg=${colors.bg}"
       set -g window-status-current-format " #I:#W "
