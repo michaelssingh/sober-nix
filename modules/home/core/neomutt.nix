@@ -23,7 +23,7 @@ in
       color index_number ${colors.comment} default
       color index_subject ${colors.fg} default ".*"
       color sidebar_indicator ${colors.accent} ${colors.bg_dark}
-      color sidebar_highlight ${colors.fg} ${colors.bg_visual}
+      color sidebar_highlight ${colors.fg} ${colors.bg_highlight}
       color sidebar_divider ${colors.comment} ${colors.bg_dark}
       color status ${colors.fg_sidebar} ${colors.bg_sidebar}
       color indicator ${colors.accent} ${colors.bg_visual}
