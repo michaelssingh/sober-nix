@@ -3,10 +3,12 @@
 let
   # Dynamically inject the theme style into the Lua config
   luaConfig =
-    builtins.replaceStrings
+    (builtins.replaceStrings
       [ "style = \"storm\"" ]
       [ "style = \"${config.sober.theme.current.variant}\"" ]
-      (builtins.readFile ./config.lua);
+      (builtins.readFile ./config.lua)
+    )
+    + (builtins.readFile ./ai.lua);
 in
 {
   programs.neovim = {
@@ -29,6 +31,9 @@ in
       harper
     ];
     plugins = with pkgs.vimPlugins; [
+      supermaven-nvim
+      codecompanion-nvim
+      plenary-nvim
       nvim-lspconfig
       nvim-autopairs
       nvim-web-devicons
