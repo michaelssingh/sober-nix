@@ -1,4 +1,8 @@
-_: {
+{ config, ... }:
+let
+  colors = config.sober.theme.current.colors;
+in
+{
   programs.waybar = {
     enable = true;
     systemd.enable = true;
@@ -52,10 +56,8 @@ _: {
         };
         disk = {
           format = "󰋊 {percentage_used}%";
-          path = "$SOBER_WAYBAR_DISK_PATH";
         };
         temperature = {
-          hwmon-path = "$SOBER_WAYBAR_TEMP_PATH";
           format = " {temperatureC}°C";
         };
         pulseaudio = {
@@ -110,11 +112,11 @@ _: {
     ];
     style = ''
       * { border: none; border-radius: 0; font-family: "JetBrainsMono Nerd Font"; font-size: 13px; }
-      window#waybar { background: #1a1b26; color: #c0caf5; }
-      #workspaces button { color: #565f89; padding: 0 5px; }
-      #workspaces button.focused { color: #bb9af7; }
+      window#waybar { background: ${colors.bg_dark}; color: ${colors.fg}; }
+      #workspaces button { color: ${colors.comment}; padding: 0 5px; }
+      #workspaces button.focused { color: ${colors.magenta}; }
       #cpu, #memory, #disk, #temperature, #pulseaudio, #backlight, #network, #battery, #tray {
-        padding: 0 8px; color: #c0caf5;
+        padding: 0 8px; color: ${colors.fg};
       }
     '';
   };

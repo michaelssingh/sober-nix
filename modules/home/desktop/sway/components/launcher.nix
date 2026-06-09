@@ -1,24 +1,29 @@
 {
+  config,
+  lib,
+  ...
+}:
+let
+  colors = config.sober.theme.current.colors;
+in
+{
   programs.fuzzel = {
     enable = true;
     settings = {
       main = {
-        font = "FiraCode Nerd Font Mono:size=11";
-        prompt = "'❯  '";
-        icon-theme = "Papirus-Dark";
-        width = 40;
+        font = "Inter:size=11";
+        terminal = "foot";
+        prompt = "'❯ '";
       };
+      # --- Official Tokyo Night Fuzzel Logic (Ref: extras/fuzzel/) ---
       colors = {
-        background = "1a1b26ff";
-        text = "c0caf5ff";
-        match = "bb9af7ff";
-        selection = "7aa2f7ff";
-        selection-text = "1a1b26ff";
-        border = "7aa2f7ff";
-      };
-      border = {
-        width = 2;
-        radius = 5;
+        background = lib.removePrefix "#" colors.bg_dark + "ff";
+        text = lib.removePrefix "#" colors.fg + "ff";
+        match = lib.removePrefix "#" colors.blue1 + "ff";
+        selection = lib.removePrefix "#" colors.bg_highlight + "ff";
+        selection-match = lib.removePrefix "#" colors.blue1 + "ff";
+        selection-text = lib.removePrefix "#" colors.fg + "ff";
+        border = lib.removePrefix "#" colors.border_highlight + "ff";
       };
     };
   };

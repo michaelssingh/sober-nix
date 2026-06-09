@@ -1,4 +1,9 @@
-{ config, lib, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
 let
   t = import ./theme/types.nix { inherit lib; };
   themes = {
@@ -28,6 +33,20 @@ in
         readOnly = true;
         default = themes.${config.sober.theme.active};
       };
+    };
+  };
+
+  config.services.darkman = {
+    enable = !config.sober.isRemote;
+    settings = {
+      lat = 13.19;
+      lng = -59.54;
+    };
+    darkModeScripts = {
+      sway = "${pkgs.sway}/bin/swaymsg reload";
+    };
+    lightModeScripts = {
+      sway = "${pkgs.sway}/bin/swaymsg reload";
     };
   };
 }
