@@ -67,10 +67,10 @@
 
         # --- Keybindings ---
         bind-key C-a send-prefix
-        bind h select-pane -L
-        bind j select-pane -D
-        bind k select-pane -U
-        bind l select-pane -R
+        bind -r h select-pane -L
+        bind -r j select-pane -D
+        bind -r k select-pane -U
+        bind -r l select-pane -R
       '';
   };
 }

@@ -9,6 +9,7 @@ let
   themes = {
     tokyonight-storm = import ./theme/themes/tokyonight-storm.nix;
     tokyonight-night = import ./theme/themes/tokyonight-night.nix;
+    tokyonight-day = import ./theme/themes/tokyonight-day.nix;
   };
 in
 {

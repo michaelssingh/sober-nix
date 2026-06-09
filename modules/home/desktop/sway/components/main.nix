@@ -43,7 +43,7 @@ in
 
       # 1. Fonts
       fonts = {
-        names = [ "FiraCode Nerd Font" ];
+        names = [ "JetBrainsMono Nerd Font" ];
         style = "Regular";
         size = 9.0;
       };
