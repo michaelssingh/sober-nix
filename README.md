@@ -10,7 +10,6 @@ Hosts are primarily named after Owl genera (to reflect the system's identity: Ob
 | **Otus** | Lenovo IdeaPad Slim 1-14AST-05 | `x86_64-linux` | Workstation | *The Scops Owl* - Small, adaptable. |
 | **Athene** | Fly.io MicroVM (256MB) | `x86_64-linux` | IRC Bouncer | *The Little Owl* - Small, vigilant. |
 | **Bubo** | Fly.io MicroVM (512MB) | `x86_64-linux` | Git Forge | *The Eagle-Owl* - Large, sovereign, powerful. |
-| **Clare** | Fly.io MicroVM (256MB) | `x86_64-linux` | IRC SSH Portal | *The Claymore Protagonist* - Determined, half-yoma warrior. |
 | **Glaucidium** | Fly.io MicroVM (256MB) | `x86_64-linux` | VPN Gateway | *The Pygmy Owl* - Tiny but fierce. |
 | **Strix** | Fly.io MicroVM (256MB) | `x86_64-linux` | Pastebin | *The Wood Owl* - Silent, record-keeping. |
 | **Styx** | Fly.io MicroVM (2048MB) | `x86_64-linux` | Nix Builder | *The Stygian Owl* - Dark, constructing. |
@@ -27,7 +26,6 @@ The project follows a **System-Centric** layout, separating hardware (Hosts) fro
 │   ├── otus/           # Lenovo IdeaPad Slim 1-14AST-05 Workstation
 │   ├── athene/         # Fly.io MicroVM - Soju IRC Bouncer
 │   ├── bubo/           # Fly.io MicroVM - Forgejo Git Forge
-│   ├── clare/          # Fly.io MicroVM - IRC SSH Portal
 │   ├── glaucidium/     # Fly.io MicroVM - WireGuard VPN Gateway
 │   ├── strix/          # Fly.io MicroVM - rustypaste Pastebin
 │   └── styx/           # Fly.io MicroVM - Nix Remote Builder
