@@ -89,8 +89,11 @@ in
           "XF86AudioMicMute" = "exec wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle";
 
           # IdeaPad System Keys
+          "F5" = "exec swaymsg reload";
           "XF86TouchpadToggle" = "input \"type:touchpad\" events toggle";
           "XF86RFKill" = "exec rfkill toggle all";
+          "F9" =
+            "exec swaylock -f -i ${./../bg.jpg} --indicator-radius 100 --indicator-thickness 7 --ring-color bb9af7 --key-hl-color 9ece6a";
           "XF86Display" = "exec wlr-randr --output eDP-1 --toggle";
 
           # Screenshots
