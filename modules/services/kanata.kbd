@@ -93,8 +93,8 @@
 (deflayer e-mode
   _    _    _    _    _    _    _    _    _    _    _    _    _
   _    _    _    _    _    _    _    _    _    _    _    _    _    _
-  _    _    _    _    _    _    _    left rght _    _    _    _    _
-  _    _    _    _    _    _    home C-left C-rght end _  _    _
+  _    _    _    _    _    _    _    C-b  C-f  _    _    _    _    _
+  _    _    _    _    _    _    C-a  M-b  M-f  C-e  _  _    _
   _    _    _    _    _    _    ret  ret  _    _    _    _
   _    _    _              _              _    _
 )
