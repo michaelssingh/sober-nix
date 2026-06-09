@@ -6,7 +6,7 @@ _: final: prev: {
     # Download the pre-built package from NPM registry
     src = final.fetchurl {
       url = "https://registry.npmjs.org/@google/gemini-cli/-/gemini-cli-0.45.2.tgz";
-      hash = "sha256-yAnc0NaKyfEF6It5YGm5R8tDTWhgrErP3zBL2n/TCo8=";
+      hash = "sha256-zPcWY3IBcMNNxCVLgtgkJPH6gaI6svAPYI7IWId3xoM=";
     };
 
     nativeBuildInputs = [ final.makeWrapper ];
