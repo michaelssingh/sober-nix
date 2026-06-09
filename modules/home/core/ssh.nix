@@ -66,6 +66,8 @@
           AddressFamily = "inet6";
           StrictHostKeyChecking = "no";
           UserKnownHostsFile = "/dev/null";
+          ConnectionAttempts = "10";
+          ConnectTimeout = "10";
         };
       };
     };
