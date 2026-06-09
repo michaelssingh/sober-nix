@@ -42,9 +42,7 @@
 
   outputs =
     {
-      self,
       nixpkgs,
-      nixpkgs-unstable,
       home-manager,
       sops-nix,
       ...
@@ -92,23 +90,23 @@
         matrirc = pkgs.callPackage ./packages/matrirc { };
         athene-image = import ./hosts/server/athene {
           inherit pkgs soberLib inputs;
-          lib = nixpkgs.lib;
+          inherit (nixpkgs) lib;
         };
         glaucidium-image = import ./hosts/server/glaucidium {
           inherit pkgs soberLib;
-          lib = nixpkgs.lib;
+          inherit (nixpkgs) lib;
         };
         strix-image = import ./hosts/server/strix {
           inherit pkgs soberLib;
-          lib = nixpkgs.lib;
+          inherit (nixpkgs) lib;
         };
         bubo-image = import ./hosts/server/bubo {
           inherit pkgs soberLib;
-          lib = nixpkgs.lib;
+          inherit (nixpkgs) lib;
         };
         styx-image = import ./hosts/server/styx {
           inherit pkgs soberLib publicKeys;
-          lib = nixpkgs.lib;
+          inherit (nixpkgs) lib;
         };
       };
 
@@ -150,6 +148,8 @@
           age
           gitleaks # Secret scanning
           pre-commit # Git hooks framework
+          deadnix # Find dead Nix code
+          statix # Lints and suggestions for Nix code
         ];
       };
     };

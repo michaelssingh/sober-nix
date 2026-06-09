@@ -1,4 +1,4 @@
-{ pkgs, config, ... }:
+{ config, ... }:
 let
   colors = config.sober.theme.current.colors;
 in

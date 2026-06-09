@@ -1,4 +1,4 @@
-{ lib, buildGoModule }:
+{ buildGoModule }:
 
 buildGoModule {
   pname = "tyto";

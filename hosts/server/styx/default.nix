@@ -1,10 +1,18 @@
-{ pkgs, soberLib, publicKeys, ... }:
+{
+  pkgs,
+  soberLib,
+  publicKeys,
+  ...
+}:
 
 soberLib.mkContainerImage {
   name = "sober-styx";
-  packages = [ pkgs.nix pkgs.openssh ];
+  packages = [
+    pkgs.nix
+    pkgs.openssh
+  ];
   harden = true;
-  
+
   users = {
     sshd = {
       uid = 74;
@@ -14,7 +22,7 @@ soberLib.mkContainerImage {
       shell = "/bin/nologin";
     };
   };
-  
+
   extraContents = [
     (pkgs.writeTextDir "etc/nix/nix.conf" ''
       build-users-group =
@@ -22,11 +30,11 @@ soberLib.mkContainerImage {
       experimental-features = nix-command flakes
     '')
   ];
-  
+
   exposedPorts = {
-    "2222/tcp" = {};
+    "2222/tcp" = { };
   };
-  
+
   entrypoint = ''
     ${pkgs.coreutils}/bin/mkdir -p /etc/ssh
     echo "Port 2222" > /etc/ssh/sshd_config

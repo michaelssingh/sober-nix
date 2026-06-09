@@ -13,7 +13,7 @@ in
     policies = {
       DisableTelemetry = true;
       ExtensionSettings =
-        (builtins.mapAttrs (id: url: {
+        (builtins.mapAttrs (_id: url: {
           install_url = url;
           installation_mode = "force_installed";
         }) addons)

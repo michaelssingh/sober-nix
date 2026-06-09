@@ -1,4 +1,4 @@
-{ pkgs, config, ... }:
+{ config, ... }:
 
 let
   colors = config.sober.theme.current.colors;
@@ -30,7 +30,7 @@ in
           normal.fg = colors.fg;
         };
         completion = {
-          fg = colors.fg;
+          inherit (colors) fg;
           odd.bg = colors.bg;
           even.bg = colors.bg;
           item.selected.bg = colors.blue;
@@ -48,8 +48,8 @@ in
           stop.bg = colors.green;
         };
         keyhint = {
-          bg = colors.bg;
-          fg = colors.fg;
+          inherit (colors) bg;
+          inherit (colors) fg;
         };
         webpage = {
           darkmode.enabled = false;

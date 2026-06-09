@@ -1,8 +1,12 @@
-{ pkgs, inputs, config, ... }:
+{
+  pkgs,
+  inputs,
+  config,
+  ...
+}:
 
 let
   emailPersonal = "michaelssingh@protonmail.com";
-  emailWork = "michael@sober.fyi";
   # Use the dynamic system theme instead of static import
   colors = config.sober.theme.current.colors;
 in
@@ -57,7 +61,7 @@ in
     neomutt
     swaylock
     swayidle
-    (inputs.nixpkgs-pinned.legacyPackages.${pkgs.stdenv.hostPlatform.system}.transmission_4)
+    inputs.nixpkgs-pinned.legacyPackages.${pkgs.stdenv.hostPlatform.system}.transmission_4
     stig
     chawan
     dict
