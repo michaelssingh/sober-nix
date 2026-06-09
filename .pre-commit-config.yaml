@@ -27,6 +27,7 @@ repos:
       - id: statix
         name: statix
         description: Lints and suggestions for Nix code
+        # statix fix only accepts a single target, so we loop over the files passed by pre-commit
         entry: sh -c 'for f in "$@"; do statix fix "$f"; done' --
         language: system
         files: \.nix$
