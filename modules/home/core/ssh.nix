@@ -13,12 +13,6 @@
         AddKeysToAgent = "yes";
       };
 
-      "hashnix.club" = {
-        HostName = "hashnix.club";
-        User = "init";
-        IdentityFile = "~/.ssh/hashnix";
-      };
-
       "github.com" = {
         HostName = "github.com";
         User = "git";

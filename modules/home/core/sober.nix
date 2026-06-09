@@ -11,7 +11,7 @@ in
     isRemote = lib.mkOption {
       type = lib.types.bool;
       default = false;
-      description = "Whether the host is a remote server (e.g., hashnix, bubo).";
+      description = "Whether the host is a remote server (e.g., bubo).";
     };
     timezone = lib.mkOption {
       type = lib.types.str;
