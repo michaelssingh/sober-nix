@@ -1,11 +1,11 @@
 _: final: prev: {
   gemini-cli = final.stdenv.mkDerivation {
     pname = "gemini-cli";
-    version = "0.42.0";
+    version = "0.45.2";
 
     # Download the pre-built package from NPM registry
     src = final.fetchurl {
-      url = "https://registry.npmjs.org/@google/gemini-cli/-/gemini-cli-0.42.0.tgz";
+      url = "https://registry.npmjs.org/@google/gemini-cli/-/gemini-cli-0.45.2.tgz";
       hash = "sha256-yAnc0NaKyfEF6It5YGm5R8tDTWhgrErP3zBL2n/TCo8=";
     };
 
