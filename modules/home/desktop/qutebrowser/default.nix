@@ -52,7 +52,14 @@ in
           inherit (colors) fg;
         };
         webpage = {
-          darkmode.enabled = false;
+          inherit (colors) bg;
+          darkmode = {
+            enabled = true;
+            policy.page = "smart";
+            # Note: 'background_color' might not exist in all versions,
+            # if this causes an error, remove the following line.
+          };
+          preferred_color_scheme = "dark";
         };
       };
       fonts.default_family = "FiraCode Nerd Font Mono";

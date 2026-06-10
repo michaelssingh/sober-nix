@@ -17,6 +17,11 @@ in
         default = "wg-sober";
         description = "Name of the Sober VPN interface.";
       };
+      # Rationale: Provides a safe way to limit VPN traffic to internal subnets
+      # during troubleshooting, preventing a total network lock-out if
+      # the VPN routing is misconfigured or if we need to isolate
+      # VPN traffic from general internet traffic.
+      debugMode = lib.mkEnableOption "Debug mode (limits allowedIPs to internal subnets)";
     };
   };
 
@@ -40,10 +45,21 @@ in
       peers = [
         {
           publicKey = "BgF0yad/27+0o74CldVXUWtkS+h4VsT1nAPEkKD3VHo=";
-          allowedIPs = [
-            "0.0.0.0/0"
-            "::/0"
-          ];
+          # Rationale: If debugMode is enabled, only route internal traffic through
+          # the VPN to allow for easier debugging of reachability without
+          # impacting general internet connectivity. If disabled, route all traffic
+          # through the VPN as intended for normal operation.
+          allowedIPs =
+            if cfg.debugMode then
+              [
+                "10.13.13.0/24"
+                "fd00::/64"
+              ]
+            else
+              [
+                "0.0.0.0/0"
+                "::/0"
+              ];
           endpoint = "168.220.91.179:51820";
           persistentKeepalive = 25;
         }
