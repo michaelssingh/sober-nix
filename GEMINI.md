@@ -15,9 +15,11 @@
 - **Validation**: Never consider a task complete without a successful local build.
 
 ## Git & Branching Strategy
-- **`main`**: Production branch. Only merge "known good" configurations here.
-- **`feat/*` / `config/*`**: Use dedicated branches for iterative development.
-- **"Clean Tree" Rule**: Always commit changes before running any build or validation command. Avoid "dirty" git trees to ensure reproducible builds.
+- `main`: Production branch. Only merge "known good" configurations here.
+- `feat/*` / `config/*`: Use dedicated branches for iterative development.
+- "Clean Tree" Rule: Always commit changes before running any build or validation command. Avoid "dirty" git trees to ensure reproducible builds.
+- **NEVER Bypass Hooks**: Pre-commit hooks must NEVER be bypassed (`--no-verify` is prohibited). If hooks fail, fix the underlying issues in the development environment until they pass.
+
 
 ## YouTube & Streaming Conventions
 ... (remaining content)
