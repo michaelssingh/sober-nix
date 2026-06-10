@@ -23,6 +23,7 @@
   # --- ENABLE FEATURES ---
   # Remote Nix Builders
   sober.services.nix-remote-builder.enable = false;
+  sober.services.wg-sober.debugMode = true; # Enable debug mode for safer VPN debugging
 
   # Transmission
   services.transmission.enable = true;
@@ -72,7 +73,14 @@
     "amd_iommu=on"
     "ivrs_ioapic[4]=00:14.0"
     "ivrs_ioapic[5]=00:00.2"
+    "acpi_backlight=native"
   ];
+
+  # --- Recovery Entry ---
+  boot.loader.systemd-boot.configurationLimit = 10;
+  # Note: Adding a manual recovery entry is complex due to kernel/initrd pathing.
+  # Instead, use the built-in systemd-boot functionality for recovery.
+  boot.loader.systemd-boot.memtest86.enable = true;
 
   # --- Waybar Hardware Settings ---
   # Hardware-specific paths for monitoring
@@ -204,6 +212,10 @@
         }
         {
           command = "/nix/store/*/bin/switch-to-configuration";
+          options = [ "NOPASSWD" ];
+        }
+        {
+          command = "/run/current-system/sw/bin/wg";
           options = [ "NOPASSWD" ];
         }
       ];
