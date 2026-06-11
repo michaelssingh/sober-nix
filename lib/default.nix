@@ -61,6 +61,9 @@
             inputs = ["logs"]
             endpoint = "${observability.lokiUrl}"
 
+            [sinks.grafana_loki.labels]
+            app = "${name}"
+
             [sinks.grafana_loki.encoding]
             codec = "json"
 
