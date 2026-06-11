@@ -64,7 +64,6 @@
             strategy = "basic"
             user = "any"
             password = "$GRAFANA_API_KEY"
-
             [sinks.grafana_prometheus]
             type = "prometheus_remote_write"
             inputs = ["host_metrics"]
