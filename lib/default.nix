@@ -115,8 +115,18 @@
               mkdir -p /tmp/vector
               mkdir -p /var/log
 
+              # Generate runtime Vector config with the API key injected directly
+              if [ -n "''$GRAFANA_API_KEY" ]; then
+                while IFS= read -r line || [ -n "''$line" ]; do
+                  modified_line="''${line//\''${GRAFANA_API_KEY\}/''$GRAFANA_API_KEY}"
+                  echo "''$modified_line"
+                done < /etc/vector/vector.toml > /tmp/vector.toml
+              else
+                cp /etc/vector/vector.toml /tmp/vector.toml
+              fi
+
               # Start Vector in the background (its own logs will bypass redirection to avoid loops)
-              ${vectorPkg}/bin/vector --config /etc/vector/vector.toml &
+              ${vectorPkg}/bin/vector --config /tmp/vector.toml &
 
               # Redirect stdout & stderr of the container to a log file for Vector, while still printing to stdout & stderr
               exec > >(tee -a /var/log/container.log) 2>&1
