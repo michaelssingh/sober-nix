@@ -57,6 +57,7 @@
 
             [sources.host_metrics]
             type = "host_metrics"
+            scrape_cgroups = false
 
             [sinks.grafana_loki]
             type = "loki"
@@ -69,17 +70,18 @@
 
             [sinks.grafana_loki.auth]
             strategy = "basic"
-            user = "any"
+            user = "1644516"
             password = "$GRAFANA_API_KEY"
 
             [sinks.grafana_prometheus]
             type = "prometheus_remote_write"
             inputs = ["host_metrics"]
             endpoint = "${observability.prometheusUrl}"
+            healthcheck.enabled = false
 
             [sinks.grafana_prometheus.auth]
             strategy = "basic"
-            user = "any"
+            user = "3297682"
             password = "$GRAFANA_API_KEY"
           ''
         else
