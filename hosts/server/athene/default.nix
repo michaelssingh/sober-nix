@@ -44,7 +44,7 @@ let
 
   # The configuration profile for the Soju IRC bouncer
   sojuConfig = pkgs.writeText "soju.conf" ''
-    listen irc+insecure://0.0.0.0:6697
+    listen irc+insecure://0.0.0.0:6667
     listen unix+admin:///data/admin.sock
     listen http+insecure://0.0.0.0:8080
     http-ingress http://sober-athene.fly.dev
@@ -89,7 +89,7 @@ soberLib.mkContainerImage {
     pkgs.gnutar
   ];
   exposedPorts = {
-    "6697/tcp" = { };
+    "6667/tcp" = { };
     "8080/tcp" = { };
     "6167/tcp" = { };
   };

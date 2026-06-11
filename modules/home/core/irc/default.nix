@@ -9,6 +9,17 @@ in
 {
   sops.secrets.soju_password = { };
 
+  sops.templates."weechat-sec.conf" = {
+    content = ''
+      [crypt]
+      passphrase = off
+
+      [data]
+      soju = "${config.sops.placeholder.soju_password}"
+    '';
+    path = "${config.xdg.configHome}/weechat/sec.conf";
+  };
+
   home.packages = [
     # matrix-rs can stay here, but we will reference its output directly for the plugin
     pkgs.weechat-matrix-rs
@@ -19,9 +30,30 @@ in
           perl
           lua
         ];
+        extraPackages = [
+          pkgs.aspell
+          pkgs.aspellDicts.en
+        ];
       };
     })
   ];
+
+  xdg.configFile."weechat/spell.conf".text = ''
+    [look]
+    dict_en = "en"
+
+    [check]
+    commands = "en"
+    default_dict = "en"
+    during_search = off
+    enabled = on
+    real_time = on
+    word_min_length = 2
+
+    [color]
+    misspelled = red
+    suggestion = green
+  '';
 
   # FIX 1: Shift scripts from xdg.configFile (~/.config) to xdg.dataFile (~/.local/share)
   xdg.dataFile."weechat/python/autoload/soju.py".source = pkgs.fetchurl {
@@ -55,21 +87,21 @@ in
     sasl_mechanism = plain
 
     [server]
-    soju.addresses = "sober-athene.flycast/6697"
+    soju.addresses = "sober-athene.flycast/6667"
     soju.username = "init@weechat"
-    soju.password = "pineapple"
+    soju.password = "''${sec.data.soju}"
     soju.sasl_username = "init@weechat"
-    soju.sasl_password = "pineapple"
+    soju.sasl_password = "''${sec.data.soju}"
     soju.autoconnect = on
     soju.tls = off
     soju.nicks = "init"
   '';
 
-  xdg.configFile."weechat/matrix-rust.conf".text = ''
+  xdg.configFile."weechat/matrix.conf".text = ''
     [server]
     athene.address = "http://sober-athene.flycast:6167"
     athene.username = "init"
-    athene.password = "pineapple"
+    athene.password = "''${sec.data.soju}"
     athene.autoconnect = on
   '';
 
@@ -170,7 +202,7 @@ in
   '';
 
   xdg.configFile."senpai/senpai.scfg".text = ''
-    address irc+insecure://sober-athene.flycast:6697
+    address irc+insecure://sober-athene.flycast:6667
     nickname init
     realname michael
     username init
