@@ -43,7 +43,8 @@
             pkgs.gnused
           ]
       )
-      ++ (pkgs.lib.optional (observability != null) vectorPkg);
+      ++ (pkgs.lib.optional (observability != null) vectorPkg)
+      ++ (pkgs.lib.optional (observability != null) pkgs.coreutils);
 
       # Vector configuration
       vectorConfig =
@@ -71,7 +72,7 @@
 
             [sinks.grafana_loki.auth]
             strategy = "basic"
-            user = "1644516"
+            user = "${observability.lokiUser or "1644516"}"
             password = "''${GRAFANA_API_KEY}"
 
             [sinks.grafana_prometheus]
@@ -82,7 +83,7 @@
 
             [sinks.grafana_prometheus.auth]
             strategy = "basic"
-            user = "3297682"
+            user = "${observability.prometheusUser or "3297682"}"
             password = "''${GRAFANA_API_KEY}"
           ''
         else
@@ -109,7 +110,17 @@
 
         ${
           if vectorConfig != null then
-            "mkdir -p /tmp/vector && ${vectorPkg}/bin/vector --config /etc/vector/vector.toml &"
+            ''
+              # Create directories for Vector and logs
+              mkdir -p /tmp/vector
+              mkdir -p /var/log
+
+              # Start Vector in the background (its own logs will bypass redirection to avoid loops)
+              ${vectorPkg}/bin/vector --config /etc/vector/vector.toml &
+
+              # Redirect stdout & stderr of the container to a log file for Vector, while still printing to stdout & stderr
+              exec > >(tee -a /var/log/container.log) 2>&1
+            ''
           else
             ""
         }
