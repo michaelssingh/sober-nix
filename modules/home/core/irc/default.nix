@@ -51,14 +51,13 @@ in
     sasl_mechanism = plain
 
     [server]
-    soju.address = "sober-athene.flycast"
-    soju.port = 6697
+    soju.addresses = "sober-athene.flycast/6697"
     soju.username = "init @weechat"
     soju.password = "pineapple"
     soju.sasl_username = "init @weechat"
     soju.sasl_password = "pineapple"
     soju.autoconnect = on
-    soju.ssl = off
+    soju.tls = off
   '';
 
   xdg.configFile."weechat/matrix-rust.conf".text = ''
@@ -81,34 +80,33 @@ in
     irc_smart.rule = "irc_smart_filter"
 
     [color]
-    status_number = "${colors.yellow}"
-    status_name = "${colors.blue}"
-    status_data = "${colors.cyan}"
-    status_more = "${colors.magenta}"
-    status_bg = "${colors.bg_dark}"
-    chat_bg = "${colors.bg}"
-    chat_fg = "${colors.fg}"
-    chat_time = "${colors.comment}"
-    chat_delimiters = "${colors.comment}"
-    chat_highlight = "${colors.red}"
-    chat_highlight_bg = "${colors.bg_highlight}"
-    chat_nick_self = "${colors.magenta}"
-    chat_nick_other = "${colors.blue}"
-    chat_prefix_action = "${colors.orange}"
-    chat_prefix_join = "${colors.green1}"
-    chat_prefix_quit = "${colors.red}"
-    chat_prefix_suffix = "${colors.comment}"
-    chat_buffer = "${colors.cyan}"
-    chat_channel = "${colors.cyan}"
+    status_number = ${colors.yellow}
+    status_name = ${colors.blue}
+    status_data = ${colors.cyan}
+    status_more = ${colors.magenta}
+    status_bg = ${colors.bg_dark}
+    chat_bg = ${colors.bg}
+    chat_fg = ${colors.fg}
+    chat_time = ${colors.comment}
+    chat_delimiters = ${colors.comment}
+    chat_highlight = ${colors.red}
+    chat_highlight_bg = ${colors.bg_highlight}
+    chat_nick_self = ${colors.magenta}
+    chat_nick_other = ${colors.blue}
+    chat_prefix_action = ${colors.orange}
+    chat_prefix_join = ${colors.green1}
+    chat_prefix_quit = ${colors.red}
+    chat_prefix_suffix = ${colors.comment}
+    chat_buffer = ${colors.cyan}
+    chat_channel = ${colors.cyan}
     chat_nick_colors = "${colors.red},${colors.orange},${colors.yellow},${colors.green1},${colors.cyan},${colors.blue},${colors.magenta},${colors.magenta2},${colors.teal},${colors.pink}"
 
     [bar]
-    status.color_bg = "${colors.bg_dark}"
-    status.color_fg = "${colors.fg}"
-    title.color_bg = "${colors.bg_dark}"
-    title.color_fg = "${colors.fg}"
+    status.color_bg = ${colors.bg_dark}
+    status.color_fg = ${colors.fg}
+    title.color_bg = ${colors.bg_dark}
+    title.color_fg = ${colors.fg}
   '';
-
   # --- Official Tokyo Night Styleset (Ref: extras/aerc/tokyonight_*.ini) ---
   xdg.configFile."aerc/stylesets/tokyonight.ini".text = ''
     *.default=true
