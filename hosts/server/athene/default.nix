@@ -81,6 +81,12 @@ soberLib.mkContainerImage {
     unstable.matrix-conduit
     mautrix-googlechat
     pkgs.heisenbridge
+    inputs.self.packages.${pkgs.stdenv.hostPlatform.system}.appservice-mgr
+    pkgs.curl
+    pkgs.jq
+    pkgs.binutils
+    pkgs.gnugrep
+    pkgs.gnutar
   ];
   exposedPorts = {
     "6697/tcp" = { };
@@ -103,30 +109,31 @@ soberLib.mkContainerImage {
     ${pkgs.coreutils}/bin/mkdir -p /etc/soju
     ${pkgs.coreutils}/bin/ln -sf ${sojuConfig} /etc/soju/config
 
-    # 1. Setup mautrix-googlechat configuration if missing
-    if [ ! -f /data/mautrix-googlechat/config.yaml ]; then
-        echo "Initializing mautrix-googlechat configuration..."
-        cp ${mautrix-googlechat}/share/mautrix-googlechat/example-config.yaml /data/mautrix-googlechat/config.yaml
-        chmod +w /data/mautrix-googlechat/config.yaml
+    # Explicitly overwrite conduit configuration
+    ${pkgs.coreutils}/bin/cp ${conduitConfig} /data/conduit/conduit.toml
 
-        echo "Patching config.yaml keys..."
-        ${pkgs.yq-go}/bin/yq -i '
-          .homeserver.address = "http://localhost:6167" |
-          .homeserver.domain = "sober.fyi" |
-          .appservice.address = "http://localhost:29318" |
-          .appservice.hostname = "127.0.0.1" |
-          .appservice.port = 29318 |
-          .database = "sqlite:///data/mautrix-googlechat/mautrix-googlechat.db" |
-          .appservice.namespaces.users[0].regex = "@googlechat_.*:sober\\.fyi" |
-          .appservice.namespaces.users[1].regex = "@googlechatbot:sober\\.fyi" |
-          .encryption.allow = false |
-          .encryption.default = false |
-          del(.bridge.permissions) |
-          .bridge.permissions["sober.fyi"] = "user" |
-          .bridge.permissions["@init:sober.fyi"] = "admin" |
-          .bridge.permissions["@googlechatbot:sober.fyi"] = "admin"
-        ' /data/mautrix-googlechat/config.yaml
+    # 1. Setup mautrix-googlechat configuration
+    echo "Initializing/Patching mautrix-googlechat configuration..."
+    if [ ! -f /data/mautrix-googlechat/config.yaml ]; then
+        cp ${mautrix-googlechat}/share/mautrix-googlechat/example-config.yaml /data/mautrix-googlechat/config.yaml
     fi
+    chmod +w /data/mautrix-googlechat/config.yaml
+
+    echo "Ensuring config.yaml keys are correct..."
+    ${pkgs.yq-go}/bin/yq -i '
+      .homeserver.address = "http://localhost:6167" |
+      .homeserver.domain = "sober.fyi" |
+      .appservice.address = "http://localhost:29318" |
+      .appservice.hostname = "127.0.0.1" |
+      .appservice.port = 29318 |
+      .appservice.database = "sqlite:/data/mautrix-googlechat/mautrix-googlechat.db" |
+      .bridge.encryption.allow = false |
+      .bridge.encryption.default = false |
+      del(.bridge.permissions) |
+      .bridge.permissions["sober.fyi"] = "user" |
+      .bridge.permissions["@init:sober.fyi"] = "admin" |
+      .bridge.permissions["@googlechatbot:sober.fyi"] = "admin"
+    ' /data/mautrix-googlechat/config.yaml
 
     # 2. Pre-generate registration files so Conduit can load them on boot
     if [ ! -f /data/mautrix-googlechat/registration.yaml ]; then
@@ -149,13 +156,21 @@ soberLib.mkContainerImage {
     echo "Starting Conduit homeserver..."
     CONDUIT_CONFIG=${conduitConfig} ${unstable.matrix-conduit}/bin/conduit &
 
-    # 4. Start mautrix-googlechat bridge in the background
+    # Wait a few seconds for Conduit to initialize its API
+    sleep 5
+
+    # 4. Perform automatic appservice registration via the Go tool
+    echo "Running appservice-mgr to register bridges with Conduit..."
+    appservice-mgr /data
+
+    # 5. Start mautrix-googlechat bridge in the background
     echo "Starting mautrix-googlechat bridge..."
     ${mautrix-googlechat}/bin/mautrix-googlechat -c /data/mautrix-googlechat/config.yaml &
 
-    # 5. Start heisenbridge gateway in the background
+    # 6. Start heisenbridge gateway in the background
     echo "Starting heisenbridge..."
     ${pkgs.heisenbridge}/bin/heisenbridge \
+        -v \
         -c /data/heisenbridge/registration.yaml \
         -l 127.0.0.1 -p 6668 \
         http://localhost:6167 &
@@ -163,7 +178,7 @@ soberLib.mkContainerImage {
     # Wait a few seconds for background services to initialize
     sleep 3
 
-    # 6. Execute Soju bouncer in the foreground
+    # 7. Execute Soju bouncer in the foreground
     echo "Starting Soju IRC bouncer..."
     exec ${pkgs.soju}/bin/soju -config ${sojuConfig}
   '';

@@ -16,6 +16,7 @@ in
     ./core.nix
     ../../modules/home/core/sober.nix
     ../../modules/home/core/mosh.nix
+    ../../modules/home/core/irc
 
     # Workstation only modules
     ../../modules/home/desktop/sway
