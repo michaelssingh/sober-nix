@@ -49,18 +49,31 @@
             type = "file"
             include = ["/var/log/**/*.log"]
 
+            [sources.host_metrics]
+            type = "host_metrics"
+
             [sinks.grafana_loki]
             type = "loki"
             inputs = ["logs"]
+            endpoint = "${observability.lokiUrl}"
 
             [sinks.grafana_loki.encoding]
             codec = "json"
 
-            endpoint = "${observability.lokiUrl}"
+            [sinks.grafana_loki.auth]
+            strategy = "basic"
+            user = "any"
+            password = "$GRAFANA_API_KEY"
 
-            auth.strategy = "basic"
-            auth.user = "any"
-            auth.password = "$GRAFANA_API_KEY"
+            [sinks.grafana_prometheus]
+            type = "prometheus_remote_write"
+            inputs = ["host_metrics"]
+            endpoint = "${observability.prometheusUrl}"
+
+            [sinks.grafana_prometheus.auth]
+            strategy = "basic"
+            user = "any"
+            password = "$GRAFANA_API_KEY"
           ''
         else
           null;
