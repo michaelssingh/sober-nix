@@ -13,11 +13,11 @@ echo "🦉 [SOBER] Starting deployment for: $HOST_NAME ($APP_NAME)"
 
 # 1. Build via nixbuild.net (Offload CPU/RAM work)
 echo "🔨 1/3: Building $IMAGE_ATTR via nixbuild.net..."
-(cd "$DIR/../../.." && nix build .#$IMAGE_ATTR --verbose) 
+(cd "$DIR/../../.." && nix build .#$IMAGE_ATTR --verbose --option max-jobs 0) 
 
 # 2. Push via Skopeo (Daemonless)
 echo "🚀 2/3: Pushing image to Fly registry..."
-skopeo copy \
+nix shell nixpkgs#skopeo -c skopeo copy \
   docker-archive:$(readlink -f "$DIR/../../../result") \
   docker://$REGISTRY \
   --dest-creds x:$(fly auth token)
