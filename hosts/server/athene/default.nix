@@ -51,13 +51,12 @@ let
     allow_federation = false
     max_request_size = 20971520
     log = "warn"
-    appservice_registration = "/var/lib/soju/mautrix-googlechat/registration.yaml"
-    appservice_registration = "/var/lib/soju/heisenbridge/registration.yaml"
+    appservice_registration = ["/var/lib/soju/mautrix-googlechat/registration.yaml", "/var/lib/soju/heisenbridge/registration.yaml"]
   '';
 in
 soberLib.mkContainerImage {
   name = "sober-athene";
-  harden = false; # Needed to run multiple background services and dynamic commands
+  harden = false;
   observability = {
     lokiUrl = "https://logs-prod-042.grafana.net/loki/api/v1/push";
     prometheusUrl = "https://prometheus-prod-66-prod-us-east-3.grafana.net/api/prom/push";
