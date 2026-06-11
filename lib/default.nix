@@ -52,11 +52,15 @@
             [sinks.grafana_loki]
             type = "loki"
             inputs = ["logs"]
-            encoding = "json"
+
+            [sinks.grafana_loki.encoding]
+            codec = "json"
+
             endpoint = "${observability.lokiUrl}"
+
             auth.strategy = "basic"
             auth.user = "any"
-            auth.password = "$(cat ${observability.apiKeyFile})"
+            auth.password = "$GRAFANA_API_KEY"
           ''
         else
           null;
