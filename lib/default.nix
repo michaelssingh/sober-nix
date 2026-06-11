@@ -23,6 +23,10 @@
       shellBinName =
         if pkgs.lib.hasPrefix "bash" (shellPkg.pname or "") then "bash" else (shellPkg.pname or "sh");
       shellPath = "${shellPkg}/bin/${shellBinName}";
+      # Vector package
+      vectorPkg =
+        if observability != null && observability ? package then observability.package else pkgs.vector;
+
       # Core system tools always needed by the container runtime
       baseContents = [
         shellPkg
@@ -39,7 +43,7 @@
             pkgs.gnused
           ]
       )
-      ++ (pkgs.lib.optional (observability != null) pkgs.vector);
+      ++ (pkgs.lib.optional (observability != null) vectorPkg);
 
       # Vector configuration
       vectorConfig =
@@ -91,9 +95,7 @@
       # Setup wrapper script
       entrypointScript = pkgs.writeShellScriptBin "entrypoint" ''
         set -e
-        ${
-          if vectorConfig != null then "${pkgs.vector}/bin/vector --config /etc/vector/vector.toml &" else ""
-        }
+        ${if vectorConfig != null then "${vectorPkg}/bin/vector --config /etc/vector/vector.toml &" else ""}
         ${entrypoint}
       '';
 

@@ -29,6 +29,19 @@ let
           ];
       });
 
+  vectorLatest = pkgs.stdenv.mkDerivation {
+    pname = "vector";
+    version = "0.56.0";
+    src = pkgs.fetchzip {
+      url = "https://github.com/vectordotdev/vector/releases/download/v0.56.0/vector-0.56.0-x86_64-unknown-linux-musl.tar.gz";
+      hash = "sha256-XVgWSdMgd/CzNG7oWxTfJUZbGFrDu9gbHgVNTq0onAo=";
+    };
+    installPhase = ''
+      mkdir -p $out/bin
+      cp bin/vector $out/bin/vector
+    '';
+  };
+
   # The configuration profile for the Soju IRC bouncer
   sojuConfig = pkgs.writeText "soju.conf" ''
     listen irc+insecure://0.0.0.0:6697
@@ -58,6 +71,7 @@ soberLib.mkContainerImage {
   name = "sober-athene";
   harden = false;
   observability = {
+    package = vectorLatest;
     lokiUrl = "https://logs-prod-042.grafana.net/loki/api/v1/push";
     prometheusUrl = "https://prometheus-prod-66-prod-us-east-3.grafana.net/api/prom/push";
     apiKeyFile = "/run/secrets/grafana_api_key";
