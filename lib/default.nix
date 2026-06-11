@@ -23,13 +23,22 @@
       shellBinName =
         if pkgs.lib.hasPrefix "bash" (shellPkg.pname or "") then "bash" else (shellPkg.pname or "sh");
       shellPath = "${shellPkg}/bin/${shellBinName}";
-
       # Core system tools always needed by the container runtime
       baseContents = [
         shellPkg
         pkgs.cacert
       ]
-      ++ (if harden then [ ] else [ pkgs.coreutils ])
+      ++ (
+        if harden then
+          [ ]
+        else
+          [
+            pkgs.coreutils
+            pkgs.procps
+            pkgs.iproute2
+            pkgs.gnused
+          ]
+      )
       ++ (pkgs.lib.optional (observability != null) pkgs.vector);
 
       # Vector configuration
@@ -43,6 +52,7 @@
             [sinks.grafana_loki]
             type = "loki"
             inputs = ["logs"]
+            encoding = "json"
             endpoint = "${observability.lokiUrl}"
             auth.strategy = "basic"
             auth.user = "any"
