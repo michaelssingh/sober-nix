@@ -64,6 +64,7 @@
             inputs = ["logs"]
             endpoint = "${observability.lokiUrl}"
             labels.app = "${name}"
+            healthcheck.enabled = false
 
             [sinks.grafana_loki.encoding]
             codec = "json"
