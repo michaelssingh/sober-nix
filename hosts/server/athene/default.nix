@@ -148,7 +148,7 @@ soberLib.mkContainerImage {
         -c /data/heisenbridge/config.yaml \
         --generate-compat \
         -l 127.0.0.1 -p 6668 \
-        http://localhost:6167
+        http://localhost:6167 || true
         
     ${pkgs.heisenbridge}/bin/heisenbridge \
         -c /data/heisenbridge/config.yaml \

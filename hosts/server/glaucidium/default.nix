@@ -15,7 +15,7 @@ soberLib.mkContainerImage {
   name = "sober-glaucidium";
   harden = true;
   observability = {
-    lokiUrl = "https://logs-prod-042.grafana.net/loki/api/v1/push";
+    lokiUrl = "https://logs-prod-042.grafana.net";
     prometheusUrl = "https://prometheus-prod-66-prod-us-east-3.grafana.net/api/prom/push";
     apiKeyFile = "/run/secrets/grafana_api_key";
   };
