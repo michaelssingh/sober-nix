@@ -15,9 +15,9 @@ primary_region = "ewr"
 
 [[services]]
   protocol = "tcp"
-  internal_port = 6697
+  internal_port = 6667
   [[services.ports]]
-    port = 6697
+    port = 6667
 
 [[services]]
   protocol = "tcp"
