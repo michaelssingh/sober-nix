@@ -145,13 +145,13 @@ soberLib.mkContainerImage {
 
     # Regenerate config to ensure fresh registration/token compatibility
     ${pkgs.heisenbridge}/bin/heisenbridge \
-        -c /data/heisenbridge/config.yaml \
+        -c /data/heisenbridge/registration.yaml \
         --generate-compat \
         -l 127.0.0.1 -p 6668 \
         http://localhost:6167 || true
         
     ${pkgs.heisenbridge}/bin/heisenbridge \
-        -c /data/heisenbridge/config.yaml \
+        -c /data/heisenbridge/registration.yaml \
         -l 127.0.0.1 -p 6668 \
         http://localhost:6167 &
 
