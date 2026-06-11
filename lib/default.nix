@@ -1,11 +1,11 @@
 { pkgs }:
-
 {
   mkContainerImage =
     {
       name,
       tag ? "latest",
       packages ? [ ],
+      observability ? null,
       extraContents ? [ ],
       entrypoint,
       exposedPorts ? { },
@@ -29,7 +29,34 @@
         shellPkg
         pkgs.cacert
       ]
-      ++ (if harden then [ ] else [ pkgs.coreutils ]);
+      ++ (if harden then [ ] else [ pkgs.coreutils ])
+      ++ (pkgs.lib.optional (observability != null) pkgs.vector);
+
+      # Vector configuration
+      vectorConfig =
+        if observability != null then
+          pkgs.writeText "vector.toml" ''
+            [sources.logs]
+            type = "file"
+            include = ["/var/log/**/*.log"]
+
+            [sinks.grafana_loki]
+            type = "loki"
+            inputs = ["logs"]
+            endpoint = "${observability.lokiUrl}"
+            auth.strategy = "basic"
+            auth.user = "any"
+            auth.password = "$(cat ${observability.apiKeyFile})"
+          ''
+        else
+          null;
+
+      # Setup wrapper script
+      entrypointScript = pkgs.writeShellScriptBin "entrypoint" ''
+        set -e
+        ${if vectorConfig != null then "${pkgs.vector}/bin/vector --config ${vectorConfig} &" else ""}
+        ${entrypoint}
+      '';
 
       # Write files avoiding formatting line-break issues
       passwdContent = ''
@@ -79,12 +106,6 @@
         name = "${name}-env-layer";
         paths = envDerivations;
       };
-
-      # Setup wrapper script
-      entrypointScript = pkgs.writeShellScriptBin "entrypoint" ''
-        set -e
-        ${entrypoint}
-      '';
 
       standardEnv = {
         PATH = pkgs.lib.makeBinPath (
