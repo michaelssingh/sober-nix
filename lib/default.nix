@@ -102,6 +102,10 @@
       # Setup wrapper script
       entrypointScript = pkgs.writeShellScriptBin "entrypoint" ''
         set -e
+        # Set container hostname to the configured image name
+        echo "${name}" > /etc/hostname
+        ${pkgs.hostname}/bin/hostname -F /etc/hostname || echo "⚠️ Could not set hostname"
+
         echo "=== Starting Container: ${name} ==="
         echo "Included Packages:"
         ${pkgs.lib.concatMapStringsSep "\n" (p: "echo \"  - ${p.name or "unknown"}\"") packages}
