@@ -57,7 +57,8 @@
 
             [sources.host_metrics]
             type = "host_metrics"
-            scrape_cgroups = false
+            [sources.host_metrics.cgroups]
+            enabled = false
 
             [sinks.grafana_loki]
             type = "loki"
