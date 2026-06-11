@@ -51,11 +51,18 @@ let
     allow_federation = false
     max_request_size = 20971520
     log = "warn"
+    appservice_registration = "/var/lib/soju/mautrix-googlechat/registration.yaml"
+    appservice_registration = "/var/lib/soju/heisenbridge/registration.yaml"
   '';
 in
 soberLib.mkContainerImage {
   name = "sober-athene";
   harden = false; # Needed to run multiple background services and dynamic commands
+  observability = {
+    lokiUrl = "https://logs-prod-042.grafana.net/loki/api/v1/push";
+    prometheusUrl = "https://prometheus-prod-66-prod-us-east-3.grafana.net/api/prom/push";
+    apiKeyFile = "/run/secrets/grafana_api_key";
+  };
   packages = [
     pkgs.soju
     unstable.matrix-conduit
@@ -126,9 +133,16 @@ soberLib.mkContainerImage {
     # 3. Start heisenbridge gateway in the background
     echo "Starting heisenbridge..."
     ${pkgs.coreutils}/bin/mkdir -p /var/lib/soju/heisenbridge
+
+    # Regenerate config to ensure fresh registration/token compatibility
     ${pkgs.heisenbridge}/bin/heisenbridge \
         -c /var/lib/soju/heisenbridge/config.yaml \
         --generate-compat \
+        -l 127.0.0.1 -p 6668 \
+        http://localhost:6167
+        
+    ${pkgs.heisenbridge}/bin/heisenbridge \
+        -c /var/lib/soju/heisenbridge/config.yaml \
         -l 127.0.0.1 -p 6668 \
         http://localhost:6167 &
 
