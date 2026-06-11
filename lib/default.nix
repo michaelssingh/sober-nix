@@ -64,6 +64,7 @@
             strategy = "basic"
             user = "any"
             password = "$GRAFANA_API_KEY"
+
             [sinks.grafana_prometheus]
             type = "prometheus_remote_write"
             inputs = ["host_metrics"]
@@ -77,10 +78,22 @@
         else
           null;
 
+      # Create a derivation that puts the config in /etc/vector/vector.toml
+      vectorConfigDerivation =
+        if vectorConfig != null then
+          pkgs.runCommand "vector-config" { } ''
+            mkdir -p $out/etc/vector
+            cp ${vectorConfig} $out/etc/vector/vector.toml
+          ''
+        else
+          null;
+
       # Setup wrapper script
       entrypointScript = pkgs.writeShellScriptBin "entrypoint" ''
         set -e
-        ${if vectorConfig != null then "${pkgs.vector}/bin/vector --config ${vectorConfig} &" else ""}
+        ${
+          if vectorConfig != null then "${pkgs.vector}/bin/vector --config /etc/vector/vector.toml &" else ""
+        }
         ${entrypoint}
       '';
 
@@ -154,6 +167,7 @@
           envLayer
           entrypointScript
         ]
+        ++ (pkgs.lib.optional (vectorConfigDerivation != null) vectorConfigDerivation)
         ++ packages
         ++ extraContents;
 
