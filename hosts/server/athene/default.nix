@@ -16,8 +16,6 @@ let
     };
   };
 
-  matrirc = pkgs.callPackage ../../../packages/matrirc { };
-
   mautrix-googlechat =
     (unstable.mautrix-googlechat.override {
       python3 = unstable.python312;
@@ -62,7 +60,7 @@ soberLib.mkContainerImage {
     pkgs.soju
     unstable.matrix-conduit
     mautrix-googlechat
-    matrirc
+    pkgs.heisenbridge
     pkgs.yq-go
     pkgs.sqlite
     pkgs.curl
@@ -83,7 +81,6 @@ soberLib.mkContainerImage {
     ${pkgs.coreutils}/bin/mkdir -p /var/lib/soju/uploads
     ${pkgs.coreutils}/bin/mkdir -p /var/lib/soju/conduit
     ${pkgs.coreutils}/bin/mkdir -p /var/lib/soju/mautrix-googlechat
-    ${pkgs.coreutils}/bin/mkdir -p /var/lib/soju/matrirc
 
     # Symlink config to default path so that sojuctl/sojudb default configurations work
     ${pkgs.coreutils}/bin/mkdir -p /etc/soju
@@ -126,12 +123,14 @@ soberLib.mkContainerImage {
     echo "Starting mautrix-googlechat bridge..."
     ${mautrix-googlechat}/bin/mautrix-googlechat -c /var/lib/soju/mautrix-googlechat/config.yaml &
 
-    # 3. Start matrirc gateway in the background
-    echo "Starting matrirc..."
-    ${matrirc}/bin/matrirc \
-        -l 127.0.0.1:6668 \
-        --allow-register \
-        --state-dir /var/lib/soju/matrirc &
+    # 3. Start heisenbridge gateway in the background
+    echo "Starting heisenbridge..."
+    ${pkgs.coreutils}/bin/mkdir -p /var/lib/soju/heisenbridge
+    ${pkgs.heisenbridge}/bin/heisenbridge \
+        -c /var/lib/soju/heisenbridge/config.yaml \
+        --generate-compat \
+        -l 127.0.0.1 -p 6668 \
+        http://localhost:6167 &
 
     # Wait a few seconds for background services to initialize
     sleep 3
