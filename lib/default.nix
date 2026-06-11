@@ -57,8 +57,7 @@
 
             [sources.host_metrics]
             type = "host_metrics"
-            [sources.host_metrics.cgroups]
-            enabled = false
+            collectors = ["cpu", "memory", "network", "filesystem", "load", "host"]
 
             [sinks.grafana_loki]
             type = "loki"
@@ -72,7 +71,7 @@
             [sinks.grafana_loki.auth]
             strategy = "basic"
             user = "1644516"
-            password = "$GRAFANA_API_KEY"
+            password = "''${GRAFANA_API_KEY}"
 
             [sinks.grafana_prometheus]
             type = "prometheus_remote_write"
@@ -83,7 +82,7 @@
             [sinks.grafana_prometheus.auth]
             strategy = "basic"
             user = "3297682"
-            password = "$GRAFANA_API_KEY"
+            password = "''${GRAFANA_API_KEY}"
           ''
         else
           null;
