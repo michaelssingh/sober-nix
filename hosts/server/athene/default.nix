@@ -113,7 +113,8 @@ soberLib.mkContainerImage {
           .encryption.default = false |
           del(.bridge.permissions) |
           .bridge.permissions["sober.fyi"] = "user" |
-          .bridge.permissions["@init:sober.fyi"] = "admin"
+          .bridge.permissions["@init:sober.fyi"] = "admin" |
+          .bridge.permissions["@googlechatbot:sober.fyi"] = "admin"
         ' /var/lib/soju/mautrix-googlechat/config.yaml
 
         echo "Generating appservice registration file..."
