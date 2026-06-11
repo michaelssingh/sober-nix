@@ -83,6 +83,7 @@
       };
 
       packages."x86_64-linux" = {
+        appservice-mgr = pkgs.callPackage ./tools/appservice-mgr { };
         tyto = pkgs.callPackage ./packages/tyto { };
         goanime = pkgs.callPackage ./packages/goanime { };
         antigravity = pkgs.callPackage ./packages/antigravity { };
@@ -136,6 +137,7 @@
           iproute2 # Networking
           go # Go programming language
           gopls # Go language server
+          nodejs # Node.js and npm for package management
 
           tcpdump # Packet capture
           nmap # Network audit
@@ -150,6 +152,7 @@
           pre-commit # Git hooks framework
           deadnix # Find dead Nix code
           statix # Lints and suggestions for Nix code
+          rocksdb
         ];
       };
     };
