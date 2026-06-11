@@ -97,16 +97,13 @@ soberLib.mkContainerImage {
     ${pkgs.coreutils}/bin/mkdir -p /data/uploads
     ${pkgs.coreutils}/bin/mkdir -p /data/conduit
     ${pkgs.coreutils}/bin/mkdir -p /data/mautrix-googlechat
+    ${pkgs.coreutils}/bin/mkdir -p /data/heisenbridge
 
     # Symlink config to default path so that sojuctl/sojudb default configurations work
     ${pkgs.coreutils}/bin/mkdir -p /etc/soju
     ${pkgs.coreutils}/bin/ln -sf ${sojuConfig} /etc/soju/config
 
-    # 1. Start Conduit Matrix homeserver in the background
-    echo "Starting Conduit homeserver..."
-    CONDUIT_CONFIG=${conduitConfig} ${unstable.matrix-conduit}/bin/conduit &
-
-    # 2. Setup and start mautrix-googlechat bridge in the background
+    # 1. Setup mautrix-googlechat configuration if missing
     if [ ! -f /data/mautrix-googlechat/config.yaml ]; then
         echo "Initializing mautrix-googlechat configuration..."
         cp ${mautrix-googlechat}/share/mautrix-googlechat/example-config.yaml /data/mautrix-googlechat/config.yaml
@@ -119,7 +116,7 @@ soberLib.mkContainerImage {
           .appservice.address = "http://localhost:29318" |
           .appservice.hostname = "127.0.0.1" |
           .appservice.port = 29318 |
-          .appservice.database = "sqlite:///data/mautrix-googlechat/mautrix-googlechat.db" |
+          .database = "sqlite:///data/mautrix-googlechat/mautrix-googlechat.db" |
           .appservice.namespaces.users[0].regex = "@googlechat_.*:sober\\.fyi" |
           .appservice.namespaces.users[1].regex = "@googlechatbot:sober\\.fyi" |
           .encryption.allow = false |
@@ -129,27 +126,35 @@ soberLib.mkContainerImage {
           .bridge.permissions["@init:sober.fyi"] = "admin" |
           .bridge.permissions["@googlechatbot:sober.fyi"] = "admin"
         ' /data/mautrix-googlechat/config.yaml
-
-        echo "Generating appservice registration file..."
-        ${mautrix-googlechat}/bin/mautrix-googlechat -g \
-          -c /data/mautrix-googlechat/config.yaml \
-          -r /data/mautrix-googlechat/registration.yaml
     fi
 
+    # 2. Pre-generate registration files so Conduit can load them on boot
+    if [ ! -f /data/mautrix-googlechat/registration.yaml ]; then
+        echo "Generating mautrix-googlechat appservice registration file..."
+        ${mautrix-googlechat}/bin/mautrix-googlechat -g \
+           -c /data/mautrix-googlechat/config.yaml \
+           -r /data/mautrix-googlechat/registration.yaml
+    fi
+
+    if [ ! -f /data/heisenbridge/registration.yaml ]; then
+        echo "Generating heisenbridge appservice registration file..."
+        ${pkgs.heisenbridge}/bin/heisenbridge \
+            -c /data/heisenbridge/registration.yaml \
+            --generate-compat \
+            -l 127.0.0.1 -p 6668 \
+            http://localhost:6167
+    fi
+
+    # 3. Start Conduit Matrix homeserver in the background
+    echo "Starting Conduit homeserver..."
+    CONDUIT_CONFIG=${conduitConfig} ${unstable.matrix-conduit}/bin/conduit &
+
+    # 4. Start mautrix-googlechat bridge in the background
     echo "Starting mautrix-googlechat bridge..."
     ${mautrix-googlechat}/bin/mautrix-googlechat -c /data/mautrix-googlechat/config.yaml &
 
-    # 3. Start heisenbridge gateway in the background
+    # 5. Start heisenbridge gateway in the background
     echo "Starting heisenbridge..."
-    ${pkgs.coreutils}/bin/mkdir -p /data/heisenbridge
-
-    # Regenerate config to ensure fresh registration/token compatibility
-    ${pkgs.heisenbridge}/bin/heisenbridge \
-        -c /data/heisenbridge/registration.yaml \
-        --generate-compat \
-        -l 127.0.0.1 -p 6668 \
-        http://localhost:6167 || true
-        
     ${pkgs.heisenbridge}/bin/heisenbridge \
         -c /data/heisenbridge/registration.yaml \
         -l 127.0.0.1 -p 6668 \
@@ -158,7 +163,7 @@ soberLib.mkContainerImage {
     # Wait a few seconds for background services to initialize
     sleep 3
 
-    # 4. Execute Soju bouncer in the foreground
+    # 6. Execute Soju bouncer in the foreground
     echo "Starting Soju IRC bouncer..."
     exec ${pkgs.soju}/bin/soju -config ${sojuConfig}
   '';
