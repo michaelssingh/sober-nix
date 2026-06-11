@@ -10,6 +10,7 @@ in
   sops.secrets.soju_password = { };
 
   home.packages = [
+    # matrix-rs can stay here, but we will reference its output directly for the plugin
     pkgs.weechat-matrix-rs
     (pkgs.weechat.override {
       configure = { availablePlugins, ... }: {
@@ -22,29 +23,32 @@ in
     })
   ];
 
-  xdg.configFile."weechat/python/autoload/soju.py".source = pkgs.fetchurl {
+  # FIX 1: Shift scripts from xdg.configFile (~/.config) to xdg.dataFile (~/.local/share)
+  xdg.dataFile."weechat/python/autoload/soju.py".source = pkgs.fetchurl {
     url = "https://raw.githubusercontent.com/weechat/scripts/master/python/soju.py";
     sha256 = "0lbsm6qcks7ispi3drp5qcj2ixkzlaq83fq474mxw7cbylxjg9kl";
   };
 
-  xdg.configFile."weechat/python/autoload/read_marker.py".source = pkgs.fetchurl {
+  xdg.dataFile."weechat/python/autoload/read_marker.py".source = pkgs.fetchurl {
     url = "https://raw.githubusercontent.com/weechat/scripts/master/python/read_marker.py";
     sha256 = "0dc0q61m7kb39nj3igy2fml011x1lwv967z298cqa2ky9zqdcz3c";
   };
 
-  xdg.configFile."weechat/python/autoload/colorize_nicks.py".source = pkgs.fetchurl {
+  xdg.dataFile."weechat/python/autoload/colorize_nicks.py".source = pkgs.fetchurl {
     url = "https://raw.githubusercontent.com/weechat/scripts/master/python/colorize_nicks.py";
     sha256 = "1zkv0bgkaxp36q5iqyniilg0d0xlvl6qbfm6nibk4w583lny7jwd";
   };
 
-  xdg.configFile."weechat/perl/autoload/colorize_lines.pl".source = pkgs.fetchurl {
+  xdg.dataFile."weechat/perl/autoload/colorize_lines.pl".source = pkgs.fetchurl {
     url = "https://raw.githubusercontent.com/weechat/scripts/master/perl/colorize_lines.pl";
     sha256 = "062fzrfi8r0d2h3nvxmdkjkkf7mnjpwgsywiyyhl562dh18gn3iv";
   };
 
-  xdg.configFile."weechat/plugins/matrix.so".source =
+  # FIX 2: Move the binary plugin to xdg.dataFile and rename it to match the expected name
+  xdg.dataFile."weechat/plugins/matrix-rust.so".source =
     "${pkgs.weechat-matrix-rs}/lib/weechat/plugins/matrix.so";
 
+  # --- Configurations stay in xdg.configFile (~/.config) ---
   xdg.configFile."weechat/irc.conf".text = ''
     [server_default]
     autojoin = ""
@@ -52,12 +56,13 @@ in
 
     [server]
     soju.addresses = "sober-athene.flycast/6697"
-    soju.username = "init @weechat"
+    soju.username = "init@weechat"
     soju.password = "pineapple"
-    soju.sasl_username = "init @weechat"
+    soju.sasl_username = "init@weechat"
     soju.sasl_password = "pineapple"
     soju.autoconnect = on
     soju.tls = off
+    soju.nicks = "init"
   '';
 
   xdg.configFile."weechat/matrix-rust.conf".text = ''
@@ -99,7 +104,7 @@ in
     chat_prefix_suffix = ${colors.comment}
     chat_buffer = ${colors.cyan}
     chat_channel = ${colors.cyan}
-    chat_nick_colors = "${colors.red},${colors.orange},${colors.yellow},${colors.green1},${colors.cyan},${colors.blue},${colors.magenta},${colors.magenta2},${colors.teal},${colors.pink}"
+    chat_nick_colors = ${colors.red},${colors.orange},${colors.yellow},${colors.green1},${colors.cyan},${colors.blue},${colors.magenta},${colors.magenta2},${colors.teal},${colors.pink}
 
     [bar]
     status.color_bg = ${colors.bg_dark}
@@ -107,6 +112,7 @@ in
     title.color_bg = ${colors.bg_dark}
     title.color_fg = ${colors.fg}
   '';
+
   # --- Official Tokyo Night Styleset (Ref: extras/aerc/tokyonight_*.ini) ---
   xdg.configFile."aerc/stylesets/tokyonight.ini".text = ''
     *.default=true
