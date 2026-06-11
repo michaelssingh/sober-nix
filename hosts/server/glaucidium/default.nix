@@ -24,7 +24,6 @@ soberLib.mkContainerImage {
     pkgs.iproute2
     pkgs.iptables-legacy
     pkgs.procps
-    pkgs.hostname
   ];
   users = {
     sshd = {
@@ -39,8 +38,7 @@ soberLib.mkContainerImage {
     "51820/udp" = { };
   };
   entrypoint = ''
-    echo "glaucidium" > /etc/hostname
-    hostname -F /etc/hostname || echo "⚠️ Could not set hostname"
+
 
     # Set up kernel tun interface
     ${pkgs.coreutils}/bin/mkdir -p /var/empty
