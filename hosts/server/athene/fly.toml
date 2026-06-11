@@ -6,7 +6,7 @@ primary_region = "ewr"
 
 [mounts]
   source = "nix_data"
-  destination = "/var/lib/soju"
+  destination = "/data"
 
 [vm]
   cpu_kind = "shared"

@@ -98,6 +98,12 @@
       # Setup wrapper script
       entrypointScript = pkgs.writeShellScriptBin "entrypoint" ''
         set -e
+        echo "=== Starting Container: ${name} ==="
+        echo "Included Packages:"
+        ${pkgs.lib.concatMapStringsSep "\n" (p: "echo \"  - ${p.name or "unknown"}\"") packages}
+        ${pkgs.lib.optionalString (observability != null) "echo \"  - ${vectorPkg.name or "vector"}\""}
+        echo "=================================="
+
         ${
           if vectorConfig != null then
             "mkdir -p /tmp/vector && ${vectorPkg}/bin/vector --config /etc/vector/vector.toml &"
