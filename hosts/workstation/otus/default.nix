@@ -23,7 +23,7 @@
   # --- ENABLE FEATURES ---
   # Remote Nix Builders
   sober.services.nix-remote-builder.enable = false;
-  sober.services.wg-sober.debugMode = true; # Enable debug mode for safer VPN debugging
+  sober.services.wg-sober.debugMode = false; # Enable debug mode for safer VPN debugging
 
   # Transmission
   services.transmission.enable = true;
