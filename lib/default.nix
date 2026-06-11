@@ -49,6 +49,8 @@
       vectorConfig =
         if observability != null then
           pkgs.writeText "vector.toml" ''
+            data_dir = "/tmp/vector"
+
             [sources.logs]
             type = "file"
             include = ["/var/log/**/*.log"]
@@ -96,7 +98,12 @@
       # Setup wrapper script
       entrypointScript = pkgs.writeShellScriptBin "entrypoint" ''
         set -e
-        ${if vectorConfig != null then "${vectorPkg}/bin/vector --config /etc/vector/vector.toml &" else ""}
+        ${
+          if vectorConfig != null then
+            "mkdir -p /tmp/vector && ${vectorPkg}/bin/vector --config /etc/vector/vector.toml &"
+          else
+            ""
+        }
         ${entrypoint}
       '';
 
