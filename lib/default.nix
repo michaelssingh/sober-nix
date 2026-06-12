@@ -54,24 +54,13 @@
 
             [sources.logs]
             type = "file"
-            include = ["/var/log/*.log", "/data/conduit/LOG"]
+            include = ["/var/log/*.log"]
             fingerprint.strategy = "device_and_inode"
 
             [transforms.tag_logs]
             type = "remap"
             inputs = ["logs"]
-            source = '''
-            if starts_with(string!(.file), "/data/conduit/") {
-              .service = "conduit"
-            } else {
-              m, err = parse_regex(string!(.file), r'/var/log/(?P<service>[^/]+)\.log$')
-              if err == null {
-                .service = m.service
-              } else {
-                .service = "unknown"
-              }
-            }
-            '''
+            source = "m, err = parse_regex(.file, r'/var/log/(?P<service>[^/]+)\\.log$')\nif err == null { .service = m.service }"
 
             [sources.host_metrics]
             type = "host_metrics"
