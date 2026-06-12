@@ -158,18 +158,18 @@ soberLib.mkContainerImage {
 
     # 3. Start Conduit Matrix homeserver in the background
     echo "Starting Conduit homeserver..."
-    CONDUIT_CONFIG=${conduitConfig} ${unstable.matrix-conduit}/bin/conduit > /var/log/conduit.log 2>&1 &
+    CONDUIT_CONFIG=${conduitConfig} ${unstable.matrix-conduit}/bin/conduit 2>&1 | tee -a /var/log/conduit.log &
 
     # Wait a few seconds for Conduit to initialize its API
     sleep 5
 
     # 4. Perform automatic appservice registration via the Go tool
     echo "Running appservice-mgr to register bridges with Conduit..."
-    appservice-mgr /data > /var/log/appservice-mgr.log 2>&1
+    appservice-mgr /data 2>&1 | tee -a /var/log/appservice-mgr.log
 
     # 5. Start mautrix-googlechat bridge in the background
     echo "Starting mautrix-googlechat bridge..."
-    ${mautrix-googlechat}/bin/mautrix-googlechat -c /data/mautrix-googlechat/config.yaml > /var/log/mautrix.log 2>&1 &
+    ${mautrix-googlechat}/bin/mautrix-googlechat -c /data/mautrix-googlechat/config.yaml 2>&1 | tee -a /var/log/mautrix.log &
 
     # 6. Start heisenbridge gateway in the background
     ${pkgs.lib.optionalString enableHeisenbridge ''
@@ -178,7 +178,7 @@ soberLib.mkContainerImage {
           -v \
           -c /data/heisenbridge/registration.yaml \
           -l 127.0.0.1 -p 6668 \
-          http://localhost:6167 > /var/log/heisenbridge.log 2>&1 &
+          http://localhost:6167 2>&1 | tee -a /var/log/heisenbridge.log &
     ''}
 
     # Wait a few seconds for background services to initialize
@@ -186,6 +186,6 @@ soberLib.mkContainerImage {
 
     # 7. Execute Soju bouncer in the foreground
     echo "Starting Soju IRC bouncer..."
-    exec ${pkgs.soju}/bin/soju -config ${sojuConfig} > /var/log/soju.log 2>&1
+    exec ${pkgs.soju}/bin/soju -config ${sojuConfig} 2>&1 | tee -a /var/log/soju.log
   '';
 }
