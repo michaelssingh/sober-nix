@@ -139,12 +139,28 @@ in
     newnet.tls = off
   '';
 
-  xdg.configFile."weechat/matrix.conf".text = ''
+  xdg.configFile."weechat/matrix-rust.conf".text = ''
+    [look]
+    busy_sign = "⏳"
+    encrypted_room_sign = "🔒"
+    encryption_warning_sign = "❗"
+    local_echo = on
+    public_room_sign = "🌍"
+    redaction_style = strike-through
+    server_buffer = merge-with-core
+
+    [network]
+    debug_buffer = off
+
+    [input]
+    markdown_input = on
+
     [server]
-    athene.address = "http://sober-athene.flycast:6167"
+    athene.homeserver = "http://sober-athene.flycast:6167"
     athene.username = "init"
     athene.password = "''${sec.data.soju}"
     athene.autoconnect = on
+    athene.ssl_verify = off
   '';
 
   xdg.configFile."weechat/weechat.conf".text = ''
