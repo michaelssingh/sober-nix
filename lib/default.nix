@@ -60,7 +60,7 @@
             [transforms.tag_logs]
             type = "remap"
             inputs = ["logs"]
-            source = """
+            source = '''
             if starts_with(string!(.file), "/data/conduit/") {
               .service = "conduit"
             } else {
@@ -71,7 +71,7 @@
                 .service = "unknown"
               }
             }
-            """
+            '''
 
             [sources.host_metrics]
             type = "host_metrics"
