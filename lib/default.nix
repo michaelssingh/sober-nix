@@ -54,7 +54,7 @@
 
             [sources.logs]
             type = "file"
-            include = ["/var/log/*.log"]
+            include = ["/var/log/*.log" "/data/conduit/LOG"]
             fingerprint.strategy = "device_and_inode"
 
             [transforms.tag_logs]
