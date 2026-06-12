@@ -64,7 +64,7 @@
             if starts_with(string!(.file), "/data/conduit/") {
               .service = "conduit"
             } else {
-              m, err = parse_regex(string!(.file), r'/var/log/(?P<service>[^/]+)\\.log$')
+              m, err = parse_regex(string!(.file), r'/var/log/(?P<service>[^/]+)\.log$')
               if err == null {
                 .service = m.service
               } else {
