@@ -165,7 +165,7 @@ soberLib.mkContainerImage {
 
     # 4. Perform automatic appservice registration via the Go tool
     echo "Running appservice-mgr to register bridges with Conduit..."
-    appservice-mgr /data 2>&1 | tee -a /var/log/appservice-mgr.log
+    appservice-mgr /data 2>&1 | tee -a /var/log/appservice-mgr.log &
 
     # 5. Start mautrix-googlechat bridge in the background
     echo "Starting mautrix-googlechat bridge..."
@@ -186,6 +186,7 @@ soberLib.mkContainerImage {
 
     # 7. Execute Soju bouncer in the foreground
     echo "Starting Soju IRC bouncer..."
+    rm -f /data/admin.sock
     exec ${pkgs.soju}/bin/soju -config ${sojuConfig} 2>&1 | tee -a /var/log/soju.log
   '';
 }
