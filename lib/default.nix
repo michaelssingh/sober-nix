@@ -60,7 +60,18 @@
             [transforms.tag_logs]
             type = "remap"
             inputs = ["logs"]
-            source = "if starts_with(to_string(.file), \"/data/conduit/\") {\n  .service = \"conduit\"\n} else {\n  m, err = parse_regex(to_string(.file), r'/var/log/(?P<service>[^/]+)\\.log$')\n  if err == null { .service = m.service }\n}"
+            source = """
+            if starts_with(string!(.file), "/data/conduit/") {
+              .service = "conduit"
+            } else {
+              m, err = parse_regex(string!(.file), r'/var/log/(?P<service>[^/]+)\\.log$')
+              if err == null {
+                .service = m.service
+              } else {
+                .service = "unknown"
+              }
+            }
+            """
 
             [sources.host_metrics]
             type = "host_metrics"
