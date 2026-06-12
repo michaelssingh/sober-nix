@@ -54,7 +54,16 @@
 
             [sources.logs]
             type = "file"
-            include = ["/var/log/**/*.log"]
+            include = ["/var/log/*.log"]
+
+            [transforms.tag_logs]
+            type = "remap"
+            inputs = ["logs"]
+            source = '''
+              # Extract service name from filename (e.g., /var/log/soju.log -> soju)
+              service = parse_regex!(.file, r'/var/log/(?P<service>.*)\.log')
+              .service = service.service
+            '''
 
             [sources.host_metrics]
             type = "host_metrics"
@@ -62,7 +71,7 @@
 
             [sinks.grafana_loki]
             type = "loki"
-            inputs = ["logs"]
+            inputs = ["tag_logs"]
             endpoint = "${observability.lokiUrl}"
             labels.app = "${name}"
             healthcheck.enabled = false
@@ -130,10 +139,7 @@
               fi
 
               # Start Vector in the background (its own logs will bypass redirection to avoid loops)
-              ${vectorPkg}/bin/vector --config /tmp/vector.toml &
-
-              # Redirect stdout & stderr of the container to a log file for Vector, while still printing to stdout & stderr
-              exec > >(tee -a /var/log/container.log) 2>&1
+              ${vectorPkg}/bin/vector --config /tmp/vector.toml > /var/log/vector.log 2>&1 &
             ''
           else
             ""

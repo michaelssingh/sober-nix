@@ -6,6 +6,8 @@
 }:
 
 let
+  enableHeisenbridge = false; # Toggle this to enable/disable
+
   unstable = import inputs.nixpkgs-unstable {
     system = pkgs.stdenv.hostPlatform.system;
     config = {
@@ -64,7 +66,7 @@ let
     allow_federation = false
     max_request_size = 20971520
     log = "warn"
-    appservice_registration = ["/data/mautrix-googlechat/registration.yaml", "/data/heisenbridge/registration.yaml"]
+    appservice_registration = ["/data/mautrix-googlechat/registration.yaml" ${pkgs.lib.optionalString enableHeisenbridge ", \"/data/heisenbridge/registration.yaml\""}]
   '';
 in
 soberLib.mkContainerImage {
@@ -80,14 +82,14 @@ soberLib.mkContainerImage {
     pkgs.soju
     unstable.matrix-conduit
     mautrix-googlechat
-    pkgs.heisenbridge
-    inputs.self.packages.${pkgs.stdenv.hostPlatform.system}.appservice-mgr
     pkgs.curl
     pkgs.jq
     pkgs.binutils
     pkgs.gnugrep
     pkgs.gnutar
-  ];
+  ]
+  ++ pkgs.lib.optional enableHeisenbridge pkgs.heisenbridge
+  ++ [ inputs.self.packages.${pkgs.stdenv.hostPlatform.system}.appservice-mgr ];
   exposedPorts = {
     "6667/tcp" = { };
     "8080/tcp" = { };
@@ -103,7 +105,7 @@ soberLib.mkContainerImage {
     ${pkgs.coreutils}/bin/mkdir -p /data/uploads
     ${pkgs.coreutils}/bin/mkdir -p /data/conduit
     ${pkgs.coreutils}/bin/mkdir -p /data/mautrix-googlechat
-    ${pkgs.coreutils}/bin/mkdir -p /data/heisenbridge
+    ${pkgs.lib.optionalString enableHeisenbridge "${pkgs.coreutils}/bin/mkdir -p /data/heisenbridge"}
 
     # Symlink config to default path so that sojuctl/sojudb default configurations work
     ${pkgs.coreutils}/bin/mkdir -p /etc/soju
@@ -143,43 +145,47 @@ soberLib.mkContainerImage {
            -r /data/mautrix-googlechat/registration.yaml
     fi
 
-    if [ ! -f /data/heisenbridge/registration.yaml ]; then
-        echo "Generating heisenbridge appservice registration file..."
-        ${pkgs.heisenbridge}/bin/heisenbridge \
-            -c /data/heisenbridge/registration.yaml \
-            --generate-compat \
-            -l 127.0.0.1 -p 6668 \
-            http://localhost:6167
-    fi
+    ${pkgs.lib.optionalString enableHeisenbridge ''
+      if [ ! -f /data/heisenbridge/registration.yaml ]; then
+          echo "Generating heisenbridge appservice registration file..."
+          ${pkgs.heisenbridge}/bin/heisenbridge \
+              -c /data/heisenbridge/registration.yaml \
+              --generate-compat \
+              -l 127.0.0.1 -p 6668 \
+              http://localhost:6167
+      fi
+    ''}
 
     # 3. Start Conduit Matrix homeserver in the background
     echo "Starting Conduit homeserver..."
-    CONDUIT_CONFIG=${conduitConfig} ${unstable.matrix-conduit}/bin/conduit &
+    CONDUIT_CONFIG=${conduitConfig} ${unstable.matrix-conduit}/bin/conduit > /var/log/conduit.log 2>&1 &
 
     # Wait a few seconds for Conduit to initialize its API
     sleep 5
 
     # 4. Perform automatic appservice registration via the Go tool
     echo "Running appservice-mgr to register bridges with Conduit..."
-    appservice-mgr /data
+    appservice-mgr /data > /var/log/appservice-mgr.log 2>&1
 
     # 5. Start mautrix-googlechat bridge in the background
     echo "Starting mautrix-googlechat bridge..."
-    ${mautrix-googlechat}/bin/mautrix-googlechat -c /data/mautrix-googlechat/config.yaml &
+    ${mautrix-googlechat}/bin/mautrix-googlechat -c /data/mautrix-googlechat/config.yaml > /var/log/mautrix.log 2>&1 &
 
     # 6. Start heisenbridge gateway in the background
-    echo "Starting heisenbridge..."
-    ${pkgs.heisenbridge}/bin/heisenbridge \
-        -v \
-        -c /data/heisenbridge/registration.yaml \
-        -l 127.0.0.1 -p 6668 \
-        http://localhost:6167 &
+    ${pkgs.lib.optionalString enableHeisenbridge ''
+      echo "Starting heisenbridge..."
+      ${pkgs.heisenbridge}/bin/heisenbridge \
+          -v \
+          -c /data/heisenbridge/registration.yaml \
+          -l 127.0.0.1 -p 6668 \
+          http://localhost:6167 > /var/log/heisenbridge.log 2>&1 &
+    ''}
 
     # Wait a few seconds for background services to initialize
     sleep 3
 
     # 7. Execute Soju bouncer in the foreground
     echo "Starting Soju IRC bouncer..."
-    exec ${pkgs.soju}/bin/soju -config ${sojuConfig}
+    exec ${pkgs.soju}/bin/soju -config ${sojuConfig} > /var/log/soju.log 2>&1
   '';
 }
