@@ -61,8 +61,8 @@
             inputs = ["logs"]
             source = '''
               # Extract service name from filename (e.g., /var/log/soju.log -> soju)
-              service = parse_regex!(.file, r'/var/log/(?P<service>.*)\.log')
-              .service = service.service
+              m = parse_regex!(.file, r'/var/log/(?P<service>.*)\.log')
+              .service = m.service
             '''
 
             [sources.host_metrics]
@@ -138,8 +138,8 @@
                 cp /etc/vector/vector.toml /tmp/vector.toml
               fi
 
-              # Start Vector in the background (its own logs will bypass redirection to avoid loops)
-              ${vectorPkg}/bin/vector --config /tmp/vector.toml > /var/log/vector.log 2>&1 &
+              # Start Vector in the background (its own logs go to stdout/stderr so they are visible via flyctl logs)
+              ${vectorPkg}/bin/vector --config /tmp/vector.toml &
             ''
           else
             ""
