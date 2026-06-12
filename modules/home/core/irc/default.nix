@@ -30,12 +30,10 @@ in
           perl
           lua
         ];
-        extraPackages = [
-          pkgs.aspell
-          pkgs.aspellDicts.en
-        ];
       };
     })
+    pkgs.aspell
+    pkgs.aspellDicts.en
   ];
 
   xdg.configFile."weechat/spell.conf".text = ''

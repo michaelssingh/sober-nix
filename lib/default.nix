@@ -55,15 +55,12 @@
             [sources.logs]
             type = "file"
             include = ["/var/log/*.log"]
+            fingerprint.strategy = "device_and_inode"
 
             [transforms.tag_logs]
             type = "remap"
             inputs = ["logs"]
-            source = '''
-              # Extract service name from filename (e.g., /var/log/soju.log -> soju)
-              m = parse_regex!(.file, r'/var/log/(?P<service>.*)\.log')
-              .service = m.service
-            '''
+            source = "m, err = parse_regex(.file, r'/var/log/(?P<service>[^/]+)\\.log$')\nif err == null { .service = m.service }"
 
             [sources.host_metrics]
             type = "host_metrics"
@@ -124,22 +121,22 @@
         ${
           if vectorConfig != null then
             ''
-              # Create directories for Vector and logs
-              mkdir -p /tmp/vector
-              mkdir -p /var/log
+               # Create directories for Vector and logs
+               mkdir -p /tmp/vector
+               mkdir -p /var/log
 
-              # Generate runtime Vector config with the API key injected directly
-              if [ -n "''$GRAFANA_API_KEY" ]; then
-                while IFS= read -r line || [ -n "''$line" ]; do
-                  modified_line="''${line//\''${GRAFANA_API_KEY\}/''$GRAFANA_API_KEY}"
-                  echo "''$modified_line"
-                done < /etc/vector/vector.toml > /tmp/vector.toml
-              else
-                cp /etc/vector/vector.toml /tmp/vector.toml
-              fi
+               # Generate runtime Vector config with the API key injected directly
+               if [ -n "''$GRAFANA_API_KEY" ]; then
+                 while IFS= read -r line || [ -n "''$line" ]; do
+                   modified_line="''${line//\''${GRAFANA_API_KEY\}/''$GRAFANA_API_KEY}"
+                   echo "''$modified_line"
+                 done < /etc/vector/vector.toml > /tmp/vector.toml
+               else
+                 cp /etc/vector/vector.toml /tmp/vector.toml
+               fi
 
-              # Start Vector in the background (its own logs go to stdout/stderr so they are visible via flyctl logs)
-              ${vectorPkg}/bin/vector --config /tmp/vector.toml &
+               # Start Vector in the background (its own logs go to stdout/stderr so they are visible via flyctl logs)
+              ${vectorPkg}/bin/vector --config /tmp/vector.toml 2>&1 | tee -a /var/log/vector.log & 
             ''
           else
             ""
