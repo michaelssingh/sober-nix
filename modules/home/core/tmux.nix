@@ -1,6 +1,7 @@
 {
   pkgs,
   config,
+  lib,
   ...
 }:
 
@@ -83,16 +84,23 @@
     Install = {
       WantedBy = [ "default.target" ];
     };
-    path = with pkgs; [
-      tmux
-      senpai
-      iamb
-      aerc
-      neovim
-    ];
-    serviceConfig = {
+    Service = {
       Type = "oneshot";
       RemainAfterExit = true;
+      Environment = [
+        "PATH=${
+          lib.makeBinPath (
+            with pkgs;
+            [
+              tmux
+              senpai
+              iamb
+              aerc
+              neovim
+            ]
+          )
+        }"
+      ];
       ExecStart = toString (
         pkgs.writeShellScript "tmux-autostart-script" ''
           # 1. comms session
