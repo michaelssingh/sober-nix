@@ -34,8 +34,7 @@ in
       address = [ "fdaa:3:7a15:a7b:8cfe:a5b7:ab47:4102/120" ];
       dns = [ "fdaa:3:7a15::3" ];
 
-      # privateKeyFile = config.sops.secrets.wg_fly_otus_private.path;
-      privateKey = "REDACTED_WG_KEY";
+      privateKeyFile = config.sops.secrets.wg_fly_otus_private.path;
 
       peers = [
         {
