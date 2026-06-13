@@ -73,6 +73,11 @@
     "amd_iommu=on"
     "ivrs_ioapic[4]=00:14.0"
     "ivrs_ioapic[5]=00:00.2"
+    # Force the native AMD GPU backlight driver (amdgpu_bl0) instead of the
+    # firmware ACPI video interface. Required on kernel 6.18+ where the default
+    # changed: without this, brightness keys are routed through the ACPI Video
+    # Bus (event5) which libinput/Sway ignores, breaking XF86MonBrightness* keys.
+    "acpi_backlight=native"
   ];
 
   # --- Recovery Entry ---
