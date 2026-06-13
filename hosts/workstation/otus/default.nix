@@ -70,9 +70,8 @@
   programs.fish.enable = true;
 
   boot.kernelParams = [
-    "amd_iommu=on"
-    "ivrs_ioapic[4]=00:14.0"
-    "ivrs_ioapic[5]=00:00.2"
+    "ivrs_ioapic=4@0000:00:14.0"
+    "ivrs_ioapic=5@0000:00:00.2"
     # Fix for AMD backlight regression in kernel 6.18: the new firmware-based
     # brightness path in the DC driver breaks backlight on this IdeaPad.
     # 0x40000 disables DC_DISABLE_ABM (Adaptive Backlight Management firmware

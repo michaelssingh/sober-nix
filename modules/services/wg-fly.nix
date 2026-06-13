@@ -60,8 +60,14 @@ in
 
     systemd.services."wg-quick-${cfg.interface}" = {
       before = [ "wg-quick-wg-sober.service" ];
-      after = [ "systemd-resolved.service" ];
-      wants = [ "systemd-resolved.service" ];
+      after = [
+        "systemd-resolved.service"
+        "network-online.target"
+      ];
+      wants = [
+        "systemd-resolved.service"
+        "network-online.target"
+      ];
       serviceConfig = {
         Restart = "on-failure";
         RestartSec = "5s";

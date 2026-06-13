@@ -1,4 +1,4 @@
-{ pkgs, lib, ... }:
+{ pkgs, ... }:
 
 {
   home.packages = with pkgs; [
@@ -29,10 +29,13 @@
     server dict.org
   '';
 
-  # Import Castero podcasts
-  home.activation.import-castero = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-    if [ -x "${pkgs.castero}/bin/castero" ]; then
-      ${pkgs.castero}/bin/castero --import ${./podcasts.opml}
-    fi
-  '';
+  # Import Castero podcasts only when the OPML configuration changes
+  home.file.".config/castero/podcasts.opml" = {
+    source = ./podcasts.opml;
+    onChange = ''
+      if [ -x "${pkgs.castero}/bin/castero" ]; then
+        ${pkgs.castero}/bin/castero --import "$HOME/.config/castero/podcasts.opml"
+      fi
+    '';
+  };
 }
