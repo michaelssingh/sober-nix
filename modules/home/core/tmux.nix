@@ -73,4 +73,46 @@
         bind -r l select-pane -R
       '';
   };
+
+  # Automatically start tmux sessions on user login
+  config.systemd.user.services.tmux-autostart = {
+    Unit = {
+      Description = "Auto-start default tmux sessions";
+      Documentation = "man:tmux(1)";
+    };
+    Install = {
+      WantedBy = [ "default.target" ];
+    };
+    Service = {
+      Type = "oneshot";
+      RemainAfterExit = true;
+      Path = with pkgs; [
+        tmux
+        senpai
+        iamb
+        aerc
+        neovim
+      ];
+      ExecStart = toString (
+        pkgs.writeShellScript "tmux-autostart-script" ''
+          # 1. comms session
+          if ! tmux has-session -t comms 2>/dev/null; then
+            tmux new-session -d -s comms -n senpai 'senpai'
+            tmux new-window -t comms:2 -n iamb 'iamb --profile athene'
+            tmux new-window -t comms:3 -n aerc 'aerc'
+          fi
+
+          # 2. sys session
+          if ! tmux has-session -t sys 2>/dev/null; then
+            tmux new-session -d -s sys -n editor -c /home/michael/git/sober-nix 'nvim .'
+          fi
+
+          # 3. hack session
+          if ! tmux has-session -t hack 2>/dev/null; then
+            tmux new-session -d -s hack -n editor -c /home/michael/git/learn/c 'nvim .'
+          fi
+        ''
+      );
+    };
+  };
 }
