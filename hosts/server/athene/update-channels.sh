@@ -21,6 +21,6 @@ fly ssh console -a "$APP_NAME" -C "bash -c '
     fi
 
     echo \"Updating \$chan...\"
-    sojuctl user run \"$USER_NAME\" channel update \"\$chan\" -detached true -reattach-on highlight -detach-after 1h
+    sojuctl user run \"$USER_NAME\" channel update \"\$chan\" -detached true -reattach-on message -detach-after 1h
   done
 '"
