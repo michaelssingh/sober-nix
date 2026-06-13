@@ -68,8 +68,6 @@
   boot.loader.timeout = 0;
   boot.initrd.systemd.enable = true;
   boot.kernelParams = [
-    "quiet"
-    "splash"
     "pci=noaer"
     "udev.log_level=3"
     "rd.udev.log_level=3"
