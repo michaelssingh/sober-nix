@@ -100,6 +100,7 @@
             ]
           )
         }"
+        "TMUX_TMPDIR=%t"
       ];
       ExecStart = toString (
         pkgs.writeShellScript "tmux-autostart-script" ''
