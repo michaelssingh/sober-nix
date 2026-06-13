@@ -31,7 +31,7 @@ in
     # 1. WireGuard Configuration
     networking.wg-quick.interfaces."${cfg.interface}" = {
       autostart = true;
-      address = [ "fdaa:3:7a15:a7b:8cfe:a5b7:ab47:4102/120" ];
+      address = [ "fdaa:3:7a15:a7b:159d:15b0:9fe2:702/120" ];
       dns = [ "fdaa:3:7a15::3" ];
 
       privateKeyFile = config.sops.secrets.wg_fly_otus_private.path;
@@ -39,9 +39,9 @@ in
       peers = [
         {
           # Fly.io Gateway
-          publicKey = "q+cTUCrE9NekeuZEF/gCYxr2wNBjvYgGoqYwV1logEI=";
+          publicKey = "aOtHoNmjTnvF32CvJnzFJbOyb9picxPnXgeS8keR2gQ=";
           allowedIPs = [ "fdaa:3:7a15::/48" ];
-          endpoint = "iad2.gateway.6pn.dev:51820";
+          endpoint = "dfw1.gateway.6pn.dev:51820";
           persistentKeepalive = 15;
         }
       ];
