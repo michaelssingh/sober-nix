@@ -73,11 +73,12 @@
     "amd_iommu=on"
     "ivrs_ioapic[4]=00:14.0"
     "ivrs_ioapic[5]=00:00.2"
-    # Force the native AMD GPU backlight driver (amdgpu_bl0) instead of the
-    # firmware ACPI video interface. Required on kernel 6.18+ where the default
-    # changed: without this, brightness keys are routed through the ACPI Video
-    # Bus (event5) which libinput/Sway ignores, breaking XF86MonBrightness* keys.
-    "acpi_backlight=native"
+    # Fix for AMD backlight regression in kernel 6.18: the new firmware-based
+    # brightness path in the DC driver breaks backlight on this IdeaPad.
+    # 0x40000 disables DC_DISABLE_ABM (Adaptive Backlight Management firmware
+    # path) and forces the old register-based method, restoring both the
+    # amdgpu native backlight device and XF86MonBrightness* key behaviour.
+    "amdgpu.dcdebugmask=0x40000"
   ];
 
   # --- Recovery Entry ---

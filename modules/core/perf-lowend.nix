@@ -12,7 +12,7 @@
 
   config = lib.mkIf config.sober.core.perf.lowend.enable {
     # Speed up system with alternative kernel/scheduler
-    boot.kernelPackages = pkgs.linuxPackages_xanmod; # xanmod LTS (6.18) — the xanmodKernels attrset was restructured in 26.05
+    boot.kernelPackages = pkgs.linuxPackages_xanmod_latest;
 
     # Efficient swap management for limited RAM
     swapDevices = [ ];
