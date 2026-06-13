@@ -33,6 +33,10 @@
       ldflags = [
         "-X git.sr.ht/~delthas/senpai.version=v0.5.0"
       ];
+      buildInputs = (_old.buildInputs or [ ]) ++ [
+        final.xclip
+        final.wl-clipboard
+      ];
     });
 
     neomutt = prev.neomutt.overrideAttrs (_old: {
