@@ -2,6 +2,7 @@
   config,
   lib,
   pkgs,
+  inputs,
   ...
 }:
 
@@ -12,7 +13,8 @@
 
   config = lib.mkIf config.sober.core.perf.lowend.enable {
     # Speed up system with alternative kernel/scheduler
-    boot.kernelPackages = pkgs.linuxPackages_xanmod;
+    boot.kernelPackages =
+      inputs.nixpkgs-unstable.legacyPackages.${pkgs.stdenv.hostPlatform.system}.linuxKernel.packages.linux_xanmod_latest;
 
     # Efficient swap management for limited RAM
     swapDevices = [ ];
