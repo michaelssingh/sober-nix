@@ -111,15 +111,25 @@ in
           "${modifier}+minus" = "scratchpad show";
           "${modifier}+Shift+minus" = "move scratchpad";
           "${modifier}+t" = "floating disable";
+
+          # Named workspaces
+          "${modifier}+3" = "workspace number 3: www";
+          "${modifier}+0" = "workspace number 10: hack";
+          "${modifier}+Shift+3" = "move container to workspace number 3: www";
+          "${modifier}+Shift+0" = "move container to workspace number 10: hack";
         };
 
       # 3. Simplify Waybar (Reference variables)
       bars = [ ];
       startup = [
-        { command = "swaymsg workspace number 1"; }
         {
           command = "${pkgs.swayidle}/bin/swayidle -w timeout 300 'swaylock -f -i ${./../bg.jpg} --indicator-radius 100 --indicator-thickness 7 --ring-color bb9af7 --key-hl-color 9ece6a' before-sleep 'swaylock -f -i ${./../bg.jpg} --indicator-radius 100 --indicator-thickness 7 --ring-color bb9af7 --key-hl-color 9ece6a' lock 'swaylock -f -i ${./../bg.jpg} --indicator-radius 100 --indicator-thickness 7 --ring-color bb9af7 --key-hl-color 9ece6a'";
         }
+        { command = "qutebrowser"; }
+        {
+          command = "swaymsg 'workspace number 10: hack; exec foot -e tmux attach -t hack; exec zathura /home/michael/git/books/K&R2'";
+        }
+        { command = "swaymsg workspace number 1"; }
       ];
     };
 
@@ -135,6 +145,13 @@ in
       gaps inner 0
       gaps outer 0
       for_window [app_id="waybar"] floating_disable
+
+      # Target window workspaces
+      for_window [class="mpv"] move to workspace number 1
+      for_window [app_id="mpv"] move to workspace number 1
+      for_window [app_id="qutebrowser"] move to workspace number 3: www
+      for_window [class="firefox"] move to workspace number 3: www
+      for_window [app_id="firefox"] move to workspace number 3: www
     '';
   };
 }
