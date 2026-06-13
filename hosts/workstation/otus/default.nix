@@ -73,7 +73,6 @@
     "amd_iommu=on"
     "ivrs_ioapic[4]=00:14.0"
     "ivrs_ioapic[5]=00:00.2"
-    "acpi_backlight=vendor"
   ];
 
   # --- Recovery Entry ---
