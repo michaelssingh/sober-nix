@@ -33,6 +33,7 @@ in
       autostart = true;
       address = [ "fdaa:3:7a15:a7b:159d:15b0:9fe2:702/120" ];
       dns = [ "fdaa:3:7a15::3" ];
+      mtu = 1280;
 
       privateKeyFile = config.sops.secrets.wg_fly_otus_private.path;
 
