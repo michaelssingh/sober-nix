@@ -48,9 +48,6 @@
 
     services.journald.extraConfig = ''
       SystemMaxUse=50M
-      MaxLevelStore=notice
-      MaxLevelSyslog=notice
-      MaxLevelConsole=notice
     '';
 
     # Disable core dumps to save disk I/O

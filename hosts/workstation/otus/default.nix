@@ -222,6 +222,10 @@
           command = "/run/current-system/sw/bin/wg";
           options = [ "NOPASSWD" ];
         }
+        {
+          command = "/run/current-system/sw/bin/dmesg";
+          options = [ "NOPASSWD" ];
+        }
       ];
     }
   ];
