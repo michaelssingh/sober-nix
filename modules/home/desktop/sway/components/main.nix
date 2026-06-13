@@ -113,8 +113,10 @@ in
           "${modifier}+t" = "floating disable";
 
           # Named workspaces
+          "${modifier}+2" = "workspace number 2: comms";
           "${modifier}+3" = "workspace number 3: www";
           "${modifier}+0" = "workspace number 10: hack";
+          "${modifier}+Shift+2" = "move container to workspace number 2: comms";
           "${modifier}+Shift+3" = "move container to workspace number 3: www";
           "${modifier}+Shift+0" = "move container to workspace number 10: hack";
         };
@@ -126,6 +128,7 @@ in
           command = "${pkgs.swayidle}/bin/swayidle -w timeout 300 'swaylock -f -i ${./../bg.jpg} --indicator-radius 100 --indicator-thickness 7 --ring-color bb9af7 --key-hl-color 9ece6a' before-sleep 'swaylock -f -i ${./../bg.jpg} --indicator-radius 100 --indicator-thickness 7 --ring-color bb9af7 --key-hl-color 9ece6a' lock 'swaylock -f -i ${./../bg.jpg} --indicator-radius 100 --indicator-thickness 7 --ring-color bb9af7 --key-hl-color 9ece6a'";
         }
         { command = "qutebrowser"; }
+        { command = "swaymsg 'workspace number 2: comms; exec foot -e tmux attach -t comms'"; }
         {
           command = "swaymsg 'workspace number 10: hack; exec foot -e tmux attach -t hack; exec zathura /home/michael/git/books/K&R2'";
         }
