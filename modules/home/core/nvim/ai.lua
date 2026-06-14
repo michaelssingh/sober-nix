@@ -26,7 +26,7 @@ require("codecompanion").setup({
     gemini = function()
       return require("codecompanion.adapters").extend("gemini", {
         env = {
-          api_key = "GEMINI_API_KEY",
+          api_key = "cmd:cat ~/.config/sops-nix/secrets/gemini_api_key",
         },
         schema = {
           model = {
