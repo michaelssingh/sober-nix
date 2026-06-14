@@ -30,7 +30,7 @@ require("codecompanion").setup({
         },
         schema = {
           model = {
-            default = "gemini-1.5-pro",
+            default = "gemini-3.1-pro-preview",
           },
         },
       })
