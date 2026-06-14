@@ -1,0 +1,181 @@
+#!/usr/bin/env python3
+import os
+import re
+import subprocess
+import urllib.parse
+
+def main():
+    # qutebrowser passes the current URL via an environment variable
+    url = os.environ.get('QUTE_URL')
+    if not url:
+        return
+
+    # 1. Handle Invidious/Alternative instances if we're on a watch page
+    if "watch?v=" in url:
+        parsed = urllib.parse.urlparse(url)
+        params = urllib.parse.parse_qs(parsed.query)
+        if 'v' in params:
+            url = f"https://www.youtube.com/watch?v={params['v'][0]}"
+            play(url)
+            return
+
+    # 2. If not a direct watch link, look into the HTML for a "Watch on YouTube" link
+    # Qutebrowser provides the page HTML in a temporary file pointed to by QUTE_HTML
+    html_path = os.environ.get('QUTE_HTML')
+    if html_path and os.path.exists(html_path):
+        with open(html_path, 'r', encoding='utf-8') as f:
+            html = f.read()
+            import html as html_lib
+            
+            videos = {}
+            # Extract links and titles from anchor tags
+            a_tags = re.findall(r'<a([^>]+)>(.*?)</a>', html, re.DOTALL | re.IGNORECASE)
+            for attrs, inner in a_tags:
+                href_match = re.search(r'href=["\']([^"\']+)["\']', attrs, re.IGNORECASE)
+                if not href_match: continue
+                href = href_match.group(1)
+                
+                is_video = False
+                full_url = href
+                if 'watch?v=' in href:
+                    is_video = True
+                    if href.startswith('/'):
+                        full_url = f"https://www.youtube.com{href}"
+                    elif not href.startswith('http'):
+                        continue
+                elif re.search(r'https?://(?:www\.)?(?:youtu\.be/[\w-]+|vimeo\.com/\d+|twitch\.tv/\w+)|https?://[^\s\'"<>]+\.(?:mp4|webm|mkv)', href):
+                    is_video = True
+                    
+                if is_video:
+                    title = ''
+                    title_match = re.search(r'title=["\']([^"\']+)["\']', attrs, re.IGNORECASE)
+                    if title_match: title = title_match.group(1)
+                    else:
+                        aria_match = re.search(r'aria-label=["\']([^"\']+)["\']', attrs, re.IGNORECASE)
+                        if aria_match: title = aria_match.group(1)
+                        else: title = re.sub(r'<[^>]+>', '', inner)
+                    
+                    title = html_lib.unescape(title).strip()
+                    title = re.sub(r'\s+', ' ', title)
+                    if full_url not in videos or len(title) > len(videos.get(full_url, '')):
+                        videos[full_url] = title
+                        
+            # Also catch raw URLs that weren't inside anchor tags just in case
+            yt_ids = re.findall(r'watch\?v=([\w-]+)', html)
+            for vid in yt_ids:
+                u = f"https://www.youtube.com/watch?v={vid}"
+                if u not in videos:
+                    videos[u] = ''
+
+            if videos:
+                if len(videos) == 1:
+                    url = list(videos.keys())[0]
+                    title = videos[url]
+                    log_url(url, title)
+                    play(url)
+                    return
+                
+                show_menu(videos)
+                return
+
+    # 3. Fallback: just play the current URL and let yt-dlp handle it
+    play(url)
+
+def fetch_search_results(query):
+    import json
+    import urllib.request
+    import urllib.parse
+    import re
+    try:
+        encoded_query = urllib.parse.quote(query)
+        url = f"https://www.youtube.com/results?search_query={encoded_query}"
+        req = urllib.request.Request(url, headers={
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
+            'Cookie': 'CONSENT=YES+cb.20210328-17-p0.en+FX+401'
+        })
+        
+        with urllib.request.urlopen(req, timeout=5) as response:
+            html = response.read().decode('utf-8')
+            
+        # Extract the hidden JSON data YouTube embeds in the page (can be var or window[])
+        match = re.search(r'(?:var ytInitialData|window\[["\']ytInitialData["\']\])\s*=\s*(\{.*?\});\s*</script>', html)
+        if not match:
+            return {}
+            
+        data = json.loads(match.group(1))
+        results = {}
+        
+        # Traverse the JSON tree to find video renderer items
+        try:
+            contents = data['contents']['twoColumnSearchResultsRenderer']['primaryContents']['sectionListRenderer']['contents'][0]['itemSectionRenderer']['contents']
+            for item in contents:
+                if 'videoRenderer' in item:
+                    vid = item['videoRenderer']['videoId']
+                    title = item['videoRenderer']['title']['runs'][0]['text']
+                    results[f"https://www.youtube.com/watch?v={vid}"] = title
+                if len(results) >= 15: # Fetch top 15 results
+                    break
+        except (KeyError, IndexError):
+            pass
+            
+        return results
+    except Exception:
+        return {}
+
+def log_url(url, title=''):
+    import csv
+    try:
+        filepath = os.path.expanduser('~/urls.csv')
+        # Check if we need to write headers
+        write_header = not os.path.exists(filepath) or os.path.getsize(filepath) == 0
+        with open(filepath, 'a', encoding='utf-8', newline='') as f:
+            writer = csv.writer(f)
+            if write_header:
+                writer.writerow(['Title', 'URL'])
+            writer.writerow([title, url])
+    except: pass
+
+def show_menu(videos):
+    import shutil
+    mpv_cmd = 'mpv-queue' if shutil.which('mpv-queue') else 'mpv'
+    
+    fuzzel_lines = []
+    url_map = {}
+    for url, title in videos.items():
+        display = f"{title}  ({url})" if title else url
+        fuzzel_lines.append(display)
+        url_map[display] = (url, title)
+
+    try:
+        process = subprocess.Popen(['fuzzel', '-d', '--prompt=Video \u276f '], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+    except FileNotFoundError:
+        try:
+            process = subprocess.Popen(['rofi', '-dmenu', '-p', 'Video \u276f '], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+        except FileNotFoundError:
+            return
+
+    out, _ = process.communicate(input='\n'.join(fuzzel_lines).encode('utf-8'))
+    selection = out.decode('utf-8').strip()
+    
+    if selection in url_map:
+        url, title = url_map[selection]
+        log_url(url, title)
+        subprocess.Popen([mpv_cmd, url])
+    elif selection:
+        if selection.startswith('/s '):
+            res = fetch_search_results(selection[3:])
+            if res:
+                show_menu(res)
+        else:
+            log_url(selection, '')
+            subprocess.Popen([mpv_cmd, selection])
+
+def play(url):
+    # Prefer our custom mpv-queue script if it exists in PATH
+    try:
+        subprocess.Popen(['mpv-queue', url])
+    except FileNotFoundError:
+        subprocess.Popen(['mpv', url])
+
+if __name__ == "__main__":
+    main()
