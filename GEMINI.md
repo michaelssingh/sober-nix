@@ -54,4 +54,6 @@
   - Nested sandboxing is disabled (`sandbox = false`) and the build users group is empty (`build-users-group =`) inside the container to work around lack of nested user namespace/cgroup support in the container environment.
   - Accessible via the Flycast host `sober-styx.flycast` over the Fly WireGuard interface, allowing the Fly Proxy to automatically start/scale the MicroVM on demand when an SSH connection is initiated by a Nix build.
 
-
+## Neovim AI / CodeCompanion Configuration
+- **API Key Management**: Auth with the Gemini API is configured dynamically via SOPS secrets (`sops.secrets.gemini_api_key`), read from `~/.config/sops-nix/secrets/gemini_api_key` using Neovim's `cmd:` loader.
+- **Model**: Default model configured for CodeCompanion strategies is `gemini-3.1-pro-preview`.
