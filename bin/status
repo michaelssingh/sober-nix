@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+# bin/status - Quick system health snapshot
+# Shows: boot time, swap, tmux sessions, key services, disk usage
+set -euo pipefail
+
+BOLD="\033[1m"
+CYAN="\033[36m"
+GREEN="\033[32m"
+RED="\033[31m"
+RESET="\033[0m"
+
+section() { echo -e "\n${BOLD}${CYAN}==> $1${RESET}"; }
+
+section "Boot"
+systemd-analyze 2>/dev/null || true
+
+section "Swap"
+swapon --show
+
+section "Disk"
+df -h / /boot | column -t
+
+section "Tmux Sessions"
+tmux list-sessions 2>/dev/null || echo "(no tmux server running)"
+
+section "Key User Services"
+for svc in tmux-autostart hydroxide; do
+  status=$(systemctl --user is-active "$svc" 2>/dev/null || echo "unknown")
+  if [[ "$status" == "active" ]]; then
+    echo -e "  ${GREEN}●${RESET} $svc"
+  else
+    echo -e "  ${RED}●${RESET} $svc ($status)"
+  fi
+done
+
+section "Key System Services"
+for svc in NetworkManager wg-fly wg-sober kanata-default; do
+  status=$(systemctl is-active "$svc" 2>/dev/null || echo "unknown")
+  if [[ "$status" == "active" ]]; then
+    echo -e "  ${GREEN}●${RESET} $svc"
+  else
+    echo -e "  ${RED}●${RESET} $svc ($status)"
+  fi
+done
+
+section "WireGuard"
+sudo wg show 2>/dev/null || echo "(no wg interfaces up)"
+
+echo ""
