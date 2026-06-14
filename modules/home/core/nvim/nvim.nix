@@ -11,6 +11,8 @@ let
     + (builtins.readFile ./ai.lua);
 in
 {
+  sops.secrets.gemini_api_key = { };
+
   programs.neovim = {
     enable = true;
     defaultEditor = true;
