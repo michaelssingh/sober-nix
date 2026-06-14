@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# bin/nvim-sockets - List all active Neovim RPC sockets with their cwd and current buffer
+set -euo pipefail
+
+GREEN="\033[32m"
+CYAN="\033[36m"
+BOLD="\033[1m"
+RESET="\033[0m"
+
+echo -e "${BOLD}Active Neovim RPC sockets:${RESET}"
+echo ""
+
+found=0
+for sock in /run/user/"$(id -u)"/nvim.*.0; do
+  [[ -S "$sock" ]] || continue
+  found=1
+  cwd=$(nvim --server "$sock" --remote-expr "getcwd()" 2>/dev/null || echo "(unreachable)")
+  buf=$(nvim --server "$sock" --remote-expr "expand('%:p')" 2>/dev/null || echo "")
+  pid=$(basename "$sock" | sed 's/nvim\.\([0-9]*\)\..*/\1/')
+  echo -e "  ${CYAN}${BOLD}$sock${RESET}"
+  echo -e "    PID: ${pid}"
+  echo -e "    cwd: ${GREEN}${cwd}${RESET}"
+  [[ -n "$buf" ]] && echo -e "    buf: ${buf}"
+  echo ""
+done
+
+if [[ $found -eq 0 ]]; then
+  echo "  (no active Neovim sockets found)"
+fi
