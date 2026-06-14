@@ -2,11 +2,10 @@
 
 let
   colors = config.sober.theme.current.colors;
-  play-smart = ./play-smart.py;
 in
 {
-  home.file.".local/share/qutebrowser/userscripts/play-smart".source = play-smart;
-  home.file.".local/share/qutebrowser/userscripts/play-smart".executable = true;
+  home.file.".local/share/qutebrowser/userscripts".source =
+    config.lib.file.mkOutOfStoreSymlink "/home/michael/git/sober-nix/modules/home/desktop/qutebrowser/userscripts";
 
   programs.qutebrowser = {
     enable = true;
@@ -75,6 +74,7 @@ in
     keyBindings = {
       normal = {
         ",v" = "spawn --userscript play-smart";
+        ",pw" = "spawn --userscript qute-rbw.py";
       };
     };
   };
