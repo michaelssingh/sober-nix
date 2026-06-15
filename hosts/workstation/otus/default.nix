@@ -243,6 +243,18 @@
           options = [ "NOPASSWD" ];
         }
         {
+          command = "/run/current-system/sw/bin/nix-env";
+          options = [ "NOPASSWD" ];
+        }
+        {
+          command = "/run/current-system/sw/bin/nix-store";
+          options = [ "NOPASSWD" ];
+        }
+        {
+          command = "/run/current-system/sw/bin/systemctl";
+          options = [ "NOPASSWD" ];
+        }
+        {
           command = "/run/current-system/sw/bin/wg";
           options = [ "NOPASSWD" ];
         }
