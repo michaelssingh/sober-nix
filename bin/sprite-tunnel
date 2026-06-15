@@ -1,0 +1,158 @@
+#!/usr/bin/env bash
+# --- Sprite Tunnel Manager ---
+# Starts and stops SOCKS5, SSH agent forwarding, and sprite proxy tunnel.
+
+set -euo pipefail
+
+SPRITE_NAME="agy"
+SOCKS_PORT=1080
+AGENT_PORT=9000
+SSH_PORT=2222
+
+PID_DIR="$HOME/.cache/sprite-tunnel"
+mkdir -p "$PID_DIR"
+
+SOCKS_PID_FILE="$PID_DIR/socks.pid"
+SOCAT_PID_FILE="$PID_DIR/socat.pid"
+PROXY_PID_FILE="$PID_DIR/proxy.pid"
+SSH_PID_FILE="$PID_DIR/ssh.pid"
+
+check_running() {
+    local pid_file="$1"
+    if [ -f "$pid_file" ]; then
+        local pid
+        pid=$(cat "$pid_file")
+        if kill -0 "$pid" 2>/dev/null; then
+            return 0
+        fi
+    fi
+    return 1
+}
+
+stop_process() {
+    local name="$1"
+    local pid_file="$2"
+    if check_running "$pid_file"; then
+        local pid
+        pid=$(cat "$pid_file")
+        echo "Stopping $name (PID $pid)..."
+        kill "$pid" 2>/dev/null || true
+        # Wait up to 3 seconds for it to exit
+        for i in {1..30}; do
+            if ! kill -0 "$pid" 2>/dev/null; then
+                break
+            fi
+            sleep 0.1
+        done
+        # Force kill if still running
+        if kill -0 "$pid" 2>/dev/null; then
+            kill -9 "$pid" 2>/dev/null || true
+        fi
+        rm -f "$pid_file"
+    else
+        rm -f "$pid_file"
+    fi
+}
+
+start_tunnel() {
+    # 1. Stop any existing processes
+    stop_all
+
+    echo "Starting SOCKS5 proxy on port $SOCKS_PORT..."
+    # Get directory of this script to locate socks5-proxy.py
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    nohup python3 "$SCRIPT_DIR/socks5-proxy.py" "$SOCKS_PORT" > "$PID_DIR/socks.log" 2>&1 & disown
+    echo $! > "$SOCKS_PID_FILE"
+
+    echo "Starting local SSH agent forwarder on port $AGENT_PORT..."
+    if [ -z "${SSH_AUTH_SOCK:-}" ]; then
+        echo "Error: SSH_AUTH_SOCK is not set. Is your SSH agent running?" >&2
+        exit 1
+    fi
+    nohup socat TCP-LISTEN:"$AGENT_PORT",bind=127.0.0.1,reuseaddr,fork UNIX-CONNECT:"$SSH_AUTH_SOCK" > "$PID_DIR/socat.log" 2>&1 & disown
+    echo $! > "$SOCAT_PID_FILE"
+
+    echo "Establishing sprite proxy for port $SSH_PORT..."
+    nohup sprite proxy -s "$SPRITE_NAME" "$SSH_PORT" > "$PID_DIR/proxy.log" 2>&1 & disown
+    echo $! > "$PROXY_PID_FILE"
+
+    # Wait for sprite proxy to bind local port 2222
+    echo "Waiting for sprite proxy to bind..."
+    for i in {1..50}; do
+        if ss -tlnp 2>/dev/null | grep -q ":$SSH_PORT "; then
+            break
+        fi
+        sleep 0.1
+    done
+
+    echo "Establishing SSH reverse tunnel..."
+    nohup ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+        -p "$SSH_PORT" -R "$SOCKS_PORT:127.0.0.1:$SOCKS_PORT" -R "$AGENT_PORT:127.0.0.1:$AGENT_PORT" \
+        -N sprite@127.0.0.1 > "$PID_DIR/ssh.log" 2>&1 & disown
+    echo $! > "$SSH_PID_FILE"
+
+    echo "✓ Sprite tunnel successfully established!"
+    echo "  - SOCKS5 Proxy: Port $SOCKS_PORT (remote VM -> workstation -> internet)"
+    echo "  - SSH Agent Forwarding: Port $AGENT_PORT (remote VM -> workstation SSH agent)"
+}
+
+stop_all() {
+    stop_process "SSH reverse tunnel" "$SSH_PID_FILE"
+    stop_process "sprite proxy" "$PROXY_PID_FILE"
+    stop_process "local SSH agent forwarder" "$SOCAT_PID_FILE"
+    stop_process "SOCKS5 proxy" "$SOCKS_PID_FILE"
+}
+
+status_tunnel() {
+    local all_ok=0
+    
+    if check_running "$SOCKS_PID_FILE"; then
+        echo "✓ SOCKS5 proxy is running (PID $(cat "$SOCKS_PID_FILE"))"
+    else
+        echo "✗ SOCKS5 proxy is NOT running"
+        all_ok=1
+    fi
+
+    if check_running "$SOCAT_PID_FILE"; then
+        echo "✓ SSH agent forwarder is running (PID $(cat "$SOCAT_PID_FILE"))"
+    else
+        echo "✗ SSH agent forwarder is NOT running"
+        all_ok=1
+    fi
+
+    if check_running "$PROXY_PID_FILE"; then
+        echo "✓ sprite proxy is running (PID $(cat "$PROXY_PID_FILE"))"
+    else
+        echo "✗ sprite proxy is NOT running"
+        all_ok=1
+    fi
+
+    if check_running "$SSH_PID_FILE"; then
+        echo "✓ SSH reverse tunnel is running (PID $(cat "$SSH_PID_FILE"))"
+    else
+        echo "✗ SSH reverse tunnel is NOT running"
+        all_ok=1
+    fi
+
+    return "$all_ok"
+}
+
+case "${1:-}" in
+    start)
+        start_tunnel
+        ;;
+    stop)
+        stop_all
+        echo "✓ All sprite tunnel processes stopped."
+        ;;
+    restart)
+        start_tunnel
+        ;;
+    status)
+        status_tunnel
+        ;;
+    *)
+        echo "Usage: $0 {start|stop|restart|status}"
+        exit 1
+        ;;
+esac
