@@ -56,6 +56,6 @@ nixos-rebuild build --flake .#otus
 
 ### 3. Git Push & Remotes
 Committed all layout restructuring and code changes and pushed them to both remotes:
-- **Forgejo Remote (`origin`)**: `ssh://git@sober-bubo.internal:2222/init/sober-nix.git`
+- **Forgejo Remote (`origin`)**: `ssh://git@sober-bubo.flycast:2222/init/sober-nix.git`
 - **GitHub Remote (`github`)**: `git@github.com:michaelssingh/sober-nix.git`
 *Result:* Both push commands completed successfully.
