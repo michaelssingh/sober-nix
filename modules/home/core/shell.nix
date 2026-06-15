@@ -1,4 +1,9 @@
-{ pkgs, config, ... }:
+{
+  pkgs,
+  config,
+  lib,
+  ...
+}:
 
 let
   colors = config.sober.theme.current.colors;
@@ -274,4 +279,40 @@ in
     nixfmt # Nix formatter
     sprite # sprites.dev CLI
   ];
+
+  # --- 5. Declarative sprite CLI Authentication ---
+  sops.secrets.sprites_api_token = { };
+
+  home.activation.configure-sprite-auth = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+        TOKEN_FILE="${config.sops.secrets.sprites_api_token.path}"
+        if [ -f "$TOKEN_FILE" ]; then
+          TOKEN=$(cat "$TOKEN_FILE")
+          ORG=$(echo "$TOKEN" | cut -d/ -f1)
+          
+          mkdir -p "$HOME/.sprites"
+          cat <<EOF > "$HOME/.sprites/sprites.json"
+    {
+      "version": "1",
+      "current_selection": {
+        "url": "https://api.sprites.dev",
+        "org": "$ORG"
+      },
+      "urls": {
+        "https://api.sprites.dev": {
+          "url": "https://api.sprites.dev",
+          "orgs": {
+            "$ORG": {
+              "name": "$ORG",
+              "api_token": "$TOKEN",
+              "use_keyring": false,
+              "sprites": {}
+            }
+          }
+        }
+      }
+    }
+    EOF
+          chmod 600 "$HOME/.sprites/sprites.json"
+        fi
+  '';
 }
