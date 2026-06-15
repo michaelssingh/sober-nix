@@ -109,6 +109,13 @@
       IdentityFile /home/michael/.ssh/fly
       StrictHostKeyChecking no
       UserKnownHostsFile /dev/null
+
+    Host sprite-vm
+      HostName 127.0.0.1
+      Port 2222
+      User sprite
+      StrictHostKeyChecking no
+      UserKnownHostsFile /dev/null
   '';
 
   nix = {
