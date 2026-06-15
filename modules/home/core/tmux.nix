@@ -6,7 +6,7 @@
 }:
 
 {
-  config.programs.tmux = {
+  programs.tmux = {
     enable = true;
     clock24 = true;
     mouse = true;
@@ -95,7 +95,26 @@
   };
 
   # Automatically start tmux sessions on user login
-  config.systemd.user.services.tmux-autostart = {
+  home.packages = [
+    (pkgs.writeShellScriptBin "attach-tmux" ''
+      SESSION_NAME="$1"
+      MAX_RETRIES=30
+      RETRY_INTERVAL=0.5
+
+      for ((i=1; i<=MAX_RETRIES; i++)); do
+          if ${pkgs.tmux}/bin/tmux has-session -t "$SESSION_NAME" 2>/dev/null; then
+              exec ${pkgs.tmux}/bin/tmux attach -t "$SESSION_NAME"
+          fi
+          sleep "$RETRY_INTERVAL"
+      done
+
+      echo "Error: Tmux session '$SESSION_NAME' did not appear after $((MAX_RETRIES * RETRY_INTERVAL)) seconds."
+      read -p "Press enter to exit..."
+      exit 1
+    '')
+  ];
+
+  systemd.user.services.tmux-autostart = {
     Unit = {
       Description = "Auto-start default tmux sessions";
       Documentation = "man:tmux(1)";

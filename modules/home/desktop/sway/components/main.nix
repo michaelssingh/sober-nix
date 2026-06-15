@@ -130,10 +130,10 @@ in
           command = "${pkgs.swayidle}/bin/swayidle -w timeout 300 'swaylock -f -i ${./../bg.jpg} --indicator-radius 100 --indicator-thickness 7 --ring-color bb9af7 --key-hl-color 9ece6a' before-sleep 'swaylock -f -i ${./../bg.jpg} --indicator-radius 100 --indicator-thickness 7 --ring-color bb9af7 --key-hl-color 9ece6a' lock 'swaylock -f -i ${./../bg.jpg} --indicator-radius 100 --indicator-thickness 7 --ring-color bb9af7 --key-hl-color 9ece6a'";
         }
         { command = "qutebrowser"; }
-        { command = "swaymsg 'workspace number 2: comms; exec foot -e tmux attach -t comms'"; }
-        { command = "swaymsg 'workspace number 9: sys; exec foot -e tmux attach -t sys'"; }
+        { command = "swaymsg 'workspace number 2: comms; exec foot -e attach-tmux comms'"; }
+        { command = "swaymsg 'workspace number 9: sys; exec foot -e attach-tmux sys'"; }
         {
-          command = "swaymsg 'workspace number 10: hack; exec foot -e tmux attach -t hack; exec zathura /home/michael/git/books/K&R2'";
+          command = "swaymsg 'workspace number 10: hack; exec foot -e attach-tmux hack; exec zathura \"/home/michael/git/books/K&R2\"'";
         }
         { command = "swaymsg workspace number 1"; }
       ];
