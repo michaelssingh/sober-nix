@@ -78,6 +78,8 @@ in
     chawan
     dict
     rbw
+    terminus_font
+    spleen
     qutebrowser
     antigravity
     strix-paste

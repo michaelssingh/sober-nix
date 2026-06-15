@@ -9,7 +9,7 @@ in
     settings = [
       {
         layer = "top";
-        height = 30;
+        height = 22;
         position = "bottom";
         modules-left = [
           "sway/workspaces"

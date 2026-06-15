@@ -28,7 +28,7 @@
         set -g set-clipboard on
 
         # Dynamic status position
-        set -g status-position ${if config.sober.isRemote then "top" else "bottom"}
+        set -g status-position ${if config.sober.isRemote then "bottom" else "top"}
 
         # Ensure mouse events are passed to applications
         set -g mouse on
@@ -48,7 +48,7 @@
 
         set -g status "on"
         set -g status-justify "left"
-        set -g status-style "fg=${colors.blue},bg=${colors.bg_dark}"
+        set -g status-style "fg=${colors.blue},bg=${colors.bg}"
 
         set -g status-left-length "100"
         set -g status-right-length "100"
@@ -56,15 +56,15 @@
         set -g status-left-style NONE
         set -g status-right-style NONE
 
-        set -g status-left "#[fg=${colors.black},bg=${colors.blue},bold] #S #[fg=${colors.blue},bg=${colors.bg_dark},nobold,nounderscore,noitalics]"
+        set -g status-left "#[fg=${colors.black},bg=${colors.blue},bold] #S #[fg=${colors.blue},bg=${colors.bg},nobold,nounderscore,noitalics]"
 
-        set -g status-right "#[fg=${colors.bg_dark},bg=${colors.bg_dark},nobold,nounderscore,noitalics]#[fg=${colors.blue},bg=${colors.bg_dark}] #{prefix_highlight} #[fg=${colors.bg_highlight},bg=${colors.bg_dark},nobold,nounderscore,noitalics]#[fg=${colors.blue},bg=${colors.bg_highlight}] %Y-%m-%d  %H:%M #[fg=${colors.blue},bg=${colors.bg_highlight},nobold,nounderscore,noitalics]#[fg=${colors.black},bg=${colors.blue},bold] #h "
+        set -g status-right "#[fg=${colors.bg},bg=${colors.bg},nobold,nounderscore,noitalics]#[fg=${colors.blue},bg=${colors.bg}] #{prefix_highlight} #[fg=${colors.bg_highlight},bg=${colors.bg},nobold,nounderscore,noitalics]#[fg=${colors.blue},bg=${colors.bg_highlight}] %Y-%m-%d  %H:%M #[fg=${colors.blue},bg=${colors.bg_highlight},nobold,nounderscore,noitalics]#[fg=${colors.black},bg=${colors.blue},bold] #h "
 
-        setw -g window-status-activity-style "underscore,fg=${colors.fg_dark},bg=${colors.bg_dark}"
+        setw -g window-status-activity-style "underscore,fg=${colors.fg_dark},bg=${colors.bg}"
         setw -g window-status-separator ""
-        setw -g window-status-style "NONE,fg=${colors.fg_dark},bg=${colors.bg_dark}"
-        setw -g window-status-format "#[fg=${colors.bg_dark},bg=${colors.bg_dark},nobold,nounderscore,noitalics]#[default] #I  #W #F #[fg=${colors.bg_dark},bg=${colors.bg_dark},nobold,nounderscore,noitalics]"
-        setw -g window-status-current-format "#[fg=${colors.bg_dark},bg=${colors.bg_highlight},nobold,nounderscore,noitalics]#[fg=${colors.blue},bg=${colors.bg_highlight},bold] #I  #W #F #[fg=${colors.bg_highlight},bg=${colors.bg_dark},nobold,nounderscore,noitalics]"
+        setw -g window-status-style "NONE,fg=${colors.fg_dark},bg=${colors.bg}"
+        setw -g window-status-format "#[fg=${colors.bg},bg=${colors.bg},nobold,nounderscore,noitalics]#[default] #I  #W #F #[fg=${colors.bg},bg=${colors.bg},nobold,nounderscore,noitalics]"
+        setw -g window-status-current-format "#[fg=${colors.bg},bg=${colors.bg_highlight},nobold,nounderscore,noitalics]#[fg=${colors.blue},bg=${colors.bg_highlight},bold] #I  #W #F #[fg=${colors.bg_highlight},bg=${colors.bg},nobold,nounderscore,noitalics]"
 
         # --- Keybindings ---
         bind-key C-a send-prefix
@@ -125,9 +125,9 @@
         pkgs.writeShellScript "tmux-autostart-script" ''
           # 1. comms session
           if ! tmux has-session -t comms 2>/dev/null; then
-            tmux new-session -d -s comms -n senpai 'senpai'
-            tmux new-window -t comms:2 -n iamb 'iamb --profile athene'
-            tmux new-window -t comms:3 -n aerc 'aerc'
+            tmux new-session -d -s comms -n senpai 'irc'
+            tmux new-window -t comms:2 -n iamb 'matrix'
+            tmux new-window -t comms:3 -n aerc 'email'
           fi
 
           # 2. sys session

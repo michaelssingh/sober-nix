@@ -18,9 +18,4 @@ primary_region = "ewr"
   min_machines_running = 0
   processes = ["app"]
 
-[[services]]
-  internal_port = 2222
-  protocol = "tcp"
 
-  [[services.ports]]
-    port = 2222

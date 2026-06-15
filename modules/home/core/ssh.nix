@@ -44,8 +44,8 @@ _: {
         UserKnownHostsFile = "/dev/null";
       };
 
-      "sober-bubo.fly.dev" = {
-        HostName = "sober-bubo.fly.dev";
+      "sober-bubo.internal" = {
+        HostName = "sober-bubo.internal";
         Port = "2222";
         User = "git";
         IdentityFile = "~/.ssh/github";
