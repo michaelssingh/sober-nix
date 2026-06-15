@@ -21,6 +21,29 @@
     # Example: pinning an existing package to a specific version
     # coreutils = prev.coreutils.override { ... };
 
+    sprite = prev.sprite.overrideAttrs (_old: rec {
+      version = "0.0.1-rc44";
+      src =
+        let
+          platform =
+            if final.stdenv.hostPlatform.isLinux && final.stdenv.hostPlatform.isAarch64 then
+              "linux-arm64"
+            else if final.stdenv.hostPlatform.isLinux && final.stdenv.hostPlatform.isx86_64 then
+              "linux-amd64"
+            else
+              throw "Unsupported system for custom sprite overlay: ${final.stdenv.hostPlatform.system}";
+
+          hashes = {
+            linux-amd64 = "sha256-cmffpuWg9XqFH2BcSC+gJG00kqHvV532XEDOs/u0dHs=";
+            linux-arm64 = "sha256-uiTQgChPRjo/OvvcQso52YxhaKjYJ5aU9nZRPUl5hgw=";
+          };
+        in
+        final.fetchurl {
+          url = "https://sprites-binaries.t3.storage.dev/client/v${version}/sprite-${platform}.tar.gz";
+          hash = hashes.${platform};
+        };
+    });
+
     senpai = prev.senpai.overrideAttrs (_old: {
       version = "0.5.0";
       src = final.fetchFromSourcehut {
