@@ -65,3 +65,103 @@
 - **Version Override**: Overridden to `v0.0.1-rc44` in `modules/overlays/default.nix` under `modifications` directly, rather than building custom package files.
 - **API Token Management**: Auth with the `sprite` CLI is managed declaratively via SOPS secrets (`sops.secrets.sprites_api_token`). A Home-Manager activation hook automatically provisions this token from the SOPS-decrypted path, parses the organization prefix, and writes the configuration to `~/.sprites/sprites.json` with permissions `0600` on deployment.
 
+## Remote Development Workflow (sprite.dev → otus)
+
+> **Context**: The agent runs on a fast remote `sprite.dev` Ubuntu VM (hostname: `agy`), NOT on `otus`.
+> The repository here is the same one deployed to `otus`. All editing and verification happens remotely;
+> application happens locally on `otus` via a git pull and `nh os switch`.
+
+### How SSH Key Access Works
+The user runs `bin/sprite-tunnel start` on `otus` before starting an agent session. This script:
+1. Starts a **SOCKS5 proxy** on `localhost:1080` (Python, `bin/socks5-proxy.py`) for internet routing.
+2. Uses `socat` to bridge the local `SSH_AUTH_SOCK` Unix socket to **TCP port 9000** on `localhost`.
+3. Runs `sprite proxy -s agy 2222` to create a local TCP listener on port `2222` that tunnels through the sprite.dev service to this VM.
+4. Establishes an **SSH reverse tunnel** into the VM: `-R 1080:127.0.0.1:1080 -R 9000:127.0.0.1:9000`
+
+On the remote VM, `SSH_AUTH_SOCK` is pointed at a socket that forwards over TCP port 9000 back through
+the tunnel to `otus`'s real ssh-agent. **Private keys never leave `otus`.**
+
+Verify agent access at the start of any session with:
+```bash
+ssh-add -l
+```
+
+### Nix on the Remote VM (Ubuntu 25.10)
+Nix is installed via the official multi-user installer. The daemon does **not** run as a systemd service
+(Ubuntu's init system is not configured for it). It must be started manually each session:
+
+```bash
+# Start the daemon in the background (must remain running for the session)
+sudo /nix/var/nix/profiles/default/bin/nix-daemon 2>/tmp/nix-daemon.log &
+sleep 3
+```
+
+Critical configuration in `/etc/nix/nix.conf` — must contain:
+```
+build-users-group = nixbld
+trusted-users = root sprite
+
+# Parallelism — use all 8 cores
+max-jobs = 8
+cores = 0
+
+# Performance
+builders-use-substitutes = true
+```
+Without `trusted-users = root sprite`, the daemon will reject store writes (`Trusted: 0`).
+Without `max-jobs = 8`, Nix defaults to `max-jobs = 1`, leaving 7 cores idle.
+If settings are missing, overwrite the file and restart the daemon.
+
+The `nix` binary must be invoked with `NIX_REMOTE=daemon` prefix since the shell profile
+(`/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh`) does not set this reliably in
+non-login shells. Verify the daemon is reachable and trusted:
+```bash
+NIX_REMOTE=daemon /nix/var/nix/profiles/default/bin/nix \
+  --extra-experimental-features 'nix-command flakes' store ping
+# Expected output: Trusted: 1
+```
+
+**Daemon lifecycle — suspend vs shutdown:**
+- **Suspend/resume**: The daemon process survives in memory and resumes normally. No restart needed.
+- **Full VM shutdown/restart**: The daemon dies and the socket is lost. Must be restarted at the
+  start of the next session using the command above.
+- **systemd is NOT the init system** on this VM (PID 1 is not systemd — it is a container runtime).
+  Do not attempt `systemctl enable/start nix-daemon` — it will fail with "Host is down".
+
+### Build & Verification Command (on Remote VM)
+This replaces `nixos-rebuild build --flake .` which only works on NixOS hosts:
+```bash
+NIX_REMOTE=daemon /nix/var/nix/profiles/default/bin/nix build \
+  .#nixosConfigurations.otus.config.system.build.toplevel \
+  --no-link \
+  --extra-experimental-features 'nix-command flakes'
+```
+Never consider a task complete without a successful build.
+
+### Full Workflow: Edit → Verify → Push → Apply
+
+**Step 1 — Edit** (remote VM): Make changes to Nix configuration files in the repository.
+
+**Step 2 — Verify** (remote VM): Start the Nix daemon (see above) and run the build command above.
+
+**Step 3 — Commit & Push** (remote VM): Follow the "Clean Tree" rule. The SSH agent forwarded from
+`otus` authenticates git pushes to `sober-bubo.flycast`:
+```bash
+git add <files>
+git commit -m "config: <description>"
+git push origin main
+```
+
+**Step 4 — Apply** (on `otus`, by the user): Pull and switch:
+```bash
+git pull
+os   # alias for: nh os switch /home/michael/git/sober-nix
+```
+
+### Important Caveats for Agents
+- **Do NOT modify `otus`-specific low-end/resource optimizations** (e.g., `perf.lowend`,
+  `distributedBuilds`, `nixbuild.net` build machines). These are intentional for `otus`'s hardware.
+- **The remote VM is Ubuntu**, not NixOS. Do not use `nixos-rebuild`, `nh os switch`, or attempt
+  to manage systemd units here.
+- **The Nix daemon must be manually started** each agent session — there is no persistent systemd
+  service managing it on this VM.

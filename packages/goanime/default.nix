@@ -15,6 +15,8 @@ buildGoModule rec {
     sha256 = "0q6f60c7phcvqqi4s6x16x491dj8gqcrcy1yfl7l1sl101cvsvdp";
   };
 
+  patches = [ ./fix-dub-mode.patch ];
+
   vendorHash = "sha256-R+KuUJhHVVslO06isPENfWNB2zw4T6qpdAFWn9/Rjd4=";
 
   subPackages = [ "cmd/goanime" ];
