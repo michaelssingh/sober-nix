@@ -115,9 +115,11 @@ in
           # Named workspaces
           "${modifier}+2" = "workspace number 2: comms";
           "${modifier}+3" = "workspace number 3: www";
+          "${modifier}+9" = "workspace number 9: sys";
           "${modifier}+0" = "workspace number 10: hack";
           "${modifier}+Shift+2" = "move container to workspace number 2: comms";
           "${modifier}+Shift+3" = "move container to workspace number 3: www";
+          "${modifier}+Shift+9" = "move container to workspace number 9: sys";
           "${modifier}+Shift+0" = "move container to workspace number 10: hack";
         };
 
@@ -129,6 +131,7 @@ in
         }
         { command = "qutebrowser"; }
         { command = "swaymsg 'workspace number 2: comms; exec foot -e tmux attach -t comms'"; }
+        { command = "swaymsg 'workspace number 9: sys; exec foot -e tmux attach -t sys'"; }
         {
           command = "swaymsg 'workspace number 10: hack; exec foot -e tmux attach -t hack; exec zathura /home/michael/git/books/K&R2'";
         }
