@@ -121,7 +121,7 @@
         }"
         "TMUX_TMPDIR=%t"
       ];
-      ExecStart = toString (
+      ExecStart = "${pkgs.bash}/bin/bash -l -c ${
         pkgs.writeShellScript "tmux-autostart-script" ''
           # 1. comms session
           if ! tmux has-session -t comms 2>/dev/null; then
@@ -140,7 +140,7 @@
             tmux new-session -d -s hack -n editor -c /home/michael/git/learn/c 'nvim .'
           fi
         ''
-      );
+      }";
     };
   };
 }
