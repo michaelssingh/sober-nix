@@ -141,6 +141,14 @@
     "SSH_AUTH_SOCK=/run/user/1001/ssh-agent"
   ];
 
+  services.openssh = {
+    enable = true;
+    settings = {
+      PasswordAuthentication = false;
+      PermitRootLogin = "no";
+    };
+  };
+
   users.users.${user} = {
     isNormalUser = true;
     extraGroups = [
@@ -149,6 +157,15 @@
     ];
     shell = pkgs.fish;
     # initialPassword = "password";
+    openssh.authorizedKeys.keys =
+      let
+        keys = import ../../../lib/public-keys.nix;
+      in
+      [
+        keys.forge
+        keys.fly
+        keys.nixbuild
+      ];
   };
 
   fonts = {
