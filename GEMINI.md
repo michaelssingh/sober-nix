@@ -60,3 +60,8 @@
 ## Neovim AI / CodeCompanion Configuration
 - **API Key Management**: Auth with the Gemini API is configured dynamically via SOPS secrets (`sops.secrets.gemini_api_key`), read from `~/.config/sops-nix/secrets/gemini_api_key` using Neovim's `cmd:` loader.
 - **Model**: Default model configured for CodeCompanion strategies is `gemini-3.1-pro-preview`.
+
+## Sprite CLI Configuration
+- **Version Override**: Overridden to `v0.0.1-rc44` in `modules/overlays/default.nix` under `modifications` directly, rather than building custom package files.
+- **API Token Management**: Auth with the `sprite` CLI is managed declaratively via SOPS secrets (`sops.secrets.sprites_api_token`). A Home-Manager activation hook automatically provisions this token from the SOPS-decrypted path, parses the organization prefix, and writes the configuration to `~/.sprites/sprites.json` with permissions `0600` on deployment.
+
