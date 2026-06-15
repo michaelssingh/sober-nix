@@ -24,6 +24,12 @@ in
           "tray"
         ];
 
+        "sway/workspaces" = {
+          disable-scroll = true;
+          all-outputs = true;
+          format = "{name}";
+        };
+
         "group/system" = {
           orientation = "horizontal";
           modules = [
