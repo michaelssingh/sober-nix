@@ -243,6 +243,22 @@
           options = [ "NOPASSWD" ];
         }
         {
+          command = "/nix/store/*/bin/nix-env";
+          options = [ "NOPASSWD" ];
+        }
+        {
+          command = "/nix/store/*/bin/nix-store";
+          options = [ "NOPASSWD" ];
+        }
+        {
+          command = "/nix/store/*/bin/nix";
+          options = [ "NOPASSWD" ];
+        }
+        {
+          command = "/nix/store/*/bin/systemctl";
+          options = [ "NOPASSWD" ];
+        }
+        {
           command = "/run/current-system/sw/bin/nix-env";
           options = [ "NOPASSWD" ];
         }
