@@ -63,7 +63,7 @@ in
     mode = "0600";
   };
 
-  sober.theme.active = "tokyonight-night";
+  sober.theme.active = "tokyonight-storm";
 
   # GUI-Only Packages
   home.packages = with pkgs; [

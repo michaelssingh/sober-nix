@@ -131,6 +131,7 @@ soberLib.mkContainerImage {
       .appservice.database = "sqlite:/data/mautrix-googlechat/mautrix-googlechat.db" |
       .bridge.encryption.allow = false |
       .bridge.encryption.default = false |
+      .bridge.displayname_template = "{full_name}" |
       del(.bridge.permissions) |
       .bridge.permissions["sober.fyi"] = "user" |
       .bridge.permissions["@init:sober.fyi"] = "admin" |
