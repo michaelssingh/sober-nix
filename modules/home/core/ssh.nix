@@ -55,6 +55,18 @@ _: {
         ConnectionAttempts = "10";
         ConnectTimeout = "10";
       };
+
+      "sober-bubo.internal" = {
+        HostName = "sober-bubo.internal";
+        Port = "2222";
+        User = "git";
+        IdentityFile = "~/.ssh/github";
+        AddressFamily = "inet6";
+        StrictHostKeyChecking = "no";
+        UserKnownHostsFile = "/dev/null";
+        ConnectionAttempts = "10";
+        ConnectTimeout = "10";
+      };
     };
   };
 }
