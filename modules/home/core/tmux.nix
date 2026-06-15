@@ -68,10 +68,29 @@
 
         # --- Keybindings ---
         bind-key C-a send-prefix
+
+        # Pane navigation (repeatable)
         bind -r h select-pane -L
         bind -r j select-pane -D
         bind -r k select-pane -U
         bind -r l select-pane -R
+
+        # Pane resizing (repeatable)
+        bind -r H resize-pane -L 5
+        bind -r J resize-pane -D 5
+        bind -r K resize-pane -U 5
+        bind -r L resize-pane -R 5
+
+        # Window navigation (repeatable)
+        bind -r n next-window
+        bind -r p previous-window
+
+        # Vi-mode copy/paste keybindings
+        bind-key -T copy-mode-vi v send-keys -X begin-selection
+        bind-key -T copy-mode-vi y send-keys -X copy-selection-and-cancel
+        bind-key -T copy-mode-vi C-v send-keys -X rectangle-toggle
+        bind-key P paste-buffer
+
       '';
   };
 
