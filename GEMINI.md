@@ -155,7 +155,11 @@ git push origin main
 **Step 4 — Apply** (on `otus`, by the user): Pull and switch:
 ```bash
 git pull
+# Option A: Build and switch locally
 os   # alias for: nh os switch /home/michael/git/sober-nix
+
+# Option B: Fast switch by pulling pre-built system closures from the remote VM (avoids local evaluation/OOM issues)
+nh os switch /home/michael/git/sober-nix -- --option extra-substituters "ssh-ng://sprite@127.0.0.1?port=2222"
 ```
 
 ### Important Caveats for Agents
