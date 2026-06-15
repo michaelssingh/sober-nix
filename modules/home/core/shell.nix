@@ -272,5 +272,6 @@ in
     bandwhich # network monitor (Rust)
     grex # regex generator (Rust)
     nixfmt # Nix formatter
+    sprite # sprites.dev CLI
   ];
 }

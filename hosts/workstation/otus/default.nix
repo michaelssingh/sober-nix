@@ -92,6 +92,7 @@
   environment.variables = {
     SOBER_WAYBAR_TEMP_PATH = "/sys/class/hwmon/hwmon3/temp1_input";
     SOBER_WAYBAR_DISK_PATH = "/";
+    NH_SEARCH_CHANNEL = "nixos-26.05";
   };
   programs.dconf.enable = true;
 
