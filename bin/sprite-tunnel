@@ -54,8 +54,40 @@ stop_process() {
     fi
 }
 
+ensure_remote_services() {
+    echo "Checking remote VM ($SPRITE_NAME) services..."
+
+    # 1. Ensure nix-daemon is running
+    if ! sprite exec -s "$SPRITE_NAME" -- pgrep -f nix-daemon >/dev/null 2>&1; then
+        echo "  - Starting nix-daemon on remote VM..."
+        sprite exec -s "$SPRITE_NAME" -- sh -c "sudo /nix/var/nix/profiles/default/bin/nix-daemon 2>/tmp/nix-daemon.log &"
+        sleep 2
+    else
+        echo "  - nix-daemon is already running"
+    fi
+
+    # 2. Ensure SSH daemon is running on port $SSH_PORT
+    if ! sprite exec -s "$SPRITE_NAME" -- ss -tlnp 2>/dev/null | grep -q ":$SSH_PORT "; then
+        echo "  - Starting SSH daemon on remote VM..."
+        sprite exec -s "$SPRITE_NAME" -- sudo /usr/sbin/sshd -f /home/sprite/sshd_config
+    else
+        echo "  - SSH daemon is already running on port $SSH_PORT"
+    fi
+
+    # 3. Ensure SSH agent socat bridge is running
+    if ! sprite exec -s "$SPRITE_NAME" -- pgrep -f "socat UNIX-LISTEN:/home/sprite/.ssh-agent.sock" >/dev/null 2>&1; then
+        echo "  - Starting socat SSH agent bridge on remote VM..."
+        sprite exec -s "$SPRITE_NAME" -- sh -c "rm -f /home/sprite/.ssh-agent.sock && nohup socat UNIX-LISTEN:/home/sprite/.ssh-agent.sock,fork TCP:127.0.0.1:$AGENT_PORT >/tmp/socat-agent.log 2>&1 &"
+    else
+        echo "  - SSH agent socat bridge is already running"
+    fi
+}
+
 start_tunnel() {
-    # 1. Stop any existing processes
+    # 1. Ensure remote services are started
+    ensure_remote_services
+
+    # 2. Stop any existing local processes
     stop_all
 
     echo "Starting SOCKS5 proxy on port $SOCKS_PORT..."
