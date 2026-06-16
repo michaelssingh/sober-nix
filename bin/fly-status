@@ -2,12 +2,12 @@
 # bin/fly-status - Quick Fly.io instances health check
 set -euo pipefail
 
-BOLD="\033[1m"
-CYAN="\033[36m"
-GREEN="\033[32m"
-YELLOW="\033[33m"
-RED="\033[31m"
-RESET="\033[0m"
+BOLD=$'\e[1m'
+CYAN=$'\e[36m'
+GREEN=$'\e[32m'
+YELLOW=$'\e[33m'
+RED=$'\e[31m'
+RESET=$'\e[0m'
 
 # Ensure fly CLI is available
 if ! command -v fly &>/dev/null; then
@@ -20,7 +20,7 @@ echo -e "${BOLD}${CYAN}==> Querying Fly.io App Statuses...${RESET}"
 # Fetch apps list
 apps_output=$(fly apps list 2>&1)
 
-echo -e "\n${BOLD}%-20s   %-30s   %-20s${RESET}" "App Name" "Status" "Latest Deploy"
+printf "\n${BOLD}%-20s   %-30s   %-20s${RESET}\n" "App Name" "Status" "Latest Deploy"
 echo "----------------------------------------------------------------------"
 
 # Filter and format the sober-* apps
