@@ -178,9 +178,17 @@ status_tunnel() {
         remote_status=$(echo "$list_output" | awk -v name="$SPRITE_NAME" '
             BEGIN { esc = sprintf("%c", 27) }
             {
+                # Strip ANSI escape sequences
                 gsub(esc "\\[[0-9;]*[a-zA-Z]", "")
-                if ($1 == name) { print $2; exit }
-                if ($2 == name) { print $3; exit }
+                # Scan fields for name, print next field as status
+                for (i = 1; i < NF; i++) {
+                    val = $i
+                    sub(/^\*/, "", val)
+                    if (val == name) {
+                        print $(i+1)
+                        exit
+                    }
+                }
             }
         ')
         if [ -n "$remote_status" ]; then
@@ -191,7 +199,8 @@ status_tunnel() {
                 all_ok=1
             fi
         else
-            echo "⚠ Warning: Could not parse status for remote VM ($SPRITE_NAME) from 'sprite list' output"
+            echo "⚠ Warning: Could not parse status for remote VM ($SPRITE_NAME) from 'sprite list' output:"
+            echo "$list_output" | sed 's/^/  /'
         fi
     else
         list_output=$(echo "$list_output" | xargs)
