@@ -165,6 +165,11 @@ git push origin main
 git pull
 os   # alias for: nh os switch /home/michael/git/sober-nix
 ```
+Alternatively, you can use the automated deployment script from `otus` to build remotely on the VM, copy the output, and switch configurations:
+```bash
+./bin/deploy.sh
+```
+
 
 ### Important Caveats for Agents
 - **Do NOT modify `otus`-specific low-end/resource optimizations** (e.g., `perf.lowend`,

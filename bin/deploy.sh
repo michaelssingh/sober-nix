@@ -30,4 +30,10 @@ nix copy --from "ssh://$VM_HOST:$VM_PORT?remote-program=/nix/var/nix/profiles/de
 echo -e "\n${BOLD}${CYAN}==> 3. Activating new configuration...${RESET}"
 sudo "$out_path/bin/switch-to-configuration" switch
 
+# Send notification on success if notify-send is available
+if command -v notify-send >/dev/null 2>&1; then
+    notify-send -a "System Deploy" -u normal "Deployment Successful" "System successfully built, copied, and activated." || true
+fi
+
 echo -e "\n${BOLD}${GREEN}✔ Deployment completed successfully!${RESET}"
+
