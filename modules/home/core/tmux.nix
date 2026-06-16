@@ -123,9 +123,6 @@
       Description = "Auto-start default tmux sessions";
       Documentation = "man:tmux(1)";
     };
-    Install = {
-      WantedBy = [ "default.target" ];
-    };
     Service = {
       Type = "oneshot";
       RemainAfterExit = true;
