@@ -108,7 +108,7 @@
           sleep "$RETRY_INTERVAL"
       done
 
-      echo "Error: Tmux session '$SESSION_NAME' did not appear after $((MAX_RETRIES * RETRY_INTERVAL)) seconds."
+      echo "Error: Tmux session '$SESSION_NAME' did not appear after 15 seconds."
       read -p "Press enter to exit..."
       exit 1
     '')
