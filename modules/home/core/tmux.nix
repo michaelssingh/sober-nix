@@ -97,6 +97,10 @@
   # Automatically start tmux sessions on user login
   home.packages = [
     (pkgs.writeShellScriptBin "attach-tmux" ''
+      if [ -z "''${TMUX_TMPDIR:-}" ] && [ -n "''${XDG_RUNTIME_DIR:-}" ]; then
+          export TMUX_TMPDIR="$XDG_RUNTIME_DIR"
+      fi
+
       SESSION_NAME="$1"
       MAX_RETRIES=30
       RETRY_INTERVAL=0.5
