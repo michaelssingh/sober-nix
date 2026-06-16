@@ -87,14 +87,22 @@ ssh-add -l
 ```
 
 ### Nix on the Remote VM (Ubuntu 25.10)
-Nix is installed via the official multi-user installer. The daemon does **not** run as a systemd service
-(Ubuntu's init system is not configured for it). It must be started manually each session:
+Nix is installed via the official multi-user installer. The daemon does not run as a systemd service
+(Ubuntu's init system is not configured it). 
 
-```bash
-# Start the daemon in the background (must remain running for the session)
-sudo /nix/var/nix/profiles/default/bin/nix-daemon 2>/tmp/nix-daemon.log &
-sleep 3
-```
+#### Remote VM Initialization Protocol (Agent Mitigation)
+To mitigate VM restarts and connection/build issues, the agent must proactively check and start the required background daemons at the beginning of every session:
+
+1. **SSH Daemon**: Check if `sshd` is running. If not, start it:
+   ```bash
+   sudo mkdir -p /run/sshd
+   sudo /usr/sbin/sshd
+   ```
+2. **Nix Daemon**: Check if `nix-daemon` is running. If not, start it:
+   ```bash
+   sudo /nix/var/nix/profiles/default/bin/nix-daemon 2>/tmp/nix-daemon.log &
+   sleep 3
+   ```
 
 Critical configuration in `/etc/nix/nix.conf` — must contain:
 ```

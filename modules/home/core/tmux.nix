@@ -144,9 +144,9 @@
         pkgs.writeShellScript "tmux-autostart-script" ''
           # 1. comms session
           if ! tmux has-session -t comms 2>/dev/null; then
-            tmux new-session -d -s comms -n senpai 'irc'
-            tmux new-window -t comms:2 -n iamb 'matrix'
-            tmux new-window -t comms:3 -n aerc 'email'
+            tmux new-session -d -s comms -n irc 'senpai'
+            tmux new-window -t comms:2 -n matrix 'iamb --profile athene'
+            tmux new-window -t comms:3 -n email 'aerc'
           fi
 
           # 2. sys session
