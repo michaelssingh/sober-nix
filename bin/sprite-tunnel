@@ -69,6 +69,7 @@ ensure_remote_services() {
     # 2. Ensure SSH daemon is running on port $SSH_PORT
     if ! sprite exec -s "$SPRITE_NAME" -- ss -tlnp 2>/dev/null | grep -q ":$SSH_PORT "; then
         echo "  - Starting SSH daemon on remote VM..."
+        sprite exec -s "$SPRITE_NAME" -- sudo mkdir -p /run/sshd
         sprite exec -s "$SPRITE_NAME" -- sudo /usr/sbin/sshd -f /home/sprite/sshd_config
     else
         echo "  - SSH daemon is already running on port $SSH_PORT"
@@ -168,6 +169,24 @@ status_tunnel() {
     else
         echo "✗ SSH reverse tunnel is NOT running"
         all_ok=1
+    fi
+
+    # Check if the remote sprite VM is actually running
+    local remote_status
+    remote_status=$(sprite list 2>/dev/null | awk -v name="$SPRITE_NAME" '
+        $1 == name { print $2; exit }
+        $2 == name { print $3; exit }
+    ')
+
+    if [ -n "$remote_status" ]; then
+        if [ "$remote_status" = "running" ]; then
+            echo "✓ Remote VM ($SPRITE_NAME) status: running"
+        else
+            echo "✗ Remote VM ($SPRITE_NAME) status is NOT running ($remote_status)"
+            all_ok=1
+        fi
+    else
+        echo "⚠ Warning: Could not check remote VM ($SPRITE_NAME) status"
     fi
 
     return "$all_ok"
