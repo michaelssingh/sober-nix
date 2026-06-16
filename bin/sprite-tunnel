@@ -173,20 +173,29 @@ status_tunnel() {
 
     # Check if the remote sprite VM is actually running
     local remote_status
-    remote_status=$(sprite list 2>/dev/null | awk -v name="$SPRITE_NAME" '
-        $1 == name { print $2; exit }
-        $2 == name { print $3; exit }
-    ')
-
-    if [ -n "$remote_status" ]; then
-        if [ "$remote_status" = "running" ]; then
-            echo "✓ Remote VM ($SPRITE_NAME) status: running"
+    local list_output
+    if list_output=$(sprite list 2>&1); then
+        remote_status=$(echo "$list_output" | awk -v name="$SPRITE_NAME" '
+            BEGIN { esc = sprintf("%c", 27) }
+            {
+                gsub(esc "\\[[0-9;]*[a-zA-Z]", "")
+                if ($1 == name) { print $2; exit }
+                if ($2 == name) { print $3; exit }
+            }
+        ')
+        if [ -n "$remote_status" ]; then
+            if [ "$remote_status" = "running" ]; then
+                echo "✓ Remote VM ($SPRITE_NAME) status: running"
+            else
+                echo "✗ Remote VM ($SPRITE_NAME) status is NOT running ($remote_status)"
+                all_ok=1
+            fi
         else
-            echo "✗ Remote VM ($SPRITE_NAME) status is NOT running ($remote_status)"
-            all_ok=1
+            echo "⚠ Warning: Could not parse status for remote VM ($SPRITE_NAME) from 'sprite list' output"
         fi
     else
-        echo "⚠ Warning: Could not check remote VM ($SPRITE_NAME) status"
+        list_output=$(echo "$list_output" | xargs)
+        echo "⚠ Warning: Could not check remote VM ($SPRITE_NAME) status ('sprite list' failed: $list_output)"
     fi
 
     return "$all_ok"
