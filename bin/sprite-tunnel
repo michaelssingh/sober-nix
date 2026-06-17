@@ -121,6 +121,8 @@ start_tunnel() {
     echo "Establishing SSH reverse tunnel..."
     nohup ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
         -p "$SSH_PORT" \
+        -L 5173:127.0.0.1:5173 \
+        -L 4000:127.0.0.1:4000 \
         -R "$SOCKS_PORT:127.0.0.1:$SOCKS_PORT" \
         -R "$AGENT_PORT:127.0.0.1:$AGENT_PORT" \
         -R "2223:127.0.0.1:22" \
@@ -128,6 +130,8 @@ start_tunnel() {
     echo $! > "$SSH_PID_FILE"
 
     echo "✓ Sprite tunnel successfully established!"
+    echo "  - Frontend: http://localhost:5173"
+    echo "  - Backend:  http://localhost:4000"
     echo "  - SOCKS5 Proxy: Port $SOCKS_PORT (remote VM -> workstation -> internet)"
     echo "  - SSH Agent Forwarding: Port $AGENT_PORT (remote VM -> workstation SSH agent)"
     echo "  - Remote Deploy: Port 2223 (remote VM -> workstation SSH daemon)"
