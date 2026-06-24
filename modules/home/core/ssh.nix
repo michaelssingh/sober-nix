@@ -1,5 +1,5 @@
-_: {
-  services.ssh-agent.enable = true;
+{ config, ... }: {
+  services.ssh-agent.enable = !config.sober.isRemote;
 
   programs.ssh = {
     enable = true;
@@ -66,6 +66,23 @@ _: {
         UserKnownHostsFile = "/dev/null";
         ConnectionAttempts = "10";
         ConnectTimeout = "10";
+      };
+
+      "sprite-vm" = {
+        HostName = "127.0.0.1";
+        Port = "2222";
+        User = "sprite";
+        StrictHostKeyChecking = "no";
+        UserKnownHostsFile = "/dev/null";
+      };
+
+      "sober-surnia.flycast" = {
+        HostName = "sober-surnia.flycast";
+        Port = "2222";
+        User = "init";
+        IdentityFile = "~/.ssh/fly";
+        StrictHostKeyChecking = "no";
+        UserKnownHostsFile = "/dev/null";
       };
     };
   };

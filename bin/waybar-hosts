@@ -1,0 +1,131 @@
+#!/usr/bin/env python3
+import subprocess
+import json
+import re
+
+def get_fly_statuses():
+    try:
+        res = subprocess.run(["fly", "apps", "list"], capture_output=True, text=True, timeout=3)
+        if res.returncode != 0:
+            return {}
+        # Parse output
+        statuses = {}
+        for line in res.stdout.splitlines():
+            # Strip whitespace
+            line = line.strip()
+            # Match lines starting with sober-
+            if line.startswith("sober-"):
+                parts = [p.strip() for p in line.split("│")]
+                if len(parts) >= 3:
+                    name = parts[0]
+                    status = parts[2]
+                    statuses[name] = status
+        return statuses
+    except Exception:
+        return {}
+
+def get_cpu_ssh(host, user, port=22):
+    try:
+        # Run top to get CPU idle percent and subtract from 100
+        cmd = ["ssh", "-p", str(port), "-o", "ConnectTimeout=1", "-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null", f"{user}@{host}", "top -bn1 | grep 'Cpu(s)' | awk '{print $2 + $4}'"]
+        res = subprocess.run(cmd, capture_output=True, text=True, timeout=1.5)
+        if res.returncode == 0:
+            val = res.stdout.strip()
+            # Parse float
+            val_float = float(val)
+            return f"{int(val_float)}%"
+    except Exception:
+        pass
+    return None
+
+def main():
+    fly = get_fly_statuses()
+
+    # Determine individual host status/labels
+    # Colors: Green for running/active, Yellow for suspended/warm, Red/Gray for offline/cold
+    # 1. Bubo
+    bubo_status = fly.get("sober-bubo", "unknown")
+    if bubo_status in ["deployed", "running", "started"]:
+        bubo_lbl = "<span color='#98c379'>●</span>"
+        bubo_tool = "active"
+    elif bubo_status == "suspended":
+        bubo_lbl = "<span color='#e5c07b'>●</span>"
+        bubo_tool = "suspended (idle)"
+    else:
+        bubo_lbl = "<span color='#5c6370'>●</span>"
+        bubo_tool = "offline"
+
+    # 2. Strix
+    strix_status = fly.get("sober-strix", "unknown")
+    if strix_status in ["deployed", "running", "started"]:
+        strix_lbl = "<span color='#98c379'>●</span>"
+        strix_tool = "active"
+    elif strix_status == "suspended":
+        strix_lbl = "<span color='#e5c07b'>●</span>"
+        strix_tool = "suspended (idle)"
+    else:
+        strix_lbl = "<span color='#5c6370'>●</span>"
+        strix_tool = "offline"
+
+    # 3. Styx (builder) - check CPU if active
+    styx_status = fly.get("sober-styx", "unknown")
+    styx_cpu = None
+    if styx_status in ["deployed", "running", "started"]:
+        styx_lbl = "<span color='#98c379'>●</span>"
+        styx_cpu = get_cpu_ssh("sober-styx.flycast", "root", 2222)
+        styx_tool = f"active (CPU: {styx_cpu if styx_cpu else '?'})"
+    elif styx_status == "suspended":
+        styx_lbl = "<span color='#e5c07b'>●</span>"
+        styx_tool = "suspended (idle)"
+    else:
+        styx_lbl = "<span color='#5c6370'>●</span>"
+        styx_tool = "offline"
+
+    # 4. Surnia (Fly.io chroot Dev VM) - check CPU if active
+    surnia_status = fly.get("sober-surnia", "unknown")
+    surnia_cpu = None
+    if surnia_status in ["deployed", "running", "started"]:
+        surnia_lbl = "<span color='#98c379'>●</span>"
+        surnia_cpu = get_cpu_ssh("sober-surnia.flycast", "init", 2222)
+        surnia_tool = f"active (CPU: {surnia_cpu if surnia_cpu else '?'})"
+    elif surnia_status == "suspended":
+        surnia_lbl = "<span color='#e5c07b'>●</span>"
+        surnia_tool = "suspended (idle)"
+    else:
+        surnia_lbl = "<span color='#5c6370'>●</span>"
+        surnia_tool = "offline"
+
+    # Format the waybar text
+    text_parts = []
+    text_parts.append(f"B: {bubo_lbl}")
+    text_parts.append(f"X: {strix_lbl}")
+    
+    styx_text = f"S: {styx_lbl}"
+    if styx_cpu:
+         styx_text += f" ({styx_cpu})"
+    text_parts.append(styx_text)
+    
+    surnia_text = f"U: {surnia_lbl}"
+    if surnia_cpu:
+         surnia_text += f" ({surnia_cpu})"
+    text_parts.append(surnia_text)
+
+    text = "  " + " | ".join(text_parts)
+
+    tooltip = (
+        f"Remote Hosts Status:\n"
+        f"  - sober-bubo (Git): {bubo_tool}\n"
+        f"  - sober-strix (Paste): {strix_tool}\n"
+        f"  - sober-styx (Build): {styx_tool}\n"
+        f"  - sober-surnia (Dev VM): {surnia_tool}"
+    )
+
+    out = {
+        "text": text,
+        "tooltip": tooltip,
+        "class": "custom-hosts"
+    }
+    print(json.dumps(out))
+
+if __name__ == "__main__":
+    main()

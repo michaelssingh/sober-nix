@@ -124,6 +124,19 @@
           extraSpecialArgs = { inherit inputs user; };
           modules = [ ./users/${user}/server.nix ];
         };
+        sprite = home-manager.lib.homeManagerConfiguration {
+          inherit pkgs;
+          extraSpecialArgs = {
+            inherit inputs;
+            user = "sprite";
+          };
+          modules = [ ./users/sprite/default.nix ];
+        };
+        "init@surnia" = home-manager.lib.homeManagerConfiguration {
+          inherit pkgs;
+          extraSpecialArgs = { inherit inputs; };
+          modules = [ ./users/init/surnia.nix ];
+        };
       };
       # --- The DevShell for repo maintenance ---
       devShells."x86_64-linux".default = pkgs.mkShell {

@@ -118,7 +118,7 @@
     '')
   ];
 
-  systemd.user.services.tmux-autostart = {
+  systemd.user.services.tmux-autostart = lib.mkIf (!config.sober.isRemote) {
     Unit = {
       Description = "Auto-start default tmux sessions";
       Documentation = "man:tmux(1)";

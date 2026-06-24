@@ -17,6 +17,7 @@ in
         ];
         modules-center = [ "clock" ];
         modules-right = [
+          "custom/hosts"
           "group/system"
           "group/media"
           "network"
@@ -28,6 +29,13 @@ in
           disable-scroll = true;
           all-outputs = true;
           format = "{name}";
+        };
+
+        "custom/hosts" = {
+          format = "{}";
+          exec = "${config.home.homeDirectory}/git/sober-nix/bin/waybar-hosts";
+          interval = 15;
+          return-type = "json";
         };
 
         "group/system" = {
@@ -124,7 +132,7 @@ in
       window#waybar { background: ${colors.bg_dark}; color: ${colors.fg}; }
       #workspaces button { color: ${colors.comment}; padding: 0 5px; }
       #workspaces button.focused { color: ${colors.magenta}; }
-      #cpu, #memory, #disk, #temperature, #pulseaudio, #backlight, #network, #battery, #tray {
+      #custom-hosts, #cpu, #memory, #disk, #temperature, #pulseaudio, #backlight, #network, #battery, #tray {
         padding: 0 8px; color: ${colors.fg};
       }
     '';

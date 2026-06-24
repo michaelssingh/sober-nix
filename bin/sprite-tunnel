@@ -4,7 +4,7 @@
 
 set -euo pipefail
 
-SPRITE_NAME="agy"
+SPRITE_NAME="agy-2"
 SOCKS_PORT=1080
 AGENT_PORT=9000
 SSH_PORT=2222
