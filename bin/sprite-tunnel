@@ -1,240 +1,139 @@
 #!/usr/bin/env bash
-# --- Sprite Tunnel Manager ---
-# Starts and stops SOCKS5, SSH agent forwarding, and sprite proxy tunnel.
+# bin/sprite-tunnel — Tunnel manager for sober-surnia (Fly.io remote dev host).
+#
+# Establishes:
+#   - SOCKS5 proxy (remote → otus → internet)
+#   - SSH agent forwarding (remote → otus SSH agent)
+#   - Port forwards for dev servers (5173, 4000)
+#
+# Usage: bin/sprite-tunnel {start|stop|restart|status}
+#
+# Run on otus before starting an agent session on surnia.
 
 set -euo pipefail
 
-SPRITE_NAME="agy-2"
+APP="sober-surnia"
+VM_HOST="init@${APP}.flycast"
+VM_PORT="2222"
 SOCKS_PORT=1080
 AGENT_PORT=9000
-SSH_PORT=2222
+
+SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ExitOnForwardFailure=yes -o ServerAliveInterval=30"
 
 PID_DIR="$HOME/.cache/sprite-tunnel"
 mkdir -p "$PID_DIR"
 
-SOCKS_PID_FILE="$PID_DIR/socks.pid"
 SOCAT_PID_FILE="$PID_DIR/socat.pid"
-PROXY_PID_FILE="$PID_DIR/proxy.pid"
 SSH_PID_FILE="$PID_DIR/ssh.pid"
+SOCKS_PID_FILE="$PID_DIR/socks.pid"
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# ── Process helpers ───────────────────────────────────────────────────────────
 check_running() {
     local pid_file="$1"
-    if [ -f "$pid_file" ]; then
-        local pid
-        pid=$(cat "$pid_file")
-        if kill -0 "$pid" 2>/dev/null; then
-            return 0
-        fi
-    fi
-    return 1
+    [ -f "$pid_file" ] && kill -0 "$(cat "$pid_file")" 2>/dev/null
 }
 
 stop_process() {
-    local name="$1"
-    local pid_file="$2"
+    local name="$1" pid_file="$2"
     if check_running "$pid_file"; then
-        local pid
-        pid=$(cat "$pid_file")
+        local pid; pid=$(cat "$pid_file")
         echo "Stopping $name (PID $pid)..."
         kill "$pid" 2>/dev/null || true
-        # Wait up to 3 seconds for it to exit
-        for i in {1..30}; do
-            if ! kill -0 "$pid" 2>/dev/null; then
-                break
-            fi
-            sleep 0.1
-        done
-        # Force kill if still running
-        if kill -0 "$pid" 2>/dev/null; then
-            kill -9 "$pid" 2>/dev/null || true
-        fi
-        rm -f "$pid_file"
-    else
-        rm -f "$pid_file"
+        for _ in {1..30}; do kill -0 "$pid" 2>/dev/null || break; sleep 0.1; done
+        kill -9 "$pid" 2>/dev/null || true
     fi
-}
-
-ensure_remote_services() {
-    echo "Checking remote VM ($SPRITE_NAME) services..."
-
-    # 1. Ensure nix-daemon is running
-    if ! sprite exec -s "$SPRITE_NAME" -- pgrep -f nix-daemon >/dev/null 2>&1; then
-        echo "  - Starting nix-daemon on remote VM..."
-        sprite exec -s "$SPRITE_NAME" -- sh -c "sudo /nix/var/nix/profiles/default/bin/nix-daemon 2>/tmp/nix-daemon.log &"
-        sleep 2
-    else
-        echo "  - nix-daemon is already running"
-    fi
-
-    # 2. Ensure SSH daemon is running on port $SSH_PORT
-    if ! sprite exec -s "$SPRITE_NAME" -- ss -tlnp 2>/dev/null | grep -q ":$SSH_PORT "; then
-        echo "  - Starting SSH daemon on remote VM..."
-        sprite exec -s "$SPRITE_NAME" -- sudo mkdir -p /run/sshd
-        sprite exec -s "$SPRITE_NAME" -- sudo /usr/sbin/sshd -f /home/sprite/sshd_config
-    else
-        echo "  - SSH daemon is already running on port $SSH_PORT"
-    fi
-
-    # 3. Ensure SSH agent socat bridge is running
-    if ! sprite exec -s "$SPRITE_NAME" -- pgrep -f "socat UNIX-LISTEN:/home/sprite/.ssh-agent.sock" >/dev/null 2>&1; then
-        echo "  - Starting socat SSH agent bridge on remote VM..."
-        sprite exec -s "$SPRITE_NAME" -- sh -c "rm -f /home/sprite/.ssh-agent.sock && nohup socat UNIX-LISTEN:/home/sprite/.ssh-agent.sock,fork TCP:127.0.0.1:$AGENT_PORT >/tmp/socat-agent.log 2>&1 &"
-    else
-        echo "  - SSH agent socat bridge is already running"
-    fi
-}
-
-start_tunnel() {
-    # 1. Ensure remote services are started
-    ensure_remote_services
-
-    # 2. Stop any existing local processes
-    stop_all
-
-    echo "Starting SOCKS5 proxy on port $SOCKS_PORT..."
-    # Get directory of this script to locate socks5-proxy.py
-    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    nohup python3 "$SCRIPT_DIR/socks5-proxy.py" "$SOCKS_PORT" > "$PID_DIR/socks.log" 2>&1 & disown
-    echo $! > "$SOCKS_PID_FILE"
-
-    echo "Starting local SSH agent forwarder on port $AGENT_PORT..."
-    if [ -z "${SSH_AUTH_SOCK:-}" ]; then
-        echo "Error: SSH_AUTH_SOCK is not set. Is your SSH agent running?" >&2
-        exit 1
-    fi
-    nohup socat TCP-LISTEN:"$AGENT_PORT",bind=127.0.0.1,reuseaddr,fork UNIX-CONNECT:"$SSH_AUTH_SOCK" > "$PID_DIR/socat.log" 2>&1 & disown
-    echo $! > "$SOCAT_PID_FILE"
-
-    echo "Establishing sprite proxy for port $SSH_PORT..."
-    nohup sprite proxy -s "$SPRITE_NAME" "$SSH_PORT" > "$PID_DIR/proxy.log" 2>&1 & disown
-    echo $! > "$PROXY_PID_FILE"
-
-    # Wait for sprite proxy to bind local port 2222
-    echo "Waiting for sprite proxy to bind..."
-    for i in {1..50}; do
-        if ss -tlnp 2>/dev/null | grep -q ":$SSH_PORT "; then
-            break
-        fi
-        sleep 0.1
-    done
-
-    echo "Establishing SSH reverse tunnel..."
-    nohup ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
-        -p "$SSH_PORT" \
-        -L 5173:127.0.0.1:5173 \
-        -L 4000:127.0.0.1:4000 \
-        -R "$SOCKS_PORT:127.0.0.1:$SOCKS_PORT" \
-        -R "$AGENT_PORT:127.0.0.1:$AGENT_PORT" \
-        -R "2223:127.0.0.1:22" \
-        -N sprite@127.0.0.1 > "$PID_DIR/ssh.log" 2>&1 & disown
-    echo $! > "$SSH_PID_FILE"
-
-    echo "✓ Sprite tunnel successfully established!"
-    echo "  - Frontend: http://localhost:5173"
-    echo "  - Backend:  http://localhost:4000"
-    echo "  - SOCKS5 Proxy: Port $SOCKS_PORT (remote VM -> workstation -> internet)"
-    echo "  - SSH Agent Forwarding: Port $AGENT_PORT (remote VM -> workstation SSH agent)"
-    echo "  - Remote Deploy: Port 2223 (remote VM -> workstation SSH daemon)"
+    rm -f "$pid_file"
 }
 
 stop_all() {
-    stop_process "SSH reverse tunnel" "$SSH_PID_FILE"
-    stop_process "sprite proxy" "$PROXY_PID_FILE"
-    stop_process "local SSH agent forwarder" "$SOCAT_PID_FILE"
-    stop_process "SOCKS5 proxy" "$SOCKS_PID_FILE"
+    stop_process "SSH tunnel"      "$SSH_PID_FILE"
+    stop_process "socat (agent)"   "$SOCAT_PID_FILE"
+    stop_process "SOCKS5 proxy"    "$SOCKS_PID_FILE"
 }
 
+# ── Ensure surnia is responsive ───────────────────────────────────────────────
+ensure_surnia_up() {
+    echo "Waking surnia (${APP}.flycast)..."
+    local attempts=0
+    until ssh $SSH_OPTS -p "$VM_PORT" "$VM_HOST" 'echo ok' &>/dev/null; do
+        (( attempts++ ))
+        [ $attempts -ge 24 ] && { echo "✗ surnia not reachable after 2 min"; exit 1; }
+        echo -n "."
+        sleep 5
+    done
+    echo " up."
+}
+
+# ── Start ─────────────────────────────────────────────────────────────────────
+start_tunnel() {
+    stop_all
+    ensure_surnia_up
+
+    # 1. SOCKS5 proxy (internet access from surnia)
+    if [ -f "$SCRIPT_DIR/socks5-proxy.py" ]; then
+        echo "Starting SOCKS5 proxy on port $SOCKS_PORT..."
+        nohup python3 "$SCRIPT_DIR/socks5-proxy.py" "$SOCKS_PORT" >"$PID_DIR/socks.log" 2>&1 & disown
+        echo $! >"$SOCKS_PID_FILE"
+    else
+        echo "  (socks5-proxy.py not found, skipping SOCKS5)"
+    fi
+
+    # 2. SSH agent bridge (socat: local sock → TCP port)
+    if [ -z "${SSH_AUTH_SOCK:-}" ]; then
+        echo "Warning: SSH_AUTH_SOCK not set — agent forwarding disabled"
+    else
+        echo "Starting SSH agent bridge on port $AGENT_PORT..."
+        nohup socat TCP-LISTEN:"$AGENT_PORT",bind=127.0.0.1,reuseaddr,fork \
+            UNIX-CONNECT:"$SSH_AUTH_SOCK" >"$PID_DIR/socat.log" 2>&1 & disown
+        echo $! >"$SOCAT_PID_FILE"
+    fi
+
+    # 3. SSH tunnel with reverse port forwards + dev server forwards
+    echo "Establishing SSH tunnel to ${VM_HOST}:${VM_PORT}..."
+    nohup ssh $SSH_OPTS \
+        -p "$VM_PORT" \
+        -L 5173:127.0.0.1:5173 \
+        -L 4000:127.0.0.1:4000 \
+        -R "${SOCKS_PORT}:127.0.0.1:${SOCKS_PORT}" \
+        -R "${AGENT_PORT}:127.0.0.1:${AGENT_PORT}" \
+        -R "2223:127.0.0.1:22" \
+        -N "$VM_HOST" >"$PID_DIR/ssh.log" 2>&1 & disown
+    echo $! >"$SSH_PID_FILE"
+
+    sleep 2
+
+    echo ""
+    echo "✓ Tunnel established to ${APP}"
+    echo "  Frontend:     http://localhost:5173"
+    echo "  Backend:      http://localhost:4000"
+    echo "  SOCKS5:       Port $SOCKS_PORT (surnia → otus → internet)"
+    echo "  Agent:        Port $AGENT_PORT (surnia → otus SSH agent)"
+    echo "  Deploy back:  Port 2223 (surnia → otus SSH)"
+    echo ""
+    echo "  SSH in: ssh -p $VM_PORT $VM_HOST"
+    echo "  Or:     bin/surnia ssh"
+}
+
+# ── Status ────────────────────────────────────────────────────────────────────
 status_tunnel() {
-    local all_ok=0
-    
-    if check_running "$SOCKS_PID_FILE"; then
-        echo "✓ SOCKS5 proxy is running (PID $(cat "$SOCKS_PID_FILE"))"
-    else
-        echo "✗ SOCKS5 proxy is NOT running"
-        all_ok=1
-    fi
+    local ok=0
 
-    if check_running "$SOCAT_PID_FILE"; then
-        echo "✓ SSH agent forwarder is running (PID $(cat "$SOCAT_PID_FILE"))"
-    else
-        echo "✗ SSH agent forwarder is NOT running"
-        all_ok=1
-    fi
+    check_running "$SOCKS_PID_FILE"  && echo "✓ SOCKS5 proxy running"    || { echo "✗ SOCKS5 proxy stopped"; ok=1; }
+    check_running "$SOCAT_PID_FILE"  && echo "✓ Agent bridge running"     || { echo "✗ Agent bridge stopped"; ok=1; }
+    check_running "$SSH_PID_FILE"    && echo "✓ SSH tunnel running"       || { echo "✗ SSH tunnel stopped";  ok=1; }
 
-    if check_running "$PROXY_PID_FILE"; then
-        echo "✓ sprite proxy is running (PID $(cat "$PROXY_PID_FILE"))"
-    else
-        echo "✗ sprite proxy is NOT running"
-        all_ok=1
-    fi
+    echo ""
+    fly status -a "$APP" 2>/dev/null || echo "(fly not available)"
 
-    if check_running "$SSH_PID_FILE"; then
-        echo "✓ SSH reverse tunnel is running (PID $(cat "$SSH_PID_FILE"))"
-    else
-        echo "✗ SSH reverse tunnel is NOT running"
-        all_ok=1
-    fi
-
-    # Check if the remote sprite VM is actually running
-    local remote_status
-    local list_output
-    # Run sprite list in a PTY wrapper to force full table output
-    if list_output=$(script -q -c "sprite list" /dev/null 2>&1); then
-        :
-    elif list_output=$(sprite list 2>&1); then
-        :
-    else
-        list_output=$(echo "$list_output" | xargs)
-        echo "⚠ Warning: Could not check remote VM ($SPRITE_NAME) status ('sprite list' failed: $list_output)"
-        list_output=""
-    fi
-
-    if [ -n "$list_output" ]; then
-        remote_status=$(echo "$list_output" | awk -F '[[:space:]│*]+' -v name="$SPRITE_NAME" '
-            BEGIN { esc = sprintf("%c", 27) }
-            {
-                # Strip ANSI escape sequences
-                gsub(esc "\\[[0-9;]*[a-zA-Z]", "")
-                for (i = 1; i <= NF; i++) {
-                    if ($i == name) {
-                        print $(i+1)
-                        exit
-                    }
-                }
-            }
-        ')
-        if [ -n "$remote_status" ]; then
-            if [ "$remote_status" = "running" ]; then
-                echo "✓ Remote VM ($SPRITE_NAME) status: running"
-            else
-                echo "✗ Remote VM ($SPRITE_NAME) status is NOT running ($remote_status)"
-                all_ok=1
-            fi
-        else
-            echo "⚠ Warning: Could not parse status for remote VM ($SPRITE_NAME) from 'sprite list' output:"
-            echo "$list_output" | sed 's/^/  /'
-        fi
-    fi
-
-    return "$all_ok"
+    return $ok
 }
 
+# ── Entry point ───────────────────────────────────────────────────────────────
 case "${1:-}" in
-    start)
-        start_tunnel
-        ;;
-    stop)
-        stop_all
-        echo "✓ All sprite tunnel processes stopped."
-        ;;
-    restart)
-        start_tunnel
-        ;;
-    status)
-        status_tunnel
-        ;;
-    *)
-        echo "Usage: $0 {start|stop|restart|status}"
-        exit 1
-        ;;
+    start|restart) start_tunnel ;;
+    stop)  stop_all; echo "✓ Tunnel stopped." ;;
+    status) status_tunnel ;;
+    *) echo "Usage: $0 {start|stop|restart|status}"; exit 1 ;;
 esac
