@@ -5,7 +5,9 @@
 set -euo pipefail
 
 NIX_CHROOT="$HOME/nix-user-chroot"
-NIX_STORE="$HOME/.nix"
+# Store lives on the persistent Fly volume — survives image redeployments
+NIX_STORE_REAL="/data/nix"
+NIX_STORE="$HOME/.nix"  # symlink to NIX_STORE_REAL
 REPO="git@sober-bubo.flycast:init/sober-nix.git"
 REPO_DIR="$HOME/sober-nix"
 FLAKE_URI="github:michaelssingh/sober-nix#init@surnia"
@@ -25,7 +27,19 @@ if [ ! -f "$NIX_CHROOT" ]; then
 fi
 ok "nix-user-chroot ready"
 
-# ── 2. Nix store ─────────────────────────────────────────────────────────────
+# ── 2. Symlink ~/.nix → persistent volume ─────────────────────────────────────
+step "Ensuring ~/.nix points to persistent volume..."
+if [ ! -d "$NIX_STORE_REAL" ]; then
+    mkdir -p "$NIX_STORE_REAL"
+fi
+if [ ! -L "$NIX_STORE" ]; then
+    # First run or broken link — set it up
+    rm -rf "$NIX_STORE" 2>/dev/null || true
+    ln -s "$NIX_STORE_REAL" "$NIX_STORE"
+fi
+ok "~/.nix -> /data/nix (persistent)"
+
+# ── 3. Nix store ─────────────────────────────────────────────────────────────
 if [ ! -d "$NIX_STORE/store" ]; then
     step "Installing Nix (single-user) inside chroot..."
     mkdir -p "$NIX_STORE"
@@ -36,7 +50,7 @@ else
     ok "Nix store already present"
 fi
 
-# ── 3. Shell config (host-level, outside chroot) ─────────────────────────────
+# ── 4. Shell config (host-level, outside chroot) ─────────────────────────────
 step "Writing shell config..."
 cat > "$HOME/.bashrc" << 'EOF'
 # surnia .bashrc
@@ -61,7 +75,7 @@ cat > "$HOME/.bash_profile" << 'EOF'
 EOF
 ok "Shell config written"
 
-# ── 4. SSH agent socket (for git + nix copy auth) ────────────────────────────
+# ── 5. SSH agent socket (for git + nix copy auth) ────────────────────────────
 step "Configuring SSH agent forwarding socket..."
 # On surnia, the agent is forwarded from otus via socat on port 9000
 cat >> "$HOME/.bashrc" << 'EOF'
@@ -78,7 +92,7 @@ fi
 EOF
 ok "Agent socket configured"
 
-# ── 5. Clone / update repo ────────────────────────────────────────────────────
+# ── 6. Clone / update repo ────────────────────────────────────────────────────
 step "Setting up sober-nix repo..."
 if [ ! -d "$REPO_DIR/.git" ]; then
     # Try forge first, fall back to GitHub
@@ -93,7 +107,7 @@ else
     ok "Repo up to date"
 fi
 
-# ── 6. Home Manager via chroot ────────────────────────────────────────────────
+# ── 7. Home Manager via chroot ────────────────────────────────────────────────
 step "Applying Home Manager config (may take 10-15 min on first run)..."
 "$NIX_CHROOT" "$NIX_STORE" bash -lc "
     set -euo pipefail
