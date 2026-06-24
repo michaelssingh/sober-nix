@@ -62,6 +62,7 @@
     curl
     wget
     htop
+    python3
   ];
 
   # --- 4. BOOT OPTIMIZATIONS ---

@@ -33,8 +33,8 @@ in
 
         "custom/hosts" = {
           format = "{}";
-          exec = "${config.home.homeDirectory}/git/sober-nix/bin/waybar-hosts";
-          interval = 15;
+          exec = "/etc/profiles/per-user/michael/bin/python3 ${config.home.homeDirectory}/git/sober-nix/bin/waybar-hosts";
+          interval = 30;
           return-type = "json";
         };
 
