@@ -114,3 +114,12 @@
                  mpv_exitcode=$?
                  [ "$exit_after_play" = 1 ] && [ -z "$range" ] && exit "$mpv_exitcode"
              fi
+@@ -445,7 +493,7 @@
+         *) nohup $player_function "$episode" >/dev/null 2>&1 & ;;
+     esac
+     replay="$episode"
+-    unset episode
++    unset episode dub_episode sub_episode
+     update_history
+     [ "$use_external_menu" = "1" ] && wait
+     [ "$use_external_menu" = "2" ] && wait
