@@ -12,6 +12,7 @@
 
 ## Build & Validation
 - **Verification**: Use `nixos-rebuild build --flake .` locally for all configuration validations.
+- **Switch**: Use `sudo nixos-rebuild switch --flake .#otus` on `otus` to apply changes.
 - **Validation**: Never consider a task complete without a successful local build.
 
 ## Git & Branching Strategy
@@ -69,7 +70,7 @@
 
 > **Context**: The agent runs on a fast remote `sprite.dev` Ubuntu VM (hostname: `agy`), NOT on `otus`.
 > The repository here is the same one deployed to `otus`. All editing and verification happens remotely;
-> application happens locally on `otus` via a git pull and `nh os switch`.
+> application happens locally on `otus` via a git pull and `sudo nixos-rebuild switch --flake .#otus`.
 
 ### How SSH Key Access Works
 The user runs `bin/sprite-tunnel start` on `otus` before starting an agent session. This script:
@@ -167,7 +168,7 @@ git push origin main
 **Step 4 — Apply** (on `otus`, by the user): Pull and switch:
 ```bash
 git pull
-os   # alias for: nh os switch /home/michael/git/sober-nix
+sudo nixos-rebuild switch --flake .#otus
 ```
 Alternatively, you can use the automated deployment script from `otus` to build remotely on the VM, copy the output, and switch configurations:
 ```bash
