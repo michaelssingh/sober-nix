@@ -25,7 +25,7 @@ if [[ -z "$out_path" ]]; then
 fi
 
 echo -e "\n${BOLD}${CYAN}==> 2. Copying built system ($out_path) from VM to local store...${RESET}"
-nix copy --from "ssh://$VM_HOST:$VM_PORT?remote-program=/nix/var/nix/profiles/default/bin/nix-store" "$out_path" --extra-experimental-features 'nix-command flakes'
+nix copy --no-check-sigs --from "ssh://$VM_HOST:$VM_PORT?remote-program=/nix/var/nix/profiles/default/bin/nix-store" "$out_path" --extra-experimental-features 'nix-command flakes'
 
 echo -e "\n${BOLD}${CYAN}==> 3. Activating new configuration...${RESET}"
 sudo "$out_path/bin/switch-to-configuration" switch
