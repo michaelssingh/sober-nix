@@ -90,6 +90,9 @@
         appservice-mgr = pkgs.callPackage ./tools/appservice-mgr { };
         tyto = pkgs.callPackage ./packages/tyto { };
         goanime = pkgs.callPackage ./packages/goanime { };
+        ani-cli = pkgs.callPackage ./packages/ani-cli {
+          src = inputs.ani-cli;
+        };
         antigravity = pkgs.callPackage ./packages/antigravity { };
         strix-paste = pkgs.callPackage ./packages/strix-paste { };
         matrirc = pkgs.callPackage ./packages/matrirc { };

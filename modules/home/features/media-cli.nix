@@ -1,4 +1,4 @@
-{ pkgs, inputs, ... }:
+{ pkgs, ... }:
 
 {
   home.packages = with pkgs; [
@@ -51,25 +51,7 @@
     pkgs.ani-skip
     pkgs.tyto
     pkgs.goanime
-    (pkgs.writeShellApplication {
-      name = "ani-cli";
-      runtimeInputs = [
-        bash
-        curl
-        gnugrep
-        gnused
-        fzf
-        yt-dlp
-        ffmpeg
-        openssl
-        mpv
-        ani-skip
-        aria2
-      ];
-      text = ''
-        bash "${inputs.ani-cli}/ani-cli" "$@"
-      '';
-    })
+    pkgs.ani-cli
   ];
 
   home.file.".w3m/config".text = ''

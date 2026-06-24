@@ -48,7 +48,7 @@ let
   sojuConfig = pkgs.writeText "soju.conf" ''
     listen irc+insecure://0.0.0.0:6667
     listen unix+admin:///data/admin.sock
-    listen http+insecure://0.0.0.0:8080
+    listen http+insecure://0.0.0.0:8081
     http-ingress http://sober-athene.fly.dev
     file-upload fs /data/uploads
     db sqlite3 /data/soju.db
@@ -68,6 +68,43 @@ let
     log = "warn"
     appservice_registration = ["/data/mautrix-googlechat/registration.yaml" ${pkgs.lib.optionalString enableHeisenbridge ", \"/data/heisenbridge/registration.yaml\""}]
   '';
+
+  nginxConfig = pkgs.writeText "nginx.conf" ''
+    user root;
+    worker_processes 1;
+    daemon off;
+    error_log /dev/stderr info;
+    pid /tmp/nginx.pid;
+    events { worker_connections 1024; }
+    http {
+      include ${pkgs.nginx}/conf/mime.types;
+      access_log /dev/stdout;
+      server {
+        listen 8080;
+        location / {
+          root /www;
+          index index.html;
+          try_files $uri $uri/ /index.html;
+        }
+        location /api {
+          proxy_pass http://127.0.0.1:4000;
+        }
+      }
+    }
+  '';
+
+  # Derivation for the static website content
+  wwwContent = pkgs.runCommand "sober-site-www" { } ''
+    mkdir -p $out/www
+    cp -r ${./www}/* $out/www/
+  '';
+
+  # Derivation for the backend content
+  backendContent = pkgs.runCommand "sober-site-backend" { } ''
+    mkdir -p $out/backend
+    cp -r ${./backend}/* $out/backend/
+  '';
+
 in
 soberLib.mkContainerImage {
   name = "sober-athene";
@@ -78,6 +115,10 @@ soberLib.mkContainerImage {
     prometheusUrl = "https://prometheus-prod-66-prod-us-east-3.grafana.net/api/prom/push";
     apiKeyFile = "/run/secrets/grafana_api_key";
   };
+  extraContents = [
+    wwwContent
+    backendContent
+  ];
   packages = [
     pkgs.soju
     unstable.matrix-conduit
@@ -87,6 +128,8 @@ soberLib.mkContainerImage {
     pkgs.binutils
     pkgs.gnugrep
     pkgs.gnutar
+    pkgs.nginx
+    pkgs.nodejs
   ]
   ++ pkgs.lib.optional enableHeisenbridge pkgs.heisenbridge
   ++ [ inputs.self.packages.${pkgs.stdenv.hostPlatform.system}.appservice-mgr ];
@@ -182,10 +225,18 @@ soberLib.mkContainerImage {
           http://localhost:6167 2>&1 | tee -a /var/log/heisenbridge.log &
     ''}
 
+    # 7. Start the Sober Site backend
+    echo "Starting Sober Site backend..."
+    ${pkgs.nodejs}/bin/node /backend/index.js 2>&1 | tee -a /var/log/site-backend.log &
+
+    # 8. Start Nginx to serve the site
+    echo "Starting Nginx..."
+    ${pkgs.nginx}/bin/nginx -c ${nginxConfig} 2>&1 | tee -a /var/log/nginx.log &
+
     # Wait a few seconds for background services to initialize
     sleep 3
 
-    # 7. Execute Soju bouncer in the foreground
+    # 9. Execute Soju bouncer in the foreground
     echo "Starting Soju IRC bouncer..."
     rm -f /data/admin.sock
     exec ${pkgs.soju}/bin/soju -config ${sojuConfig} 2>&1 | tee -a /var/log/soju.log

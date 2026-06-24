@@ -76,7 +76,11 @@ The user runs `bin/sprite-tunnel start` on `otus` before starting an agent sessi
 1. Starts a **SOCKS5 proxy** on `localhost:1080` (Python, `bin/socks5-proxy.py`) for internet routing.
 2. Uses `socat` to bridge the local `SSH_AUTH_SOCK` Unix socket to **TCP port 9000** on `localhost`.
 3. Runs `sprite proxy -s agy 2222` to create a local TCP listener on port `2222` that tunnels through the sprite.dev service to this VM.
-4. Establishes an **SSH reverse tunnel** into the VM: `-R 1080:127.0.0.1:1080 -R 9000:127.0.0.1:9000`
+4. Establishes an **SSH reverse tunnel** into the VM, including **local port forwarding** for development:
+   - `-L 5173:127.0.0.1:5173`: Frontend access.
+   - `-L 4000:127.0.0.1:4000`: Backend API access.
+   - `-R 1080:127.0.0.1:1080`: SOCKS5 proxy for remote internet access.
+   - `-R 9000:127.0.0.1:9000`: SSH agent forwarding.
 
 On the remote VM, `SSH_AUTH_SOCK` is pointed at a socket that forwards over TCP port 9000 back through
 the tunnel to `otus`'s real ssh-agent. **Private keys never leave `otus`.**

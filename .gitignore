@@ -23,3 +23,6 @@ packages/neomutt/
 
 # Compiled bin/ artifacts (track source only)
 bin/init
+
+# Node modules
+node_modules/

@@ -7,6 +7,9 @@
     // {
       tyto = final.callPackage ../../packages/tyto { };
       goanime = final.callPackage ../../packages/goanime { };
+      ani-cli = final.callPackage ../../packages/ani-cli {
+        src = inputs.ani-cli;
+      };
       antigravity = final.callPackage ../../packages/antigravity { };
       strix-paste = final.callPackage ../../packages/strix-paste { };
       matrirc = final.callPackage ../../packages/matrirc { };
