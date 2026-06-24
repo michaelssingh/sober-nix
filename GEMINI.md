@@ -175,6 +175,11 @@ Alternatively, you can use the automated deployment script from `otus` to build 
 ```
 
 
+## SaaS Engine Project
+- Dedicated project directory: `projects/saas-engine/`.
+- Development is managed by a dedicated team of subagents.
+- Refer to `projects/saas-engine/TEAM.md` for role definitions and team operational standards.
+
 ### Important Caveats for Agents
 - **Do NOT modify `otus`-specific low-end/resource optimizations** (e.g., `perf.lowend`,
   `distributedBuilds`, `nixbuild.net` build machines). These are intentional for `otus`'s hardware.

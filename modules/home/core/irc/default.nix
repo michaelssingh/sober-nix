@@ -59,6 +59,8 @@ in
     sha256 = "0dc0q61m7kb39nj3igy2fml011x1lwv967z298cqa2ky9zqdcz3c";
   };
 
+  xdg.dataFile."weechat/python/autoload/soju.py".source = ./soju.py;
+
   xdg.dataFile."weechat/python/autoload/colorize_nicks.py".source = pkgs.fetchurl {
     url = "https://raw.githubusercontent.com/weechat/scripts/master/python/colorize_nicks.py";
     sha256 = "1zkv0bgkaxp36q5iqyniilg0d0xlvl6qbfm6nibk4w583lny7jwd";
@@ -80,61 +82,13 @@ in
     sasl_mechanism = plain
 
     [server]
-    libera.addresses = "sober-athene.flycast/6667"
-    libera.username = "init/irc.libera.chat:6697@weechat"
-    libera.password = "''${sec.data.soju}"
-    libera.sasl_username = "init/irc.libera.chat:6697@weechat"
-    libera.sasl_password = "''${sec.data.soju}"
-    libera.autoconnect = on
-    libera.tls = off
-
-    hashbang.addresses = "sober-athene.flycast/6667"
-    hashbang.username = "init/irc.hashbang.sh@weechat"
-    hashbang.password = "''${sec.data.soju}"
-    hashbang.sasl_username = "init/irc.hashbang.sh@weechat"
-    hashbang.sasl_password = "''${sec.data.soju}"
-    hashbang.autoconnect = on
-    hashbang.tls = off
-
-    tilde.addresses = "sober-athene.flycast/6667"
-    tilde.username = "init/irc.tilde.chat@weechat"
-    tilde.password = "''${sec.data.soju}"
-    tilde.sasl_username = "init/irc.tilde.chat@weechat"
-    tilde.sasl_password = "''${sec.data.soju}"
-    tilde.autoconnect = on
-    tilde.tls = off
-
-    mam.addresses = "sober-athene.flycast/6667"
-    mam.username = "init/irc.myanonamouse.net@weechat"
-    mam.password = "''${sec.data.soju}"
-    mam.sasl_username = "init/irc.myanonamouse.net@weechat"
-    mam.sasl_password = "''${sec.data.soju}"
-    mam.autoconnect = on
-    mam.tls = off
-
-    ipt.addresses = "sober-athene.flycast/6667"
-    ipt.username = "init/irc.iptorrents.com@weechat"
-    ipt.password = "''${sec.data.soju}"
-    ipt.sasl_username = "init/irc.iptorrents.com@weechat"
-    ipt.sasl_password = "''${sec.data.soju}"
-    ipt.autoconnect = on
-    ipt.tls = off
-
-    sdf.addresses = "sober-athene.flycast/6667"
-    sdf.username = "init/irc.sdf.org:6697@weechat"
-    sdf.password = "''${sec.data.soju}"
-    sdf.sasl_username = "init/irc.sdf.org:6697@weechat"
-    sdf.sasl_password = "''${sec.data.soju}"
-    sdf.autoconnect = on
-    sdf.tls = off
-
-    newnet.addresses = "sober-athene.flycast/6667"
-    newnet.username = "init/irc.newnet.net:6697@weechat"
-    newnet.password = "''${sec.data.soju}"
-    newnet.sasl_username = "init/irc.newnet.net:6697@weechat"
-    newnet.sasl_password = "''${sec.data.soju}"
-    newnet.autoconnect = on
-    newnet.tls = off
+    soju.addresses = "sober-athene.flycast/6667"
+    soju.username = "init@weechat"
+    soju.password = "''${sec.data.soju}"
+    soju.sasl_username = "init"
+    soju.sasl_password = "''${sec.data.soju}"
+    soju.autoconnect = on
+    soju.tls = off
   '';
 
   xdg.configFile."weechat/matrix-rust.conf".text = ''

@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+
+# Usage: qute-history-delete <domain1> <domain2> ...
+
+if [ $# -eq 0 ]; then
+    echo "Usage: $0 <domain1> [domain2 ...]"
+    exit 1
+fi
+
+DB="$HOME/.local/share/qutebrowser/history.sqlite"
+
+if [ ! -f "$DB" ]; then
+    echo "Error: Database not found at $DB"
+    exit 1
+fi
+
+for TARGET in "$@"; do
+    echo "Removing entries matching: $TARGET"
+    
+    # Run the deletions using nix-shell for each target
+    nix-shell -p sqlite --run "sqlite3 '$DB' \"
+        DELETE FROM history WHERE url LIKE '%$TARGET%';
+        DELETE FROM CompletionHistory WHERE url LIKE '%$TARGET%';
+        SELECT 'Removed ' || changes() || ' rows for ' || '$TARGET';
+    \""
+done
+
+echo "Done."

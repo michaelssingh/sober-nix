@@ -162,9 +162,7 @@
         keys = import ../../../lib/public-keys.nix;
       in
       [
-        keys.forge
         keys.fly
-        keys.nixbuild
       ];
   };
 
