@@ -35,9 +35,10 @@ git pull || echo "Warning: git pull failed (you may have uncommitted local chang
 
 # Send detailed notification on success if notify-send is available
 if command -v notify-send >/dev/null 2>&1; then
+    gen_id=$(readlink /nix/var/nix/profiles/system | cut -d'-' -f2 || echo "unknown")
     notify-send -a "System Deploy" -u normal \
-        "Deployment Successful" \
-        "System successfully built, copied, and activated.\n\nPath: $out_path\nUser: $(whoami)\nDate: $(date)" || true
+        "Deployment Successful (Generation #$gen_id)" \
+        "System successfully built, copied, and activated.\n\nGeneration: #$gen_id\nPath: $out_path\nUser: $(whoami)\nDate: $(date)" || true
 fi
 
 echo -e "\n${BOLD}${GREEN}✔ Deployment completed successfully!${RESET}"
