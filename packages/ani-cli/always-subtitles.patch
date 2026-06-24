@@ -1,0 +1,116 @@
+--- a/ani-cli
++++ b/ani-cli
+@@ -295,28 +295,74 @@
+     episode_embed_gql='query ($showId: String!, $translationType: VaildTranslationTypeEnumType!, $episodeString: String!) { episode( showId: $showId translationType: $translationType episodeString: $episodeString ) { episodeString sourceUrls }}'
+ 
+     query_hash="d405d0edd690624b66baba3068e0edc3ac90f1597d898a1ec8db4e5c43c00fec"
+-    query_vars="{\"showId\":\"$id\",\"translationType\":\"$mode\",\"episodeString\":\"$ep_no\"}"
+-    query_ext="{\"persistedQuery\":{\"version\":1,\"sha256Hash\":\"$query_hash\"}}"
+ 
+-    api_resp="$(curl -e "$allanime_refr" -sG -A "$agent" -H "Origin: ${allanime_refr}" "${allanime_api}/api" --data-urlencode "variables=${query_vars}" --data-urlencode "extensions=${query_ext}")"
++    if [ "$mode" = "dub" ]; then
++        # 1. Fetch DUB link
++        query_vars="{\"showId\":\"$id\",\"translationType\":\"dub\",\"episodeString\":\"$ep_no\"}"
++        query_ext="{\"persistedQuery\":{\"version\":1,\"sha256Hash\":\"$query_hash\"}}"
++        api_resp="$(curl -e "$allanime_refr" -sG -A "$agent" -H "Origin: ${allanime_refr}" "${allanime_api}/api" --data-urlencode "variables=${query_vars}" --data-urlencode "extensions=${query_ext}")"
++        if [ -z "$api_resp" ] || ! printf "%s" "$api_resp" | grep -q "tobeparsed"; then
++            api_resp="$(curl -e "$allanime_refr" -s -H "Content-Type: application/json" -X POST "${allanime_api}/api" --data "{\"variables\":{\"showId\":\"$id\",\"translationType\":\"dub\",\"episodeString\":\"$ep_no\"},\"query\":\"$episode_embed_gql\"}" -A "$agent")"
++        fi
++        resp="$(process_response "$api_resp" | tr '{}' '\n' | sed 's|\\u002F|\/|g;s|\\||g' | sed -nE 's|.*sourceUrl":"([^"]*)".*sourceName":"([^"]*)".*|\2 :\1|p')"
++        cache_dir="$(mktemp -d)"
++        providers="1 2 3 4"
++        for provider in $providers; do
++            generate_link "$provider" >"$cache_dir"/"$provider" &
++        done
++        wait
++        links=$(cat "$cache_dir"/* | sort -g -r -s)
++        rm -r "$cache_dir"
++        select_quality "$quality"
++        dub_episode="$episode"
++
++        # 2. Fetch SUB link
++        query_vars="{\"showId\":\"$id\",\"translationType\":\"sub\",\"episodeString\":\"$ep_no\"}"
++        query_ext="{\"persistedQuery\":{\"version\":1,\"sha256Hash\":\"$query_hash\"}}"
++        api_resp="$(curl -e "$allanime_refr" -sG -A "$agent" -H "Origin: ${allanime_refr}" "${allanime_api}/api" --data-urlencode "variables=${query_vars}" --data-urlencode "extensions=${query_ext}")"
++        if [ -z "$api_resp" ] || ! printf "%s" "$api_resp" | grep -q "tobeparsed"; then
++            api_resp="$(curl -e "$allanime_refr" -s -H "Content-Type: application/json" -X POST "${allanime_api}/api" --data "{\"variables\":{\"showId\":\"$id\",\"translationType\":\"sub\",\"episodeString\":\"$ep_no\"},\"query\":\"$episode_embed_gql\"}" -A "$agent")"
++        fi
++        resp="$(process_response "$api_resp" | tr '{}' '\n' | sed 's|\\u002F|\/|g;s|\\||g' | sed -nE 's|.*sourceUrl":"([^"]*)".*sourceName":"([^"]*)".*|\2 :\1|p')"
++        cache_dir="$(mktemp -d)"
++        providers="1 2 3 4"
++        for provider in $providers; do
++            generate_link "$provider" >"$cache_dir"/"$provider" &
++        done
++        wait
++        links=$(cat "$cache_dir"/* | sort -g -r -s)
++        rm -r "$cache_dir"
++        select_quality "$quality"
++        sub_episode="$episode"
++
++        if [ -n "$sub_episode" ]; then
++            episode="$sub_episode"
++        else
++            episode="$dub_episode"
++            unset dub_episode
++        fi
++    else
++        query_vars="{\"showId\":\"$id\",\"translationType\":\"$mode\",\"episodeString\":\"$ep_no\"}"
++        query_ext="{\"persistedQuery\":{\"version\":1,\"sha256Hash\":\"$query_hash\"}}"
++
++        api_resp="$(curl -e "$allanime_refr" -sG -A "$agent" -H "Origin: ${allanime_refr}" "${allanime_api}/api" --data-urlencode "variables=${query_vars}" --data-urlencode "extensions=${query_ext}")"
+ 
+-    if [ -z "$api_resp" ] || ! printf "%s" "$api_resp" | grep -q "tobeparsed"; then
+-        api_resp="$(curl -e "$allanime_refr" -s -H "Content-Type: application/json" -X POST "${allanime_api}/api" --data "{\"variables\":{\"showId\":\"$id\",\"translationType\":\"$mode\",\"episodeString\":\"$ep_no\"},\"query\":\"$episode_embed_gql\"}" -A "$agent")"
++        if [ -z "$api_resp" ] || ! printf "%s" "$api_resp" | grep -q "tobeparsed"; then
++            api_resp="$(curl -e "$allanime_refr" -s -H "Content-Type: application/json" -X POST "${allanime_api}/api" --data "{\"variables\":{\"showId\":\"$id\",\"translationType\":\"$mode\",\"episodeString\":\"$ep_no\"},\"query\":\"$episode_embed_gql\"}" -A "$agent")"
++        fi
++
++        resp="$(process_response "$api_resp" | tr '{}' '\n' | sed 's|\\u002F|\/|g;s|\\||g' | sed -nE 's|.*sourceUrl":"([^"]*)".*sourceName":"([^"]*)".*|\2 :\1|p')"
++        cache_dir="$(mktemp -d)"
++        providers="1 2 3 4"
++        for provider in $providers; do
++            generate_link "$provider" >"$cache_dir"/"$provider" &
++        done
++        wait
++        links=$(cat "$cache_dir"/* | sort -g -r -s)
++        rm -r "$cache_dir"
++        select_quality "$quality"
+     fi
+ 
+-    resp="$(process_response "$api_resp" | tr '{}' '\n' | sed 's|\\u002F|\/|g;s|\\||g' | sed -nE 's|.*sourceUrl":"([^"]*)".*sourceName":"([^"]*)".*|\2 :\1|p')"
+-    # generate links into sequential files
+-    cache_dir="$(mktemp -d)"
+-    #providers="1 2 3 4 5"
+-    providers="1 2 3 4"
+-    for provider in $providers; do
+-        generate_link "$provider" >"$cache_dir"/"$provider" &
+-    done
+-    wait
+-    # select the link with matching quality
+-    links=$(cat "$cache_dir"/* | sort -g -r -s)
+-    rm -r "$cache_dir"
+-    select_quality "$quality"
+     if printf "%s" "$ep_list" | grep -q "^$ep_no$"; then
+         [ -z "$episode" ] && die "Episode is released, but no valid sources!"
+     else
+@@ -404,6 +450,8 @@
+ }
+ 
+ play_episode() {
++    audio_flag=""
++    [ -n "$dub_episode" ] && audio_flag="--audio-file=$dub_episode"
+     [ "$log_episode" = 1 ] && [ "$player_function" != "debug" ] && [ "$player_function" != "download" ] && command -v logger >/dev/null && logger -t ani-cli "${allanime_title}${ep_no}"
+     [ "$skip_intro" = 1 ] && skip_flag="$(ani-skip -q "$mal_id" -e "$ep_no")"
+     [ -z "$episode" ] && get_episode_url
+@@ -415,9 +463,9 @@
+             ;;
+         mpv*)
+             if [ "$no_detach" = 0 ]; then
+-                nohup $player_function $skip_flag --tls-verify=no --force-media-title="${allanime_title}Episode ${ep_no}" "$episode" $refr_flag >/dev/null 2>&1 &
++                nohup $player_function $skip_flag $audio_flag --tls-verify=no --force-media-title="${allanime_title}Episode ${ep_no}" "$episode" $refr_flag >/dev/null 2>&1 &
+             else
+-                $player_function $skip_flag $refr_flag --tls-verify=no --force-media-title="${allanime_title}Episode ${ep_no}" "$episode"
++                $player_function $skip_flag $refr_flag $audio_flag --tls-verify=no --force-media-title="${allanime_title}Episode ${ep_no}" "$episode"
+                 mpv_exitcode=$?
+                 [ "$exit_after_play" = 1 ] && [ -z "$range" ] && exit "$mpv_exitcode"
+             fi
