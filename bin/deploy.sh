@@ -30,6 +30,9 @@ NIX_REMOTE=daemon nix copy --no-check-sigs --from "ssh://$VM_HOST:$VM_PORT?remot
 echo -e "\n${BOLD}${CYAN}==> 3. Activating new configuration...${RESET}"
 sudo "$out_path/bin/switch-to-configuration" switch
 
+echo -e "\n${BOLD}${CYAN}==> 4. Synchronizing local git repository...${RESET}"
+git pull || echo "Warning: git pull failed (you may have uncommitted local changes on Otus)."
+
 # Send detailed notification on success if notify-send is available
 if command -v notify-send >/dev/null 2>&1; then
     notify-send -a "System Deploy" -u normal \
