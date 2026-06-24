@@ -216,60 +216,7 @@
   ];
   system.stateVersion = "25.11";
 
-  # Remember password forever until session ends
-  security.sudo.extraConfig = ''
-    Defaults timestamp_timeout=-1
-  '';
-
-  security.sudo.extraRules = [
-    {
-      users = [ "michael" ];
-      commands = [
-        {
-          command = "/run/current-system/sw/bin/nixos-rebuild";
-          options = [ "NOPASSWD" ];
-        }
-        {
-          command = "/nix/store/*/bin/switch-to-configuration";
-          options = [ "NOPASSWD" ];
-        }
-        {
-          command = "/nix/store/*/bin/nix-env";
-          options = [ "NOPASSWD" ];
-        }
-        {
-          command = "/nix/store/*/bin/nix-store";
-          options = [ "NOPASSWD" ];
-        }
-        {
-          command = "/nix/store/*/bin/nix";
-          options = [ "NOPASSWD" ];
-        }
-        {
-          command = "/nix/store/*/bin/systemctl";
-          options = [ "NOPASSWD" ];
-        }
-        {
-          command = "/run/current-system/sw/bin/nix-env";
-          options = [ "NOPASSWD" ];
-        }
-        {
-          command = "/run/current-system/sw/bin/nix-store";
-          options = [ "NOPASSWD" ];
-        }
-        {
-          command = "/run/current-system/sw/bin/systemctl";
-          options = [ "NOPASSWD" ];
-        }
-        {
-          command = "/run/current-system/sw/bin/wg";
-          options = [ "NOPASSWD" ];
-        }
-        {
-          command = "/run/current-system/sw/bin/dmesg";
-          options = [ "NOPASSWD" ];
-        }
-      ];
-    }
-  ];
+  # Passwordless sudo for wheel — nh os switch invokes switch-to-configuration
+  # which in turn calls many privileged helpers; per-command rules are insufficient.
+  security.sudo.wheelNeedsPassword = false;
 }
