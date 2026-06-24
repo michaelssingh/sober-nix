@@ -1,0 +1,119 @@
+#!/usr/bin/env bash
+# bin/surnia — Full lifecycle manager for the sober-surnia Fly.io dev host.
+#
+# Usage:
+#   bin/surnia deploy     — Build image, push, deploy to Fly, then bootstrap Nix
+#   bin/surnia bootstrap  — (Re)run the Nix/HM bootstrap on an already-running machine
+#   bin/surnia ssh        — Open an interactive shell on surnia
+#   bin/surnia status     — Show machine status
+#   bin/surnia destroy    — Destroy and recreate the machine (full reset)
+#
+# This script is fully idempotent — safe to run multiple times.
+
+set -euo pipefail
+
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+HOST_DIR="$REPO_ROOT/hosts/server/surnia"
+APP="sober-surnia"
+SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=10"
+SSH="ssh $SSH_OPTS -p 2222 init@${APP}.flycast"
+SCP="scp $SSH_OPTS -P 2222"
+
+# ── Colours ──────────────────────────────────────────────────────────────────
+G="\033[0;32m"; Y="\033[0;33m"; R="\033[0;31m"; B="\033[0;34m"; N="\033[0m"
+info()  { echo -e "${B}▶${N} $*"; }
+ok()    { echo -e "${G}✓${N} $*"; }
+warn()  { echo -e "${Y}⚠${N} $*"; }
+die()   { echo -e "${R}✗${N} $*" >&2; exit 1; }
+
+# ── Helpers ───────────────────────────────────────────────────────────────────
+wait_for_ssh() {
+    info "Waiting for SSH on ${APP}.flycast:2222..."
+    local attempts=0
+    until $SSH 'echo ok' &>/dev/null; do
+        (( attempts++ ))
+        [ $attempts -ge 30 ] && die "SSH not reachable after 30 attempts"
+        echo -n "."
+        sleep 5
+    done
+    echo ""
+    ok "SSH reachable"
+}
+
+do_deploy() {
+    info "1/3 Building Nix image: ${APP}..."
+    (cd "$REPO_ROOT" && nix build .#surnia-image --no-link --print-out-paths)
+    local image
+    image=$(cd "$REPO_ROOT" && nix build .#surnia-image --no-link --print-out-paths 2>/dev/null)
+
+    info "2/3 Pushing image to Fly registry..."
+    local registry="registry.fly.io/${APP}:latest"
+    skopeo copy \
+        "docker-archive:${image}" \
+        "docker://${registry}" \
+        --dest-creds "x:$(fly auth token)"
+
+    info "3/3 Deploying to Fly.io..."
+    cd "$HOST_DIR"
+    fly deploy --image "$registry" --yes
+    ok "Deployed ${APP}"
+}
+
+do_bootstrap() {
+    wait_for_ssh
+
+    info "Copying bootstrap script..."
+    $SCP "$REPO_ROOT/bootstrap-remote.sh" "init@${APP}.flycast:~/bootstrap-remote.sh"
+
+    info "Running bootstrap on ${APP} (first run takes ~15 minutes)..."
+    $SSH 'bash ~/bootstrap-remote.sh'
+    ok "Bootstrap complete"
+}
+
+do_ssh() {
+    exec ssh $SSH_OPTS -p 2222 "init@${APP}.flycast"
+}
+
+do_status() {
+    fly status -a "$APP"
+}
+
+do_destroy() {
+    warn "This will DESTROY and recreate the ${APP} machine (Nix store will be lost)."
+    read -rp "Type 'yes' to confirm: " confirm
+    [[ "$confirm" == "yes" ]] || die "Aborted."
+
+    info "Destroying machine..."
+    fly machine list -a "$APP" --json 2>/dev/null \
+        | python3 -c "import sys,json; [print(m['id']) for m in json.load(sys.stdin)]" \
+        | xargs -I{} fly machine destroy {} -a "$APP" --force
+    ok "Machine destroyed. Run 'bin/surnia deploy' to recreate."
+}
+
+# ── Entry point ───────────────────────────────────────────────────────────────
+CMD="${1:-help}"
+case "$CMD" in
+    deploy)
+        do_deploy
+        do_bootstrap
+        ok "surnia is fully operational."
+        ;;
+    bootstrap)
+        do_bootstrap
+        ;;
+    ssh)
+        do_ssh
+        ;;
+    status)
+        do_status
+        ;;
+    destroy)
+        do_destroy
+        ;;
+    help|--help|-h)
+        grep '^#' "$0" | head -12 | sed 's/^# \?//'
+        ;;
+    *)
+        die "Unknown command: $CMD. Run 'bin/surnia help'."
+        ;;
+esac
