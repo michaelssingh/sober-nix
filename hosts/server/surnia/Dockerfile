@@ -32,6 +32,7 @@ RUN mkdir -p /home/init/.ssh && chmod 700 /home/init/.ssh
 RUN echo "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHy4pVdTzFoOPdQkXdwG9cJuSeHCXm3UTaDgRl/UXGWI" >> /home/init/.ssh/authorized_keys && \
     echo "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAPGyqlLfLc3PTAQ00M2fg4kaEnoOkmMfECNGOQo/2FI" >> /home/init/.ssh/authorized_keys && \
     echo "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEk7iS+9SpdVSG/RVdVjPP13RDyd/xLBNMvcVbpgJrAX" >> /home/init/.ssh/authorized_keys && \
+    echo "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIF1XgGtZv4XLasXUbDtRmFn7FvaAojdPxSTpQg/A2gnF sprite@sprite" >> /home/init/.ssh/authorized_keys && \
     chmod 600 /home/init/.ssh/authorized_keys && \
     chown -R init:init /home/init/.ssh
 

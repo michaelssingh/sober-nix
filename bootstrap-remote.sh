@@ -19,8 +19,9 @@ fi
 
 # 2. Check Nix Store
 if [ ! -d "$NIX_STORE" ]; then
-    echo "⚠ Nix store missing. Re-installing..."
-    curl -L https://nixos.org/nix/install | sh -s -- --no-daemon --yes
+    echo "⚠ Nix store missing. Re-installing inside chroot..."
+    mkdir -p "$NIX_STORE"
+    "$NIX_CHROOT" "$NIX_STORE" bash -c "curl -L https://nixos.org/nix/install | sh -s -- --no-daemon --yes"
 fi
 
 # 3. Restore Shell Configurations

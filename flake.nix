@@ -116,6 +116,10 @@
           inherit pkgs soberLib publicKeys;
           inherit (nixpkgs) lib;
         };
+        surnia-image = import ./hosts/server/surnia {
+          inherit pkgs soberLib publicKeys;
+          inherit (nixpkgs) lib;
+        };
       };
 
       homeConfigurations = {
