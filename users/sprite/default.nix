@@ -99,6 +99,16 @@ in
     '';
   };
 
+  # --- Declarative SSHD Wrapper Script to ensure /run/sshd is created on boot ---
+  home.file.".sshd-wrapper.sh" = {
+    executable = true;
+    text = ''
+      #!/usr/bin/env bash
+      /usr/bin/mkdir -p /run/sshd
+      exec /usr/sbin/sshd -D -e -f /home/sprite/sshd_config
+    '';
+  };
+
   # --- Sprite Services Setup Activation Hook ---
   home.activation.configure-sprite-environment = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
     # Export /usr/bin to PATH so that sprite-env can invoke 'curl' and 'jq'
@@ -118,12 +128,15 @@ in
     fi
     $DRY_RUN_CMD /.sprite/bin/sprite-env services start nix-daemon || true
 
-    # 3. Register sshd as a Sprite service if not present
+    # 3. Register sshd as a Sprite service if not present, or recreate if legacy command is found
     $DRY_RUN_CMD /usr/bin/sudo mkdir -p /run/sshd
+    if /.sprite/bin/sprite-env services list | grep -q "sshd" && ! /.sprite/bin/sprite-env services list | grep -q ".sshd-wrapper.sh"; then
+      $DRY_RUN_CMD /.sprite/bin/sprite-env services delete sshd
+    fi
     if ! /.sprite/bin/sprite-env services list | grep -q "sshd"; then
       $DRY_RUN_CMD /.sprite/bin/sprite-env services create sshd \
         --cmd /usr/bin/sudo \
-        --args "/usr/sbin/sshd,-D,-e,-f,/home/sprite/sshd_config" \
+        --args "/home/sprite/.sshd-wrapper.sh" \
         --no-stream
     fi
     $DRY_RUN_CMD /.sprite/bin/sprite-env services start sshd || true
