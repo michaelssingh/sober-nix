@@ -16,6 +16,8 @@ var savePositionLua string
 func countAudioStreams(streamURL string) int {
 	cmd := exec.Command("ffprobe",
 		"-v", "error",
+		"-referer", AllAnimeReferer,
+		"-user_agent", UserAgent,
 		"-select_streams", "a",
 		"-show_entries", "stream=index",
 		"-of", "csv=p=0",
@@ -24,6 +26,7 @@ func countAudioStreams(streamURL string) int {
 	var stdout bytes.Buffer
 	cmd.Stdout = &stdout
 	if err := cmd.Run(); err != nil {
+		debugLog("countAudioStreams: ffprobe run failed for URL %s: %v", streamURL, err)
 		return 0
 	}
 	lines := strings.Split(strings.TrimSpace(stdout.String()), "\n")
@@ -33,6 +36,7 @@ func countAudioStreams(streamURL string) int {
 			count++
 		}
 	}
+	debugLog("countAudioStreams: ffprobe detected %d audio stream(s) for URL %s", count, streamURL)
 	return count
 }
 
@@ -53,6 +57,7 @@ func getMpvCmd(streamURL string, title string, epNo string, extraArgs []string) 
 		"--tls-verify=no",
 		"--force-media-title=" + title + " - Episode " + epNo,
 		"--script=" + tmpFile.Name(),
+		"--http-header-fields=Referer: " + AllAnimeReferer + ",User-Agent: " + UserAgent,
 	}
 	args = append(args, extraArgs...)
 	args = append(args, streamURL)
@@ -66,6 +71,10 @@ func playSingleCmd(streamURL, title, epNo string) (*exec.Cmd, string, error) {
 }
 
 func playDualCmd(subStream, dubStream string, subTracks int, title, epNo string) (*exec.Cmd, string, error) {
+	if subTracks <= 0 {
+		debugLog("playDualCmd: subTracks is %d, falling back to 1", subTracks)
+		subTracks = 1
+	}
 	aid := strconv.Itoa(subTracks + 1)
 	extraArgs := []string{
 		"--audio-file=" + dubStream,
