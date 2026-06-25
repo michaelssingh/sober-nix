@@ -168,6 +168,8 @@ type model struct {
 	initialSearch    string
 	episodeDetails   map[string]JikanEpInfo
 	loadedJikanPages map[int]bool
+	autoplay         bool
+	triggerAutoplay  bool
 }
 
 func createMinimalList(title string) list.Model {
@@ -229,6 +231,7 @@ func initialModel(initialSearch, mode, quality string, download bool) model {
 		initialSearch:    initialSearch,
 		episodeDetails:   make(map[string]JikanEpInfo),
 		loadedJikanPages: make(map[int]bool),
+		autoplay:         true, // Autoplay on by default
 	}
 
 	m.refreshHistory()
@@ -365,6 +368,26 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.episodeList.Select(selectIndex)
 
+		// If autoplay was triggered, fetch next stream immediately
+		if m.triggerAutoplay {
+			m.triggerAutoplay = false
+			var nextEpNo string
+			foundNext := false
+			for _, item := range m.episodeItems {
+				if epItem, ok := item.(episodeItem); ok && epItem.isNext {
+					nextEpNo = epItem.epNo
+					foundNext = true
+					break
+				}
+			}
+			if foundNext && nextEpNo != "" {
+				m.selectedEp = nextEpNo
+				m.state = statePlaybackPreparing
+				m.loadingMsg = fmt.Sprintf("Autoplay: Preparing playback for Episode %s...", nextEpNo)
+				return m, doPreparePlayback(m.selectedShow, nextEpNo, m.mode, m.quality, m.download)
+			}
+		}
+
 		// Determine which page to fetch first
 		lastEp := ""
 		rawHist, _ := loadHistory()
@@ -418,6 +441,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.err == nil {
 			_ = recordWatch(m.selectedShow.ID, m.selectedShow.Name, m.selectedEp)
 			m.refreshHistory()
+			if m.autoplay {
+				m.triggerAutoplay = true
+			}
 		}
 
 		// Re-fetch episode list to update the "Next Up" indicator and highlights
@@ -530,6 +556,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case stateEpisodeSelect:
 			switch msg.String() {
+			case "a":
+				m.autoplay = !m.autoplay
+				return m, nil
 			case "enter":
 				selected, ok := m.episodeList.SelectedItem().(episodeItem)
 				if ok {
@@ -621,7 +650,11 @@ func (m model) View() string {
 		rightView := m.renderShowDetailsPanel(rightWidth)
 
 		s.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, leftView, rightView))
-		s.WriteString("\n\n" + helpStyle("enter: play episode | esc: back | q: quit"))
+		autoplayStr := "autoplay: OFF"
+		if m.autoplay {
+			autoplayStr = "autoplay: ON"
+		}
+		s.WriteString("\n\n" + helpStyle(fmt.Sprintf("enter: play | a: toggle autoplay (%s) | esc: back | q: quit", autoplayStr)))
 
 	case statePlaybackPreparing:
 		s.WriteString(fmt.Sprintf("%s %s\n", m.spinner.View(), m.loadingMsg))

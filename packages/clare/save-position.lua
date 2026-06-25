@@ -83,3 +83,24 @@ mp.add_periodic_timer(15, update_position)
 
 mp.register_event("end-file", update_position)
 mp.register_event("shutdown", update_position)
+
+-- Hotkeys for skipping intro/outro (85 seconds)
+mp.add_key_binding("i", "skip-intro", function()
+    mp.commandv("seek", 85, "relative")
+    mp.osd_message("Skipped Intro (+85s)", 2)
+end)
+
+mp.add_key_binding("ctrl+RIGHT", "skip-intro-ctrl", function()
+    mp.commandv("seek", 85, "relative")
+    mp.osd_message("Skipped Intro (+85s)", 2)
+end)
+
+mp.add_key_binding("o", "skip-outro", function()
+    mp.commandv("seek", -85, "relative")
+    mp.osd_message("Skipped Outro (-85s)", 2)
+end)
+
+mp.add_key_binding("ctrl+LEFT", "skip-outro-ctrl", function()
+    mp.commandv("seek", -85, "relative")
+    mp.osd_message("Skipped Outro (-85s)", 2)
+end)
