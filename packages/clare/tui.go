@@ -31,30 +31,30 @@ const (
 var (
 	titleStyle = lipgloss.NewStyle().
 			Bold(true).
-			Foreground(lipgloss.Color("#FFFFFF")).
-			Background(lipgloss.Color("#8A2BE2")). // Beautiful violet
+			Foreground(lipgloss.Color("#1f2335")). // dark text on accent background
+			Background(lipgloss.Color("#7aa2f7")). // Tokyonight blue
 			Padding(0, 2).
 			MarginBottom(1)
 
 	accentColorStyle = lipgloss.NewStyle().
-				Foreground(lipgloss.Color("#EE6FF8"))
+				Foreground(lipgloss.Color("#bb9af7")) // Tokyonight magenta
 
 	cyanColorStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#00F0FF"))
+			Foreground(lipgloss.Color("#7dcfff")) // Tokyonight cyan
 
 	grayColorStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#666666"))
+			Foreground(lipgloss.Color("#565f89")) // Tokyonight comment/gray
 
 	errorStyle = lipgloss.NewStyle().
 			Bold(true).
-			Foreground(lipgloss.Color("#FF3366"))
+			Foreground(lipgloss.Color("#f7768e")) // Tokyonight red
 
 	normalTitleStyle = lipgloss.NewStyle().
-				Foreground(lipgloss.Color("#D3D3D3"))
+				Foreground(lipgloss.Color("#c0caf5")) // Tokyonight foreground
 
 	selectedTitleStyle = lipgloss.NewStyle().
 				Bold(true).
-				Foreground(lipgloss.Color("#EE6FF8"))
+				Foreground(lipgloss.Color("#bb9af7")) // Tokyonight magenta
 )
 
 // List items definitions
@@ -140,11 +140,38 @@ type model struct {
 	initialSearch  string
 }
 
+func createMinimalList(title string) list.Model {
+	d := list.NewDefaultDelegate()
+	d.Styles.SelectedTitle = d.Styles.SelectedTitle.
+		Foreground(lipgloss.Color("#bb9af7")).
+		BorderLeftForeground(lipgloss.Color("#bb9af7"))
+	d.Styles.SelectedDesc = d.Styles.SelectedDesc.
+		Foreground(lipgloss.Color("#565f89")).
+		BorderLeftForeground(lipgloss.Color("#bb9af7"))
+	d.Styles.NormalTitle = d.Styles.NormalTitle.
+		Foreground(lipgloss.Color("#c0caf5"))
+	d.Styles.NormalDesc = d.Styles.NormalDesc.
+		Foreground(lipgloss.Color("#565f89"))
+
+	l := list.New([]list.Item{}, d, 0, 0)
+	l.Title = title
+	l.SetShowStatusBar(false)
+	l.SetShowHelp(false)
+	l.SetFilteringEnabled(true)
+	l.Styles.Title = lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("#c0caf5")).
+		Background(lipgloss.Color("#1f2335")).
+		Padding(0, 1)
+
+	return l
+}
+
 func initialModel(initialSearch, mode, quality string, download bool) model {
 	// Setup spinner
 	s := spinner.New()
 	s.Spinner = spinner.Dot
-	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("#EE6FF8"))
+	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("#bb9af7"))
 
 	// Setup searchInput
 	ti := textinput.New()
@@ -152,19 +179,12 @@ func initialModel(initialSearch, mode, quality string, download bool) model {
 	ti.Focus()
 	ti.CharLimit = 156
 	ti.Width = 30
+	ti.PromptStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#7aa2f7"))
+	ti.TextStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#c0caf5"))
 
-	// Setup lists with placeholder items
-	hList := list.New([]list.Item{}, list.NewDefaultDelegate(), 0, 0)
-	hList.Title = "Continue Watching"
-	hList.SetShowStatusBar(false)
-
-	sList := list.New([]list.Item{}, list.NewDefaultDelegate(), 0, 0)
-	sList.Title = "Search Results"
-	sList.SetShowStatusBar(false)
-
-	eList := list.New([]list.Item{}, list.NewDefaultDelegate(), 0, 0)
-	eList.Title = "Select Episode"
-	eList.SetShowStatusBar(false)
+	hList := createMinimalList("Continue Watching")
+	sList := createMinimalList("Search Results")
+	eList := createMinimalList("Select Episode")
 
 	m := model{
 		state:         stateHistory,
@@ -354,6 +374,23 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.KeyMsg:
 		debugLog("TUI KeyMsg: key=%s, state=%d", msg.String(), m.state)
+
+		// Let active filtering lists handle all keystrokes directly
+		if m.state == stateEpisodeSelect && m.episodeList.FilterState() == list.Filtering {
+			var cmd tea.Cmd
+			m.episodeList, cmd = m.episodeList.Update(msg)
+			return m, cmd
+		}
+		if m.state == stateShowSelect && m.showList.FilterState() == list.Filtering {
+			var cmd tea.Cmd
+			m.showList, cmd = m.showList.Update(msg)
+			return m, cmd
+		}
+		if m.state == stateHistory && m.historyList.FilterState() == list.Filtering {
+			var cmd tea.Cmd
+			m.historyList, cmd = m.historyList.Update(msg)
+			return m, cmd
+		}
 		// Global keys
 		switch msg.String() {
 		case "ctrl+c", "q":
@@ -471,7 +508,7 @@ func (m model) View() string {
 	var s strings.Builder
 
 	// Top Banner
-	s.WriteString(titleStyle.Render(" CLARE ANIME CLIENT "))
+	s.WriteString(titleStyle.Render(" CLARE "))
 	s.WriteString("\n")
 
 	switch m.state {
