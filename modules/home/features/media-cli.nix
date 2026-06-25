@@ -50,7 +50,7 @@
     pkgs.chafa
     pkgs.ani-skip
     pkgs.tyto
-    pkgs.goanime
+    pkgs.clare
     pkgs.ani-cli
   ];
 

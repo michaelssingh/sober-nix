@@ -5,7 +5,10 @@
 {
   programs.mpv = {
     enable = true;
-    scripts = [ pkgs.mpvScripts.mpv-playlistmanager ];
+    scripts = [
+      pkgs.mpvScripts.mpv-playlistmanager
+      pkgs.mpvScripts.mpris
+    ];
     config = {
       hwdec = "vaapi";
       vo = "gpu";

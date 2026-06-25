@@ -89,7 +89,7 @@
       packages."x86_64-linux" = {
         appservice-mgr = pkgs.callPackage ./tools/appservice-mgr { };
         tyto = pkgs.callPackage ./packages/tyto { };
-        goanime = pkgs.callPackage ./packages/goanime { };
+        clare = pkgs.callPackage ./packages/clare { };
         ani-cli = pkgs.callPackage ./packages/ani-cli {
           src = inputs.ani-cli;
         };

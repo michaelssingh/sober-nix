@@ -6,7 +6,7 @@
     import ./gemini.nix { inherit inputs; } final prev
     // {
       tyto = final.callPackage ../../packages/tyto { };
-      goanime = final.callPackage ../../packages/goanime { };
+      clare = final.callPackage ../../packages/clare { };
       ani-cli = final.callPackage ../../packages/ani-cli {
         src = inputs.ani-cli;
       };
