@@ -383,7 +383,11 @@ func searchAnime(query, mode string) ([]AnimeShow, error) {
 	}
 
 	if err := json.Unmarshal(body, &result); err != nil {
-		return nil, err
+		snippet := string(body)
+		if len(snippet) > 150 {
+			snippet = snippet[:150]
+		}
+		return nil, fmt.Errorf("search failed to parse API JSON: %w (body: %q)", err, snippet)
 	}
 
 	return result.Data.Shows.Edges, nil
@@ -428,7 +432,11 @@ func fetchEpisodeList(showID, mode string) (AnimeShow, []string, error) {
 	}
 
 	if err := json.Unmarshal(body, &result); err != nil {
-		return AnimeShow{}, nil, err
+		snippet := string(body)
+		if len(snippet) > 150 {
+			snippet = snippet[:150]
+		}
+		return AnimeShow{}, nil, fmt.Errorf("episodes failed to parse API JSON: %w (body: %q)", err, snippet)
 	}
 
 	episodes := result.Data.Show.AvailableEpisodesDetail[mode]
