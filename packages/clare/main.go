@@ -11,13 +11,21 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
+const Version = "0.1.3"
+
 func main() {
 	searchQuery := flag.String("s", "", "Search query for anime")
 	episodeNum := flag.String("e", "", "Episode number to play")
 	modeFlag := flag.String("m", "dual", "Mode: sub, dub, or dual")
 	qualityFlag := flag.String("q", "best", "Quality: best, worst, 1080p, 720p, etc.")
 	downloadFlag := flag.Bool("d", false, "Download the episode instead of playing")
+	versionFlag := flag.Bool("version", false, "Print version and exit")
 	flag.Parse()
+
+	if *versionFlag {
+		fmt.Printf("clare %s\n", Version)
+		os.Exit(0)
+	}
 
 	query := *searchQuery
 	if query == "" && len(flag.Args()) > 0 {
