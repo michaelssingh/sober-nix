@@ -1,6 +1,6 @@
 --- a/ani-cli
 +++ b/ani-cli
-@@ -295,28 +295,88 @@
+@@ -295,28 +295,87 @@
      episode_embed_gql='query ($showId: String!, $translationType: VaildTranslationTypeEnumType!, $episodeString: String!) { episode( showId: $showId translationType: $translationType episodeString: $episodeString ) { episodeString sourceUrls }}'
  
      query_hash="d405d0edd690624b66baba3068e0edc3ac90f1597d898a1ec8db4e5c43c00fec"
@@ -103,11 +103,10 @@
 -    links=$(cat "$cache_dir"/* | sort -g -r -s)
 -    rm -r "$cache_dir"
 -    select_quality "$quality"
-+    if printf "%s" "$ep_list"
      if printf "%s" "$ep_list" | grep -q "^$ep_no$"; then
          [ -z "$episode" ] && die "Episode is released, but no valid sources!"
      else
-@@ -404,6 +464,8 @@
+@@ -404,6 +463,8 @@
  }
  
  play_episode() {
@@ -116,7 +115,7 @@
      [ "$log_episode" = 1 ] && [ "$player_function" != "debug" ] && [ "$player_function" != "download" ] && command -v logger >/dev/null && logger -t ani-cli "${allanime_title}${ep_no}"
      [ "$skip_intro" = 1 ] && skip_flag="$(ani-skip -q "$mal_id" -e "$ep_no")"
      [ -z "$episode" ] && get_episode_url
-@@ -415,9 +477,9 @@
+@@ -415,9 +476,9 @@
              ;;
          mpv*)
              if [ "$no_detach" = 0 ]; then
@@ -128,7 +127,7 @@
                  mpv_exitcode=$?
                  [ "$exit_after_play" = 1 ] && [ -z "$range" ] && exit "$mpv_exitcode"
              fi
-@@ -445,7 +507,7 @@
+@@ -445,7 +506,7 @@
          *) nohup $player_function "$episode" >/dev/null 2>&1 & ;;
      esac
      replay="$episode"
