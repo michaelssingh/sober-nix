@@ -11,7 +11,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-const Version = "0.1.9"
+const Version = "0.1.10"
 
 func main() {
 	searchQuery := flag.String("s", "", "Search query for anime")
