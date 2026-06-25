@@ -2,6 +2,7 @@
   config,
   pkgs,
   lib,
+  inputs,
   ...
 }:
 
@@ -57,6 +58,9 @@ in
   home.homeDirectory = "/home/init";
   home.stateVersion = "26.05";
 
+  # Allow unfree packages (needed for the sprite CLI)
+  nixpkgs.config.allowUnfree = true;
+
   # Global Sober System Options
   sober.isRemote = true;
 
@@ -69,18 +73,28 @@ in
 
   # Enable Nix Flakes permanently via Home Manager
   nix.package = pkgs.nix;
-  nix.settings.experimental-features = [
-    "nix-command"
-    "flakes"
-  ];
+  nix.settings = {
+    experimental-features = [
+      "nix-command"
+      "flakes"
+    ];
+    builders = "ssh-ng://eu.nixbuild.net x86_64-linux - 100 2 benchmark,big-parallel - -";
+    builders-use-substitutes = true;
+    max-jobs = 0;
+  };
 
   # Import core modules
   imports = [
+    inputs.sops-nix.homeManagerModules.sops
     ../../modules/home/core/sober.nix
     ../../modules/home/core/nvim/nvim.nix
     ../../modules/home/core/tmux.nix
     ../../modules/home/core/shell.nix
   ];
+
+  # Sops-Nix Key Source for Home-Manager
+  sops.age.keyFile = "/home/init/.config/sops/age/keys.txt";
+  sops.defaultSopsFile = ../../secrets/secrets.yaml;
 
   # Additional packages for the pubnix environment
   home.packages = with pkgs; [
@@ -91,7 +105,13 @@ in
     tcpdump
     bind
     curl
+    antigravity
   ];
+
+  # Declarative antigravity CLI Authentication
+  sops.secrets.antigravity_oauth_token = {
+    path = "/home/init/.gemini/antigravity-cli/antigravity-oauth-token";
+  };
 
   # 1. Disable HM's bash management to remove all Nix boilerplate from host files
   programs.bash.enable = false;
