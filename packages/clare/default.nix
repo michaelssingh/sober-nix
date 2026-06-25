@@ -2,7 +2,7 @@
 
 buildGoModule {
   pname = "clare";
-  version = "0.1.9";
+  version = "0.1.10";
 
   src = ./.;
 
@@ -12,6 +12,6 @@ buildGoModule {
 
   postInstall = ''
     wrapProgram $out/bin/clare \
-      --prefix PATH : ${lib.makeBinPath [ ffmpeg yt-dlp mpv ]}
+      --suffix PATH : ${lib.makeBinPath [ ffmpeg yt-dlp mpv ]}
   '';
 }
