@@ -81,4 +81,5 @@ end)
 -- Periodically save every 15 seconds
 mp.add_periodic_timer(15, update_position)
 
+mp.register_event("end-file", update_position)
 mp.register_event("shutdown", update_position)
