@@ -9,6 +9,7 @@ This journal serves as the local, persistent source of truth for work-in-progres
 ### Session 7: 2026-06-25 19:40 (Clare TUI Robustness & Deploy Script Stabilization)
 * **Host / Context**: Developed on remote VM `agy` and local workstation `otus` (by Antigravity agent).
 * **Commits**:
+  - `f66f69b` (Antigravity on `agy`): *config(mako): increase width and height to prevent truncating multiline notifications*
   - `6640baf` (Antigravity on `agy`): *feat(deploy): make deployment notification persist until clicked using -t 0*
   - `5b4409d` (Antigravity on `agy`): *fix(deploy): format closure size unit in notification*
   - `349ee8e` (Antigravity on `agy`): *feat(deploy): add duration, closure size, and package diff to notify-send*
