@@ -90,6 +90,15 @@ in
     builders-use-substitutes = true
   '';
 
+  # --- Declarative SSH Agent Bridge Script wrapper to avoid comma-parsing bugs in sprite-env ---
+  home.file.".ssh-agent-bridge.sh" = {
+    executable = true;
+    text = ''
+      #!/usr/bin/env bash
+      exec ${pkgs.socat}/bin/socat UNIX-LISTEN:/home/sprite/.ssh-agent.sock,fork,unlink-early TCP-CONNECT:127.0.0.1:9000
+    '';
+  };
+
   # --- Sprite Services Setup Activation Hook ---
   home.activation.configure-sprite-environment = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
     # Export /usr/bin to PATH so that sprite-env can invoke 'curl' and 'jq'
@@ -110,8 +119,8 @@ in
     $DRY_RUN_CMD /.sprite/bin/sprite-env services start nix-daemon || true
 
     # 3. Register sshd as a Sprite service if not present
+    $DRY_RUN_CMD /usr/bin/sudo mkdir -p /run/sshd
     if ! /.sprite/bin/sprite-env services list | grep -q "sshd"; then
-      $DRY_RUN_CMD /usr/bin/sudo mkdir -p /run/sshd
       $DRY_RUN_CMD /.sprite/bin/sprite-env services create sshd \
         --cmd /usr/bin/sudo \
         --args "/usr/sbin/sshd,-D,-e,-f,/home/sprite/sshd_config" \
@@ -119,7 +128,15 @@ in
     fi
     $DRY_RUN_CMD /.sprite/bin/sprite-env services start sshd || true
 
-    # 4. Set default login shell to fish
+    # 4. Register ssh-agent-bridge as a Sprite service if not present
+    if ! /.sprite/bin/sprite-env services list | grep -q "ssh-agent-bridge"; then
+      $DRY_RUN_CMD /.sprite/bin/sprite-env services create ssh-agent-bridge \
+        --cmd "/home/sprite/.ssh-agent-bridge.sh" \
+        --no-stream
+    fi
+    $DRY_RUN_CMD /.sprite/bin/sprite-env services start ssh-agent-bridge || true
+
+    # 5. Set default login shell to fish
     if [ "$(getent passwd sprite | cut -d: -f7)" != "/usr/bin/fish" ]; then
       $DRY_RUN_CMD /usr/bin/sudo /usr/bin/chsh -s /usr/bin/fish sprite
     fi

@@ -84,8 +84,7 @@ The user runs `bin/sprite-tunnel start` on `otus` before starting an agent sessi
    - `-R 1080:127.0.0.1:1080`: SOCKS5 proxy for remote internet access.
    - `-R 9000:127.0.0.1:9000`: SSH agent forwarding.
 
-On the remote VM, `SSH_AUTH_SOCK` is pointed at a socket that forwards over TCP port 9000 back through
-the tunnel to `otus`'s real ssh-agent. **Private keys never leave `otus`.**
+On the remote VM, the environment variable `SSH_AUTH_SOCK` is set to `/home/sprite/.ssh-agent.sock`. To bridge this UNIX domain socket to the forwarded TCP port 9000, we run a persistent `ssh-agent-bridge` service on the VM. **Private SSH keys never leave `otus`.**
 
 Verify agent access at the start of any session with:
 ```bash
@@ -97,11 +96,14 @@ Nix is installed via the official multi-user installer. The daemon does not run 
 (Ubuntu's init system is not configured it). 
 
 #### Remote VM Initialization Protocol (Sprite Services)
-The background daemons (`nix-daemon` and `sshd`) are fully codified and registered as persistent **Sprite Services** under Home-Manager. They are monitored and will auto-start/restart on boot:
+The background services are fully codified and registered as persistent **Sprite Services** under Home-Manager. They are monitored and will auto-start/restart on boot:
 - Check service status: `/.sprite/bin/sprite-env services list`
 - If stopped or failing, restart them: `/.sprite/bin/sprite-env services start <name>`
 
-Both services run as root using `sudo` wrapper commands.
+Active Services:
+1. `nix-daemon`: Runs as root via `sudo` wrapper to handle 8-core Nix builds.
+2. `sshd`: Runs as root via `sudo` wrapper to accept SSH connections on port 2222.
+3. `ssh-agent-bridge`: Runs the `/home/sprite/.ssh-agent-bridge.sh` wrapper script, using `socat` to bridge the VM's `/home/sprite/.ssh-agent.sock` to TCP port 9000 (connecting back to `otus`'s SSH agent).
 
 
 Critical configuration in `/etc/nix/nix.conf` — must contain:
