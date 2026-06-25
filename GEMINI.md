@@ -20,6 +20,7 @@
 - `feat/*` / `config/*`: Use dedicated branches for iterative development.
 - "Clean Tree" Rule: Always commit changes before running any build or validation command. Avoid "dirty" git trees to ensure reproducible builds.
 - **NEVER Bypass Hooks**: Pre-commit hooks must NEVER be bypassed (`--no-verify` is prohibited). If hooks fail, fix the underlying issues in the development environment until they pass.
+- **Commit Signing**: All commits must be cryptographically signed. When committing from the AI agent, export `SSH_AUTH_SOCK=/home/sprite/.ssh-agent.sock` to authorize signature generation.
 
 
 ## YouTube & Streaming Conventions
