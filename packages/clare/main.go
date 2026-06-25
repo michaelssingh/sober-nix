@@ -113,11 +113,8 @@ func main() {
 					playbackLaunched = true
 				}
 			} else {
-				fmt.Println("Analyzing audio track count in SUB stream...")
-				subTracks := countAudioStreams(subStream)
-				fmt.Printf("SUB stream contains %d audio track(s).\n", subTracks)
-
-				c, tmp, err := playDualCmd(subStream, dubStream, subTracks, selectedShow.Name, epNo)
+				fmt.Println("Launching dual-audio playback (English dub + Japanese video)...")
+				c, tmp, err := playDualCmd(subStream, dubStream, selectedShow.Name, epNo)
 				if err != nil {
 					fmt.Printf("Error preparing playback: %v\n", err)
 					os.Exit(1)

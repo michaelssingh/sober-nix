@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"strconv"
 	"strings"
 )
 
@@ -70,15 +69,10 @@ func playSingleCmd(streamURL, title, epNo string) (*exec.Cmd, string, error) {
 	return getMpvCmd(streamURL, title, epNo, nil)
 }
 
-func playDualCmd(subStream, dubStream string, subTracks int, title, epNo string) (*exec.Cmd, string, error) {
-	if subTracks <= 0 {
-		debugLog("playDualCmd: subTracks is %d, falling back to 1", subTracks)
-		subTracks = 1
-	}
-	aid := strconv.Itoa(subTracks + 1)
+func playDualCmd(subStream, dubStream string, title, epNo string) (*exec.Cmd, string, error) {
 	extraArgs := []string{
 		"--audio-file=" + dubStream,
-		"--aid=" + aid,
+		"--aid=last",
 	}
 	return getMpvCmd(subStream, title, epNo, extraArgs)
 }

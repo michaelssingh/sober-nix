@@ -107,6 +107,7 @@ type episodesResultMsg struct {
 }
 
 type resolvedPlaybackMsg struct {
+	warning string
 	cmd         *exec.Cmd
 	tempLuaFile string
 	err         error
@@ -338,11 +339,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case resolvedPlaybackMsg:
-		debugLog("TUI resolvedPlaybackMsg: err=%v, tempLuaFile=%s", msg.err, msg.tempLuaFile)
+		debugLog("TUI resolvedPlaybackMsg: err=%v, warning=%s, tempLuaFile=%s", msg.err, msg.warning, msg.tempLuaFile)
 		if msg.err != nil {
 			m.state = stateError
 			m.err = msg.err
 			return m, nil
+		}
+		if msg.warning != "" {
+			m.loadingMsg = msg.warning
 		}
 
 		m.state = statePlaybackActive
@@ -598,12 +602,17 @@ func doPreparePlayback(selectedShow AnimeShow, epNo, mode, quality string, downl
 				if errDub != nil {
 					return resolvedPlaybackMsg{err: fmt.Errorf("failed to resolve dual streams: sub (%v), dub (%v)", errSub, errDub)}
 				}
+				debugLog("doPreparePlayback: sub failed (%v), falling back to dub-only", errSub)
 				cmd, tempLua, err = playSingleCmd(dubStream, selectedShow.Name, epNo)
 			} else if errDub != nil {
+				debugLog("doPreparePlayback: dub failed (%v), falling back to sub-only", errDub)
 				cmd, tempLua, err = playSingleCmd(subStream, selectedShow.Name, epNo)
+				if err == nil {
+					return resolvedPlaybackMsg{cmd: cmd, tempLuaFile: tempLua, warning: fmt.Sprintf("⚠ Dub unavailable (%v) — playing sub only", errDub)}
+				}
 			} else {
-				subTracks := countAudioStreams(subStream)
-				cmd, tempLua, err = playDualCmd(subStream, dubStream, subTracks, selectedShow.Name, epNo)
+				debugLog("doPreparePlayback: both streams resolved, launching dual-audio")
+				cmd, tempLua, err = playDualCmd(subStream, dubStream, selectedShow.Name, epNo)
 			}
 		} else if mode == "dub" {
 			dubStream, errDub := resolveStreamURL(selectedShow.ID, "dub", epNo, quality)
