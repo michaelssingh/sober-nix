@@ -9,6 +9,7 @@ This journal serves as the local, persistent source of truth for work-in-progres
 ### Session 6: 2026-06-25 18:00 (Clare Anime Client: Bubble Tea TUI & Dual Audio Multiplexing)
 * **Host / Context**: Developed and compiled on remote VM `agy` (by Antigravity agent), deployed and activated on local workstation `otus` via SSH reverse tunnel.
 * **Commits**:
+  - `cf474cf` (Antigravity on `agy`): *fix(clare): robust dual-audio aid fallback and ffprobe request headers*
   - `63f6b32` (Antigravity on `agy`): *docs(journal): update journal to document Session 6 details and add host locations*
   - `2e96da9` (Antigravity on `agy`): *fix(lua): resolve shell_escape nil error, update temp file prefix, and bump version to 0.1.2*
   - `7eba459` (Antigravity on `agy`): *style: refine TUI to Tokyonight theme, enable minimal list views, and add search/filtering for episodes*
@@ -19,6 +20,8 @@ This journal serves as the local, persistent source of truth for work-in-progres
   - Added dynamic English audio track detection using `ffprobe` (to count video's internal audio streams) and mapped the external dub stream to `--aid=N+1` in `mpv`.
   - Wrapped the `clare` package in Nix to prepend `ffmpeg` (for `ffprobe`), `yt-dlp`, and `mpv` to its path at runtime.
   - Custom-styled the interface to fit the Tokyonight Storm color theme and enabled minimal list filtering.
+  - Added Referer and User-Agent HTTP headers to `ffprobe` track queries and `mpv` video streaming to bypass server-side security checks (preventing 403 Forbidden errors).
+  - Implemented a fallback mechanism to assume `1` audio stream if `ffprobe` fails, guaranteeing the external dub track is selected (via `--aid=2`) rather than defaulting to sub.
 
 ---
 
