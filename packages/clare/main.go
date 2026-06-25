@@ -11,7 +11,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-const Version = "0.1.10"
+const Version = "0.1.11"
 
 func main() {
 	searchQuery := flag.String("s", "", "Search query for anime")
@@ -20,11 +20,16 @@ func main() {
 	qualityFlag := flag.String("q", "best", "Quality: best, worst, 1080p, 720p, etc.")
 	downloadFlag := flag.Bool("d", false, "Download the episode instead of playing")
 	versionFlag := flag.Bool("version", false, "Print version and exit")
+	debugFlag := flag.Bool("debug", false, "Enable verbose debug logging")
 	flag.Parse()
 
 	if *versionFlag {
 		fmt.Printf("clare %s\n", Version)
 		os.Exit(0)
+	}
+
+	if *debugFlag {
+		os.Setenv("CLARE_DEBUG", "1")
 	}
 
 	query := *searchQuery
