@@ -57,6 +57,7 @@ in
   home.file."sshd_config".text = ''
     Port 2222
     AuthorizedKeysFile .ssh/authorized_keys
+    StrictModes no
     UsePAM yes
     Subsystem sftp /usr/lib/openssh/sftp-server
     PidFile /home/sprite/sshd.pid
@@ -104,7 +105,7 @@ in
       $DRY_RUN_CMD /usr/bin/sudo mkdir -p /run/sshd
       $DRY_RUN_CMD /.sprite/bin/sprite-env services create sshd \
         --cmd /usr/bin/sudo \
-        --args "/usr/sbin/sshd,-D,-f,/home/sprite/sshd_config" \
+        --args "/usr/sbin/sshd,-D,-e,-f,/home/sprite/sshd_config" \
         --no-stream
     fi
     $DRY_RUN_CMD /.sprite/bin/sprite-env services start sshd || true

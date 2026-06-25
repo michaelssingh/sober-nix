@@ -72,6 +72,7 @@
         HostName = "127.0.0.1";
         Port = "2222";
         User = "sprite";
+        IdentityFile = "~/.ssh/fly";
         StrictHostKeyChecking = "no";
         UserKnownHostsFile = "/dev/null";
       };
