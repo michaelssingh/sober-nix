@@ -23,10 +23,8 @@
 +            generate_link "$provider" >"$cache_dir"/"$provider" &
 +        done
 +        wait
-+        links=$(cat "$cache_dir"/* | sort -g -r -s)
++        dub_links="$(cat "$cache_dir"/* | sort -g -r -s)"
 +        rm -r "$cache_dir"
-+        select_quality "$quality"
-+        dub_episode="$episode"
 +
 +        # 2. Fetch SUB link
 +        query_vars="{\"showId\":\"$id\",\"translationType\":\"sub\",\"episodeString\":\"$ep_no\"}"
@@ -42,8 +40,24 @@
 +            generate_link "$provider" >"$cache_dir"/"$provider" &
 +        done
 +        wait
-+        links=$(cat "$cache_dir"/* | sort -g -r -s)
++        sub_links="$(cat "$cache_dir"/* | sort -g -r -s)"
 +        rm -r "$cache_dir"
++
++        # Filter out DUB links that share the exact same URL as SUB links to avoid duplicated Japanese audio sources
++        sub_urls="$(printf "%s\n" "$sub_links" | cut -d'>' -f2 | grep -v '^$')"
++        filtered_dub_links="$(awk -v sub_urls_str="$sub_urls" 'BEGIN { split(sub_urls_str, temp, "\n"); for (i in temp) { if (temp[i] != "") sub_urls[temp[i]] = 1; } } { split($0, parts, ">"); url = parts[2]; if (!(url in sub_urls)) { print $0; } }' <<EOF
++$dub_links
++EOF
++)"
++        if [ -n "$filtered_dub_links" ]; then
++            dub_links="$filtered_dub_links"
++        fi
++
++        links="$dub_links"
++        select_quality "$quality"
++        dub_episode="$episode"
++
++        links="$sub_links"
 +        select_quality "$quality"
 +        sub_episode="$episode"
 +
