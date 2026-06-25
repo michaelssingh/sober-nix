@@ -45,9 +45,12 @@ sudo "$out_path/bin/switch-to-configuration" switch
 # Send detailed notification on success if notify-send is available
 if command -v notify-send >/dev/null 2>&1; then
     gen_id=$(readlink /nix/var/nix/profiles/system | cut -d'-' -f2 || echo "unknown")
+    system_id=$(basename "$out_path" | cut -d'-' -f1 || echo "unknown")
+    commit_hash=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+    commit_msg=$(git log -1 --pretty=%s 2>/dev/null || echo "unknown")
     notify-send -a "System Deploy" -u normal \
         "Deployment Successful (Generation #$gen_id)" \
-        "System successfully built, copied, and activated.\n\nGeneration: #$gen_id\nPath: $out_path\nUser: $(whoami)\nDate: $(date)" || true
+        "System successfully built, copied, and activated.\n\nGeneration: #$gen_id\nSystem ID: $system_id\nCommit: $commit_hash - $commit_msg\nPath: $out_path\nUser: $(whoami)\nDate: $(date)" || true
 fi
 
 echo -e "\n${BOLD}${GREEN}✔ Deployment completed successfully!${RESET}"
