@@ -53,6 +53,13 @@ in
     path = "/home/sprite/.gemini/antigravity-cli/antigravity-oauth-token";
   };
 
+  # --- Declarative Git config to override platform defaults ---
+  home.file.".gitconfig".text = ''
+    [user]
+      name = "Michael S. Singh"
+      email = "michael@sober.fyi"
+  '';
+
   # --- Declarative SSHD config ---
   home.file."sshd_config".text = ''
     Port 2222
