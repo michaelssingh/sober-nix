@@ -3,10 +3,14 @@ package main
 import (
 	"bytes"
 	_ "embed"
+	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"os/exec"
 	"strings"
+	"time"
 )
 
 //go:embed save-position.lua
@@ -39,13 +43,101 @@ func countAudioStreams(streamURL string) int {
 	return count
 }
 
-func getMpvCmd(streamURL string, title string, epNo string, extraArgs []string) (*exec.Cmd, string, error) {
-	// Write the embedded Lua script to a temporary file
+type AniSkipInterval struct {
+	StartTime float64 `json:"start_time"`
+	EndTime   float64 `json:"end_time"`
+}
+
+type AniSkipResult struct {
+	Interval AniSkipInterval `json:"interval"`
+	SkipType string          `json:"skip_type"`
+}
+
+type AniSkipResponse struct {
+	Found   bool            `json:"found"`
+	Results []AniSkipResult `json:"results"`
+}
+
+func fetchAniSkipTimes(malID string, epNo string) []AniSkipResult {
+	if malID == "" || malID == "0" || epNo == "" {
+		return nil
+	}
+	cleanEp := ""
+	for _, r := range epNo {
+		if (r >= '0' && r <= '9') || r == '.' {
+			cleanEp += string(r)
+		} else if cleanEp != "" {
+			break
+		}
+	}
+	if cleanEp == "" {
+		return nil
+	}
+
+	client := &http.Client{Timeout: 4 * time.Second}
+	url := fmt.Sprintf("https://api.aniskip.com/v1/skip-times/%s/%s?types[]=op&types[]=ed&types[]=recap&types[]=mixed-op&types[]=mixed-ed", malID, cleanEp)
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil
+	}
+	req.Header.Set("User-Agent", UserAgent)
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil
+	}
+	var result AniSkipResponse
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil
+	}
+	if err := json.Unmarshal(body, &result); err != nil {
+		return nil
+	}
+	return result.Results
+}
+
+func getMpvCmd(streamURL string, title string, epNo string, malID string, extraArgs []string) (*exec.Cmd, string, error) {
+	skipTimes := fetchAniSkipTimes(malID, epNo)
+	luaContent := savePositionLua
+	if len(skipTimes) > 0 {
+		var intervals []string
+		for _, t := range skipTimes {
+			label := "Opening"
+			if t.SkipType == "ed" || t.SkipType == "mixed-ed" {
+				label = "Ending"
+			} else if t.SkipType == "recap" {
+				label = "Recap"
+			}
+			intervals = append(intervals, fmt.Sprintf("{ start = %f, [\"end\"] = %f, label = %q }", t.Interval.StartTime, t.Interval.EndTime, label))
+		}
+		luaContent += fmt.Sprintf(`
+-- Auto-generated AniSkip auto-skipper
+local skip_intervals = {
+    %s
+}
+
+mp.observe_property("time-pos", "number", function(name, val)
+    if not val then return end
+    for _, interval in ipairs(skip_intervals) do
+        if val >= interval.start and val < interval["end"] - 0.5 then
+            mp.commandv("seek", interval["end"], "absolute")
+            mp.osd_message("Auto-skipped " .. interval.label, 3)
+            break
+        end
+    end
+end)
+`, strings.Join(intervals, ",\n    "))
+	}
+
 	tmpFile, err := os.CreateTemp("", "clare-save-position-*.lua")
 	if err != nil {
 		return nil, "", err
 	}
-	if _, err := tmpFile.WriteString(savePositionLua); err != nil {
+	if _, err := tmpFile.WriteString(luaContent); err != nil {
 		tmpFile.Close()
 		os.Remove(tmpFile.Name())
 		return nil, "", err
@@ -65,16 +157,16 @@ func getMpvCmd(streamURL string, title string, epNo string, extraArgs []string) 
 	return cmd, tmpFile.Name(), nil
 }
 
-func playSingleCmd(streamURL, title, epNo string) (*exec.Cmd, string, error) {
-	return getMpvCmd(streamURL, title, epNo, nil)
+func playSingleCmd(streamURL, title, epNo, malID string) (*exec.Cmd, string, error) {
+	return getMpvCmd(streamURL, title, epNo, malID, nil)
 }
 
-func playDualCmd(subStream, dubStream string, title, epNo string) (*exec.Cmd, string, error) {
+func playDualCmd(subStream, dubStream string, title, epNo, malID string) (*exec.Cmd, string, error) {
 	extraArgs := []string{
 		"--audio-file=" + dubStream,
 		"--aid=last",
 	}
-	return getMpvCmd(subStream, title, epNo, extraArgs)
+	return getMpvCmd(subStream, title, epNo, malID, extraArgs)
 }
 
 func downloadCmd(streamURL, title, epNo string) *exec.Cmd {

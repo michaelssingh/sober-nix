@@ -722,29 +722,29 @@ func doPreparePlayback(selectedShow AnimeShow, epNo, mode, quality string, downl
 					return resolvedPlaybackMsg{err: fmt.Errorf("failed to resolve dual streams: sub (%v), dub (%v)", errSub, errDub)}
 				}
 				debugLog("doPreparePlayback: sub failed (%v), falling back to dub-only", errSub)
-				cmd, tempLua, err = playSingleCmd(dubStream, selectedShow.Name, epNo)
+				cmd, tempLua, err = playSingleCmd(dubStream, selectedShow.Name, epNo, selectedShow.MALID)
 			} else if errDub != nil {
 				debugLog("doPreparePlayback: dub failed (%v), falling back to sub-only", errDub)
-				cmd, tempLua, err = playSingleCmd(subStream, selectedShow.Name, epNo)
+				cmd, tempLua, err = playSingleCmd(subStream, selectedShow.Name, epNo, selectedShow.MALID)
 				if err == nil {
 					return resolvedPlaybackMsg{cmd: cmd, tempLuaFile: tempLua, warning: fmt.Sprintf("⚠ Dub unavailable (%v) — playing sub only", errDub)}
 				}
 			} else {
 				debugLog("doPreparePlayback: both streams resolved, launching dual-audio")
-				cmd, tempLua, err = playDualCmd(subStream, dubStream, selectedShow.Name, epNo)
+				cmd, tempLua, err = playDualCmd(subStream, dubStream, selectedShow.Name, epNo, selectedShow.MALID)
 			}
 		} else if mode == "dub" {
 			dubStream, errDub := resolveStreamURL(selectedShow.ID, "dub", epNo, quality)
 			if errDub != nil {
 				return resolvedPlaybackMsg{err: errDub}
 			}
-			cmd, tempLua, err = playSingleCmd(dubStream, selectedShow.Name, epNo)
+			cmd, tempLua, err = playSingleCmd(dubStream, selectedShow.Name, epNo, selectedShow.MALID)
 		} else {
 			subStream, errSub := resolveStreamURL(selectedShow.ID, "sub", epNo, quality)
 			if errSub != nil {
 				return resolvedPlaybackMsg{err: errSub}
 			}
-			cmd, tempLua, err = playSingleCmd(subStream, selectedShow.Name, epNo)
+			cmd, tempLua, err = playSingleCmd(subStream, selectedShow.Name, epNo, selectedShow.MALID)
 		}
 
 		return resolvedPlaybackMsg{cmd: cmd, tempLuaFile: tempLua, err: err}
