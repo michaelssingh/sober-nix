@@ -38,7 +38,7 @@ func countAudioStreams(streamURL string) int {
 
 func getMpvCmd(streamURL string, title string, epNo string, extraArgs []string) (*exec.Cmd, string, error) {
 	// Write the embedded Lua script to a temporary file
-	tmpFile, err := os.CreateTemp("", "sober-anime-save-position-*.lua")
+	tmpFile, err := os.CreateTemp("", "clare-save-position-*.lua")
 	if err != nil {
 		return nil, "", err
 	}

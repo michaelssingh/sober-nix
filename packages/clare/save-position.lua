@@ -26,7 +26,7 @@ local function save_positions(positions)
     -- Ensure directory exists
     local dir = path:match("(.+)/[^/]+$")
     if dir then
-        os.execute("mkdir -p " .. utils.shell_escape(dir))
+        os.execute('mkdir -p "' .. dir .. '"')
     end
     local f = io.open(path, "w")
     if f then
