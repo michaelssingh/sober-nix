@@ -59,7 +59,7 @@ if command -v notify-send >/dev/null 2>&1; then
     commit_hash=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
     commit_msg=$(git log -1 --pretty=%s 2>/dev/null || echo "unknown")
 
-    sys_size=$(nix path-info -Sh "$out_path" --extra-experimental-features 'nix-command' 2>/dev/null | awk '{print $2}' || echo "unknown")
+    sys_size=$(nix path-info -Sh "$out_path" --extra-experimental-features 'nix-command' 2>/dev/null | awk '{print $2, $3}' || echo "unknown")
 
     if [[ -n "${old_path:-}" && "$old_path" != "$out_path" ]]; then
         diff_output=$(nix store diff-closures "$old_path" "$out_path" --extra-experimental-features 'nix-command' 2>/dev/null || echo "")
