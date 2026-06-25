@@ -27,6 +27,7 @@ stdenvNoCC.mkDerivation {
 
   postPatch = ''
     substituteInPlace ani-cli \
+      --replace 'version_number="4.14.1"' 'version_number="4.14.1-sober"' \
       --replace 'nohup $player_function $skip_flag $audio_flag --tls-verify=no --force-media-title' 'nohup $player_function --script=@LUA_SCRIPT@ $skip_flag $audio_flag --tls-verify=no --force-media-title' \
       --replace '$player_function $skip_flag $refr_flag $audio_flag --tls-verify=no --force-media-title' '$player_function --script=@LUA_SCRIPT@ $skip_flag $refr_flag $audio_flag --tls-verify=no --force-media-title'
   '';
