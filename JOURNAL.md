@@ -6,6 +6,28 @@ This journal serves as the local, persistent source of truth for work-in-progres
 
 ## 📅 Chronological Development Sessions
 
+### Session 7: 2026-06-25 19:40 (Clare TUI Robustness & Deploy Script Stabilization)
+* **Host / Context**: Developed on remote VM `agy` and local workstation `otus` (by Antigravity agent).
+* **Commits**:
+  - `9c09ad5` (Antigravity on `agy`): *fix(deploy): redirect remote git pull stdout to stderr to avoid polluting out_path*
+  - `7399d3e` (Antigravity on `agy`): *fix(deploy): export SSH_AUTH_SOCK on remote VM to fix git authentication during build*
+  - `f401a88` (Antigravity on `agy`): *feat(deploy): include system ID and git commit info in deploy notification*
+  - `7124a1d` (Antigravity on `agy`): *fix(clare): use --aid=last for robust dub selection, warn on sub-only fallback*
+  - `574f946` (Antigravity on `agy`): *feat(clare): add -version flag*
+  - `e495011` (Antigravity on `agy`): *fix(deploy): pull latest changes first before building*
+  - `4d877ca` (Antigravity on `agy`): *chore(clare): bump version to 0.1.3 to force rebuild*
+  - `f2471bf` (Antigravity on `agy`): *docs(journal): document dual-audio robustness and header fixes*
+* **Accomplishments**:
+  - **Robust Dual-Audio Track Selection**: Replaced fragile `ffprobe` track-counting logic with `--aid=last` in `playDualCmd`. Since `mpv` always appends the external audio track as the last stream, this is completely robust and eliminates the dependency on `strconv` and the error-prone `countAudioStreams` function.
+  - **TUI Playback Feedback**: Added visual warning `⚠ Dub unavailable (<error>) — playing sub only` in the Bubble Tea loading state to notify users of a dub resolution failure instead of silently falling back to Japanese audio. Added debug logs for all fallback paths.
+  - **Clare CLI Version Flag**: Added a `-version` flag to print version info, and bumped the Nix package expression version to `0.1.3`.
+  - **Git-First Deployment & Verification**: Configured `bin/deploy.sh` to run `git pull` locally before starting the remote build, ensuring all changes are synchronized.
+  - **Deploy Script Authentication Fix**: Addressed an issue where `git pull` on the remote VM failed because `SSH_AUTH_SOCK` was not set in the non-interactive SSH shell. Fixed this by explicitly exporting `SSH_AUTH_SOCK=/home/sprite/.ssh-agent.sock` on the VM before pulling.
+  - **Redirect Stdout to Stderr**: Resolved a shell capture bug where the stdout of the remote `git pull` was captured into the `out_path` variable, causing `nix copy` to fail. Fixed this by redirecting `git pull` stdout to `stderr` (`>&2`).
+  - **Enhanced Deploy Notifications**: Improved `notify-send` in `bin/deploy.sh` to display the Generation number, System ID (Nix store path hash), and the git commit hash and commit subject of the deployed system.
+
+---
+
 ### Session 6: 2026-06-25 18:00 (Clare Anime Client: Bubble Tea TUI & Dual Audio Multiplexing)
 * **Host / Context**: Developed and compiled on remote VM `agy` (by Antigravity agent), deployed and activated on local workstation `otus` via SSH reverse tunnel.
 * **Commits**:
