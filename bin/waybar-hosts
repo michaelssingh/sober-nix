@@ -57,7 +57,6 @@ def main():
         ("sober-bubo",   "B"),
         ("sober-strix",  "X"),
         ("sober-styx",   "S"),
-        ("sober-surnia", "U"),
     ]
 
     labels, tips = [], []

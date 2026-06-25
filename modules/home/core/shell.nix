@@ -121,7 +121,7 @@ in
       else
         {
           # Remote-only aliases
-          hms = "PATH=$PATH:~/.nix-profile/bin home-manager switch --flake github:michaelssingh/sober-nix#${config.home.username}@surnia --extra-experimental-features 'nix-command flakes' --refresh";
+          hms = "PATH=$PATH:~/.nix-profile/bin home-manager switch --flake github:michaelssingh/sober-nix#${config.home.username} --extra-experimental-features 'nix-command flakes' --refresh";
         }
     );
   };

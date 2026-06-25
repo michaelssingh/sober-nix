@@ -1,0 +1,71 @@
+#!/usr/bin/env bash
+# bin/bootstrap-sprite — Bootstrapper for a new sprite.dev VM.
+# Runs on the remote VM as the `sprite` user.
+# Sets up: Nix → Repo Clone → SOPS Age Key → Home Manager (sprite configuration)
+
+set -euo pipefail
+
+GREEN='\033[0;32m'; CYAN='\033[0;36m'; RESET='\033[0m'
+step() { echo -e "\n${CYAN}▶ $*${RESET}"; }
+ok()   { echo -e "${GREEN}✓ $*${RESET}"; }
+
+step "Starting sprite bootstrap..."
+
+# 1. Nix check/install
+if ! command -v nix >/dev/null 2>&1; then
+    step "Installing Nix (single-user)..."
+    curl -L https://nixos.org/nix/install | sh -s -- --no-daemon --yes
+    # Source nix profile
+    if [ -f "$HOME/.nix-profile/etc/profile.d/nix.sh" ]; then
+        source "$HOME/.nix-profile/etc/profile.d/nix.sh"
+    elif [ -f "/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh" ]; then
+        source "/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh"
+    fi
+else
+    ok "Nix is already installed: $(nix --version)"
+fi
+
+# 2. Clone repository
+REPO_DIR="$HOME/sober-nix"
+if [ ! -d "$REPO_DIR/.git" ]; then
+    step "Cloning sober-nix repository..."
+    git clone https://github.com/michaelssingh/sober-nix.git "$REPO_DIR"
+else
+    ok "Repository already cloned at $REPO_DIR"
+fi
+
+# 3. Setup SOPS age keys
+mkdir -p "$HOME/.config/sops/age"
+if [ ! -f "$HOME/.config/sops/age/keys.txt" ]; then
+    step "Setting up SOPS Age Key..."
+    echo "No Age key found at ~/.config/sops/age/keys.txt."
+    echo "Please copy/paste your SOPS decryption key (keys.txt) now."
+    echo "Press ENTER when you have written it to ~/.config/sops/age/keys.txt."
+    read -rp "Press Enter to continue..."
+    if [ ! -f "$HOME/.config/sops/age/keys.txt" ]; then
+        echo "Error: Key file was not found. Please create it manually and run this script again." >&2
+        exit 1
+    fi
+fi
+ok "SOPS Age Key ready"
+
+# 4. Apply Home Manager configuration
+step "Applying Home Manager configuration (#sprite)..."
+cd "$REPO_DIR"
+
+nix run \
+    --extra-experimental-features 'nix-command flakes' \
+    github:nix-community/home-manager/release-26.05 \
+    -- switch \
+    --flake '.#sprite' \
+    --extra-experimental-features 'nix-command flakes' \
+    -b backup --refresh
+
+ok "Home Manager applied successfully!"
+echo ""
+echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+echo -e "${GREEN}✓ Your sprite is ready!${RESET}"
+echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+echo ""
+echo "  Registered Sprite Services (sshd, nix-daemon) should now be active."
+echo "  Use 'sprite-env services list' to inspect them."

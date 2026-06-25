@@ -75,15 +75,6 @@
         StrictHostKeyChecking = "no";
         UserKnownHostsFile = "/dev/null";
       };
-
-      "sober-surnia.flycast" = {
-        HostName = "sober-surnia.flycast";
-        Port = "2222";
-        User = "init";
-        IdentityFile = "~/.ssh/fly";
-        StrictHostKeyChecking = "no";
-        UserKnownHostsFile = "/dev/null";
-      };
     };
   };
 }

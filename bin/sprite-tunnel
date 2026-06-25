@@ -1,35 +1,33 @@
 #!/usr/bin/env bash
-# bin/sprite-tunnel — Tunnel manager for sober-surnia (Fly.io remote dev host).
+# bin/sprite-tunnel — Tunnel manager for sober-nix remote development on sprites.dev.
 #
 # Establishes:
 #   - SOCKS5 proxy (remote → otus → internet)
 #   - SSH agent forwarding (remote → otus SSH agent)
 #   - Port forwards for dev servers (5173, 4000)
+#   - Sprite proxy connection to the agy VM
 #
 # Usage: bin/sprite-tunnel {start|stop|restart|status}
 #
-# Run on otus before starting an agent session on surnia.
+# Run on otus before starting an agent session.
 
 set -euo pipefail
 
-APP="sober-surnia"
-VM_HOST="init@${APP}.flycast"
-VM_PORT="2222"
+SPRITE_NAME="agy"
 SOCKS_PORT=1080
 AGENT_PORT=9000
+SSH_PORT=2222
 
 SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ExitOnForwardFailure=yes -o ServerAliveInterval=30"
 
 PID_DIR="$HOME/.cache/sprite-tunnel"
 mkdir -p "$PID_DIR"
 
-SOCAT_PID_FILE="$PID_DIR/socat.pid"
-SSH_PID_FILE="$PID_DIR/ssh.pid"
 SOCKS_PID_FILE="$PID_DIR/socks.pid"
+SOCAT_PID_FILE="$PID_DIR/socat.pid"
+PROXY_PID_FILE="$PID_DIR/proxy.pid"
+SSH_PID_FILE="$PID_DIR/ssh.pid"
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
-# ── Process helpers ───────────────────────────────────────────────────────────
 check_running() {
     local pid_file="$1"
     [ -f "$pid_file" ] && kill -0 "$(cat "$pid_file")" 2>/dev/null
@@ -49,29 +47,17 @@ stop_process() {
 
 stop_all() {
     stop_process "SSH tunnel"      "$SSH_PID_FILE"
+    stop_process "sprite proxy"    "$PROXY_PID_FILE"
     stop_process "socat (agent)"   "$SOCAT_PID_FILE"
     stop_process "SOCKS5 proxy"    "$SOCKS_PID_FILE"
 }
 
-# ── Ensure surnia is responsive ───────────────────────────────────────────────
-ensure_surnia_up() {
-    echo "Waking surnia (${APP}.flycast)..."
-    local attempts=0
-    until ssh $SSH_OPTS -p "$VM_PORT" "$VM_HOST" 'echo ok' &>/dev/null; do
-        (( attempts++ ))
-        [ $attempts -ge 24 ] && { echo "✗ surnia not reachable after 2 min"; exit 1; }
-        echo -n "."
-        sleep 5
-    done
-    echo " up."
-}
-
-# ── Start ─────────────────────────────────────────────────────────────────────
 start_tunnel() {
     stop_all
-    ensure_surnia_up
 
-    # 1. SOCKS5 proxy (internet access from surnia)
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+    # 1. SOCKS5 proxy (internet access from remote VM)
     if [ -f "$SCRIPT_DIR/socks5-proxy.py" ]; then
         echo "Starting SOCKS5 proxy on port $SOCKS_PORT..."
         nohup python3 "$SCRIPT_DIR/socks5-proxy.py" "$SOCKS_PORT" >"$PID_DIR/socks.log" 2>&1 & disown
@@ -90,47 +76,59 @@ start_tunnel() {
         echo $! >"$SOCAT_PID_FILE"
     fi
 
-    # 3. SSH tunnel with reverse port forwards + dev server forwards
-    echo "Establishing SSH tunnel to ${VM_HOST}:${VM_PORT}..."
+    # 3. Sprite proxy for port $SSH_PORT
+    echo "Establishing sprite proxy for $SPRITE_NAME on port $SSH_PORT..."
+    nohup sprite proxy -s "$SPRITE_NAME" "$SSH_PORT" >"$PID_DIR/proxy.log" 2>&1 & disown
+    echo $! >"$PROXY_PID_FILE"
+
+    # Wait for sprite proxy to bind local port 2222
+    echo "Waiting for sprite proxy to bind..."
+    for i in {1..50}; do
+        if ss -tlnp 2>/dev/null | grep -q ":$SSH_PORT "; then
+            break
+        fi
+        sleep 0.1
+    done
+
+    # 4. SSH tunnel with reverse port forwards + dev server forwards
+    echo "Establishing SSH tunnel to sprite@127.0.0.1:${SSH_PORT}..."
     nohup ssh $SSH_OPTS \
-        -p "$VM_PORT" \
+        -p "$SSH_PORT" \
         -L 5173:127.0.0.1:5173 \
         -L 4000:127.0.0.1:4000 \
         -R "${SOCKS_PORT}:127.0.0.1:${SOCKS_PORT}" \
         -R "${AGENT_PORT}:127.0.0.1:${AGENT_PORT}" \
         -R "2223:127.0.0.1:22" \
-        -N "$VM_HOST" >"$PID_DIR/ssh.log" 2>&1 & disown
+        -N "sprite@127.0.0.1" >"$PID_DIR/ssh.log" 2>&1 & disown
     echo $! >"$SSH_PID_FILE"
 
     sleep 2
 
     echo ""
-    echo "✓ Tunnel established to ${APP}"
+    echo "✓ Tunnel established to ${SPRITE_NAME}"
     echo "  Frontend:     http://localhost:5173"
     echo "  Backend:      http://localhost:4000"
-    echo "  SOCKS5:       Port $SOCKS_PORT (surnia → otus → internet)"
-    echo "  Agent:        Port $AGENT_PORT (surnia → otus SSH agent)"
-    echo "  Deploy back:  Port 2223 (surnia → otus SSH)"
+    echo "  SOCKS5:       Port $SOCKS_PORT (remote VM → otus → internet)"
+    echo "  Agent:        Port $AGENT_PORT (remote VM → otus SSH agent)"
+    echo "  Deploy back:  Port 2223 (remote VM → otus SSH)"
     echo ""
-    echo "  SSH in: ssh -p $VM_PORT $VM_HOST"
-    echo "  Or:     bin/surnia ssh"
+    echo "  SSH in: ssh -p $SSH_PORT sprite@127.0.0.1"
 }
 
-# ── Status ────────────────────────────────────────────────────────────────────
 status_tunnel() {
     local ok=0
 
     check_running "$SOCKS_PID_FILE"  && echo "✓ SOCKS5 proxy running"    || { echo "✗ SOCKS5 proxy stopped"; ok=1; }
     check_running "$SOCAT_PID_FILE"  && echo "✓ Agent bridge running"     || { echo "✗ Agent bridge stopped"; ok=1; }
+    check_running "$PROXY_PID_FILE"  && echo "✓ Sprite proxy running"     || { echo "✗ Sprite proxy stopped"; ok=1; }
     check_running "$SSH_PID_FILE"    && echo "✓ SSH tunnel running"       || { echo "✗ SSH tunnel stopped";  ok=1; }
 
     echo ""
-    fly status -a "$APP" 2>/dev/null || echo "(fly not available)"
+    sprite list 2>/dev/null || echo "(sprite CLI not available)"
 
     return $ok
 }
 
-# ── Entry point ───────────────────────────────────────────────────────────────
 case "${1:-}" in
     start|restart) start_tunnel ;;
     stop)  stop_all; echo "✓ Tunnel stopped." ;;
