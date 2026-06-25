@@ -6,8 +6,23 @@ This journal serves as the local, persistent source of truth for work-in-progres
 
 ## 📅 Chronological Development Sessions
 
+### Session 6: 2026-06-25 18:00 (Clare Anime Client: Bubble Tea TUI & Dual Audio Multiplexing)
+* **Host / Context**: Developed and compiled on remote VM `agy` (by Antigravity agent), deployed and activated on local workstation `otus` via SSH reverse tunnel.
+* **Commits**:
+  - `d60d081` (Antigravity): *feat: implement Bubble Tea TUI, watch history, and mpv playback position tracking for clare*
+  - `7eba459` (Antigravity): *style: refine TUI to Tokyonight theme, enable minimal list views, and add search/filtering for episodes*
+  - `2e96da9` (Antigravity): *fix(lua): resolve shell_escape nil error, update temp file prefix, and bump version to 0.1.2*
+* **Accomplishments**:
+  - Replaced legacy FZF script with an interactive, event-driven Go TUI using the Bubble Tea framework.
+  - Implemented automatic watch history tracking in `history.json` and playback positions resuming via custom embedded Lua script in `positions.json`.
+  - Added dynamic English audio track detection using `ffprobe` (to count video's internal audio streams) and mapped the external dub stream to `--aid=N+1` in `mpv`.
+  - Wrapped the `clare` package in Nix to prepend `ffmpeg` (for `ffprobe`), `yt-dlp`, and `mpv` to its path at runtime.
+  - Custom-styled the interface to fit the Tokyonight Storm color theme and enabled minimal list filtering.
+
+---
+
 ### Session 5: 2026-06-25 14:20 (Declarative SSHD Wrapper & Auto-Healing Privilege Separation)
-* **Goal**: Fix persistent SSH daemon connection resets caused by missing `/run/sshd` on remote VM boot/recreation.
+* **Host / Context**: Developed on local workstation `otus` (by Michael S. Singh), built and deployed to remote VM `agy`.
 * **Commits**:
   - `3b2e00d` (Michael S. Singh): *config: add declarative sshd wrapper to prevent missing /run/sshd failures*
 * **Accomplishments**:
@@ -19,7 +34,7 @@ This journal serves as the local, persistent source of truth for work-in-progres
 ---
 
 ### Session 4: 2026-06-25 17:40 (Environment Recovery & SSH Agent Bridge Automation)
-* **Goal**: Recover development environment after VM reboot, fix SSH daemon tmpfs initialization, and automate agent forwarding.
+* **Host / Context**: Recovered on remote VM `agy` (by Michael S. Singh / agent).
 * **Commits**:
   - `9895194` (Michael S. Singh): *config(sprite): automate ssh-agent-bridge and document tunnel proxying*
 * **Accomplishments**:
@@ -31,7 +46,7 @@ This journal serves as the local, persistent source of truth for work-in-progres
 ---
 
 ### Session 3: 2026-06-25 13:53 - 14:24 (Ani-CLI Dub Selection & Video Stream Processing)
-* **Goal**: Patch and enhance `ani-cli` package to handle English dub tracking and player behavior.
+* **Host / Context**: Developed on local workstation `otus` (by Michael S. Singh), built on remote VM `agy` and deployed back to `otus`.
 * **Commits**:
   - `d5aa958` (Michael S. Singh): *pkg/ani-cli: fix duplicate line in patch causing syntax error*
   - `63bdd4d` (Michael S. Singh): *pkg/ani-cli: fix malformed patch - regenerate from proper diff*
@@ -47,7 +62,7 @@ This journal serves as the local, persistent source of truth for work-in-progres
 ---
 
 ### Session 2: 2026-06-25 13:47 (Codified Sprite VM Environment & Decoupled Tunnel Workflow)
-* **Goal**: Shift the remote development workflow from the Fly.io microVM (`surnia`) to the fast 8-core `sprite.dev` VM (`agy`) and fully codify it in Nix.
+* **Host / Context**: Developed on local workstation `otus` (by Michael S. Singh).
 * **Commits**:
   - `eaa98f7` (Michael S. Singh): *config(sprite): declaratively manage gitconfig using Michael's identity*
   - `0f3a24d` (Michael S. Singh): *docs(gemini): document commit signing requirements for agent*
@@ -67,7 +82,7 @@ This journal serves as the local, persistent source of truth for work-in-progres
 ---
 
 ### Session 1: 2026-06-24 18:37 - 2026-06-25 00:57 (Initial Remote Workflow and Surnia VM Sandbox)
-* **Goal**: Build initial proof-of-concept remote Nix builder and development sandbox on Fly.io microVM host `surnia`.
+* **Host / Context**: Developed on local workstation `otus` (by Michael S. Singh) and remote microVM `surnia` (on Fly.io).
 * **Commits**:
   - `7211e11` (Michael S. Singh): *config(surnia): configure nix remote builder with max-jobs=0, import sops-nix, and add antigravity package & oauth token secret*
   - `b930c6f` (Michael S. Singh): *fix(surnia): persist nix store on /data volume, survives redeployments*
