@@ -4,39 +4,70 @@ This journal serves as the local, persistent source of truth for work-in-progres
 
 ---
 
-## Session: 2026-06-25 (Environment Recovery & Journal Setup)
+## 📅 Chronological Development Sessions
 
-### Current Objective
-Recover the remote VM development environment after a server reboot, fix the `sshd` service configuration, and establish the local session history protocol.
+### Session 4: 2026-06-25 17:40 (Environment Recovery & SSH Agent Bridge Automation)
+* **Goal**: Recover development environment after VM reboot, fix SSH daemon tmpfs initialization, and automate agent forwarding.
+* **Commits**:
+  - `9895194` (Michael S. Singh): *config(sprite): automate ssh-agent-bridge and document tunnel proxying*
+* **Accomplishments**:
+  - Moved `/run/sshd` privilege separation directory creation outside of the service-creation conditional block in [users/sprite/default.nix](file:///home/sprite/sober-nix/users/sprite/default.nix), ensuring it is created on every Home Manager activation (since `/run` is on tmpfs and gets wiped on boot).
+  - Created a persistent, self-healing `ssh-agent-bridge` Sprite Service using a dedicated wrapper script `.ssh-agent-bridge.sh` to resolve `sprite-env` comma-parsing bugs.
+  - Documented the port forwarding proxy architecture (SOCKS5 on 1080, SSH Agent on 9000, Nix copy on 2223) in [GEMINI.md](file:///home/sprite/sober-nix/GEMINI.md).
+  - Initialized this development journal (`JOURNAL.md`).
 
-### Tasks
-- [x] Fix `/run/sshd` privilege separation directory disappearance on reboot (codified in `users/sprite/default.nix`).
-- [x] Build and apply the updated Home Manager configuration on the VM (`agy`).
-- [x] Initialize `JOURNAL.md` at the repository root.
-- [x] Create a persistent, self-healing `ssh-agent-bridge` Sprite Service on the VM (via `/home/sprite/.ssh-agent-bridge.sh` wrapper script to bridge `/home/sprite/.ssh-agent.sock` to TCP port 9000).
-- [ ] Re-establish SSH Agent forwarding and SOCKS5 proxy tunnel from `otus`.
-  - *Action needed*: The user needs to run `bin/sprite-tunnel restart` on `otus` to restore connectivity to TCP port 9000 (for SSH agent) and port 1080 (for proxy).
+---
 
-### Changes Made
+### Session 3: 2026-06-25 13:53 - 14:24 (Ani-CLI Dub Selection & Video Stream Processing)
+* **Goal**: Patch and enhance `ani-cli` package to handle English dub tracking and player behavior.
+* **Commits**:
+  - `d5aa958` (Michael S. Singh): *pkg/ani-cli: fix duplicate line in patch causing syntax error*
+  - `63bdd4d` (Michael S. Singh): *pkg/ani-cli: fix malformed patch - regenerate from proper diff*
+  - `2a541b4` (Michael S. Singh): *fix(ani-cli): filter out duplicate SUB URLs from DUB links list*
+  - `7a36f0f` (Michael S. Singh): *feat(ani-cli): append -sober to script version for clear identification*
+  - `7b24bfd` (Michael S. Singh): *fix(ani-cli): fix dub audio track selection and save position on end-file*
+* **Accomplishments**:
+  - Patched `ani-cli` to append `-sober` to the version string.
+  - Resolved duplicate/broken lines in patches that caused compilation failure.
+  - Added support for selecting English dub audio tracks and passing secondary audio files to `mpv` using `--audio-file` flags.
+  - Filtered duplicate sub/dub URLs from source listings.
 
-#### 1. Configuration Fixes & Automation
-* **[users/sprite/default.nix](file:///home/sprite/sober-nix/users/sprite/default.nix)**:
-  - Moved `$DRY_RUN_CMD /usr/bin/sudo mkdir -p /run/sshd` outside of the conditional service registration check. Since `/run` is a tmpfs mount, it is wiped on boot even if the `sshd` service remains registered under `sprite-env`. This change ensures the directory is created on every activation.
-  - Declared `home.file.".ssh-agent-bridge.sh"`, an executable wrapper script that starts the `socat` bridge without argument-parsing comma errors.
-  - Added service registration for `ssh-agent-bridge` as a persistent **Sprite Service** under Home Manager.
+---
 
-#### 2. Documentation & Journal Setup
-* **[JOURNAL.md](file:///home/sprite/sober-nix/JOURNAL.md)**:
-  - Created this file to log active development sessions.
-* **[GEMINI.md](file:///home/sprite/sober-nix/GEMINI.md)**:
-  - Updated the "How SSH Key Access Works" and "Remote VM Initialization Protocol" sections to document the port-forwarding proxies (SOCKS5 on 1080, Agent on 9000, Nix copy back on 2223) and the new `ssh-agent-bridge` Sprite Service.
+### Session 2: 2026-06-25 13:47 (Codified Sprite VM Environment & Decoupled Tunnel Workflow)
+* **Goal**: Shift the remote development workflow from the Fly.io microVM (`surnia`) to the fast 8-core `sprite.dev` VM (`agy`) and fully codify it in Nix.
+* **Commits**:
+  - `eaa98f7` (Michael S. Singh): *config(sprite): declaratively manage gitconfig using Michael's identity*
+  - `0f3a24d` (Michael S. Singh): *docs(gemini): document commit signing requirements for agent*
+  - `65f46d7` (Michael S. Singh): *config(glaucidium): correct primary region to ewr*
+  - `7497749` (Michael S. Singh): *config(sprite): declaratively set login shell to fish via HM activation hook*
+  - `1cfc81a` (Michael S. Singh): *config(sshd): disable DNS lookup and GSSAPI auth to speed up connection setup*
+  - `f87e891` (Michael S. Singh): *doc(gemini): document Sprite Services and VM Persistence protocol*
+  - `b3c55bf` (Michael S. Singh): *config(ssh): conditionally proxy flycast/internal hosts on remote VM*
+  - `a68e942` (Michael S. Singh): *config(sprite): add StrictModes no to sshd and IdentityFile to tunnel config*
+  - `23a051a` (Michael S. Singh): *config(sprite): codify VM setup, register services, revert tunnel/deploy to agy and clean up surnia*
+* **Accomplishments**:
+  - Reverted `bin/sprite-tunnel` and `bin/deploy.sh` to target VM `agy` instead of Fly.io.
+  - Fully codified `users/sprite/default.nix` to handle custom package overlays, `sshd_config`, `.ssh/authorized_keys`, `/etc/nix/nix.conf` optimizations, and automated service registration hook.
+  - Added conditional `ProxyCommand` logic using `socat` over the forwarded SOCKS5 proxy to route `.flycast` network traffic seamlessly from the VM.
+  - Purged old `surnia` configuration files, flake targets, and waybar monitors.
 
-### Active Services Status
-* **nix-daemon**: Running (managed by `sprite-env`).
-* **sshd**: Running (managed by `sprite-env` on port 2222).
-* **ssh-agent-bridge**: Running (managed by `sprite-env` via `/home/sprite/.ssh-agent-bridge.sh`).
+---
 
-### Next Steps
-1. The user restarts the tunnel on `otus` (`bin/sprite-tunnel restart`).
-2. Verify SSH agent forwarding is active (`ssh-add -l` returns the keys).
-3. Update system configs/packages or proceed with user's next request.
+### Session 1: 2026-06-24 18:37 - 2026-06-25 00:57 (Initial Remote Workflow and Surnia VM Sandbox)
+* **Goal**: Build initial proof-of-concept remote Nix builder and development sandbox on Fly.io microVM host `surnia`.
+* **Commits**:
+  - `7211e11` (Michael S. Singh): *config(surnia): configure nix remote builder with max-jobs=0, import sops-nix, and add antigravity package & oauth token secret*
+  - `b930c6f` (Michael S. Singh): *fix(surnia): persist nix store on /data volume, survives redeployments*
+  - `585cafd` (Michael S. Singh): *feat(surnia): wire up full remote dev workflow (tunnel, deploy, bootstrap)*
+  - `e45513c` (Michael S. Singh): *feat(surnia): add bin/surnia lifecycle manager, replace deploy.sh*
+  - `7d73c51` (Michael S. Singh): *fix(surnia): pin nix-user-chroot URL, fix Nix store detection*
+  - `9782c2e` (Michael S. Singh): *docs: use nixos-rebuild switch instead of nh os switch*
+  - `bead440` (Michael S. Singh): *feat(waybar): add python3 system pkg, fix hosts exec path and compact display*
+  - `d29f138` (Michael S. Singh): *fix(otus): use wheelNeedsPassword=false for passwordless sudo*
+  - `394b6c0` (Michael S. Singh): *fix(surnia): source nix profile inside chroot for bootstrap*
+  - `4971841` (Michael S. Singh): *secrets: add agy.key*
+* **Accomplishments**:
+  - Set up `surnia` as an ephemeral Nix remote builder and environment using a `chroot` setup.
+  - Wrote deployment, tunnel, and bootstrap scripts to copy closures and keep connections alive.
+  - Optimized local workstation (`otus`) sudo rules and Waybar displays.
