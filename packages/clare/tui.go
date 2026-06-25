@@ -117,6 +117,7 @@ type JikanEpInfo struct {
 
 type jikanMetadataMsg struct {
 	malID    string
+	page     int
 	metadata map[string]JikanEpInfo
 	err      error
 }
@@ -454,6 +455,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case jikanMetadataMsg:
 		if msg.err != nil {
 			debugLog("TUI jikanMetadataMsg error: %v", msg.err)
+			m.loadedJikanPages[msg.page] = false // Allow retry later
 			return m, nil
 		}
 		for k, v := range msg.metadata {
@@ -755,17 +757,17 @@ func doPreparePlayback(selectedShow AnimeShow, epNo, mode, quality string, downl
 func doFetchJikanMetadata(malID string, page int) tea.Cmd {
 	return func() tea.Msg {
 		if malID == "" || malID == "0" {
-			return jikanMetadataMsg{err: fmt.Errorf("no MAL ID")}
+			return jikanMetadataMsg{malID: malID, page: page, err: fmt.Errorf("no MAL ID")}
 		}
 		client := &http.Client{Timeout: 8 * time.Second}
 		url := fmt.Sprintf("https://api.jikan.moe/v4/anime/%s/episodes?page=%d", malID, page)
 		resp, err := client.Get(url)
 		if err != nil {
-			return jikanMetadataMsg{err: err}
+			return jikanMetadataMsg{malID: malID, page: page, err: err}
 		}
 		defer resp.Body.Close()
 		if resp.StatusCode != http.StatusOK {
-			return jikanMetadataMsg{err: fmt.Errorf("status %d", resp.StatusCode)}
+			return jikanMetadataMsg{malID: malID, page: page, err: fmt.Errorf("status %d", resp.StatusCode)}
 		}
 		var res struct {
 			Data []struct {
@@ -778,10 +780,10 @@ func doFetchJikanMetadata(malID string, page int) tea.Cmd {
 		}
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {
-			return jikanMetadataMsg{err: err}
+			return jikanMetadataMsg{malID: malID, page: page, err: err}
 		}
 		if err := json.Unmarshal(body, &res); err != nil {
-			return jikanMetadataMsg{err: err}
+			return jikanMetadataMsg{malID: malID, page: page, err: err}
 		}
 		metadata := make(map[string]JikanEpInfo)
 		for _, d := range res.Data {
@@ -797,7 +799,7 @@ func doFetchJikanMetadata(malID string, page int) tea.Cmd {
 				Recap:  d.Recap,
 			}
 		}
-		return jikanMetadataMsg{malID: malID, metadata: metadata}
+		return jikanMetadataMsg{malID: malID, page: page, metadata: metadata}
 	}
 }
 
