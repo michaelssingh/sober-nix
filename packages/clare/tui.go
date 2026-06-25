@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
-	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -83,7 +82,20 @@ type showItem struct {
 }
 
 func (s showItem) Title() string       { return s.show.Name }
-func (s showItem) Description() string { return fmt.Sprintf("%d episodes available", s.show.EpCount()) }
+func (s showItem) Description() string {
+	var parts []string
+	if s.show.Type != "" {
+		parts = append(parts, s.show.Type)
+	}
+	if s.show.Season.Quarter != "" && s.show.Season.Year > 0 {
+		parts = append(parts, fmt.Sprintf("%s %d", s.show.Season.Quarter, s.show.Season.Year))
+	}
+	if s.show.Score > 0 {
+		parts = append(parts, fmt.Sprintf("Score: %.2f", s.show.Score))
+	}
+	parts = append(parts, fmt.Sprintf("%d episodes available", s.show.EpCount()))
+	return strings.Join(parts, "  •  ")
+}
 func (s showItem) FilterValue() string { return s.show.Name }
 
 type episodeItem struct {
@@ -286,13 +298,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if listHeight < 5 {
 			listHeight = 5
 		}
-		leftWidth := m.width / 2
-		if leftWidth < 35 {
-			leftWidth = 35
-		}
 		m.historyList.SetSize(m.width-4, listHeight)
 		m.showList.SetSize(m.width-4, listHeight)
-		m.episodeList.SetSize(leftWidth, listHeight)
+		m.episodeList.SetSize(m.width-4, listHeight)
 		return m, nil
 
 	case spinner.TickMsg:
@@ -639,19 +647,7 @@ func (m model) View() string {
 		s.WriteString("\n\n" + helpStyle("enter: select show | esc: back | q: quit"))
 
 	case stateEpisodeSelect:
-		leftWidth := m.width / 2
-		if leftWidth < 35 {
-			leftWidth = 35
-		}
-		rightWidth := m.width - leftWidth - 4
-		if rightWidth < 10 {
-			rightWidth = 10
-		}
-
-		leftView := m.episodeList.View()
-		rightView := m.renderShowDetailsPanel(rightWidth)
-
-		s.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, leftView, rightView))
+		s.WriteString(m.episodeList.View())
 		autoplayStr := "autoplay: OFF"
 		if m.autoplay {
 			autoplayStr = "autoplay: ON"
@@ -858,73 +854,6 @@ func (m *model) refreshEpisodeListItems() {
 	m.episodeList.SetItems(items)
 }
 
-func (m model) renderShowDetailsPanel(width int) string {
-	var s strings.Builder
-
-	headerStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#bb9af7"))
-	metaStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#7dcfff"))
-	bodyStyle := lipgloss.NewStyle().Width(width).Foreground(lipgloss.Color("#c0caf5"))
-	borderStyle := lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("#7aa2f7")).
-		Padding(1, 2).
-		Width(width)
-
-	var metaParts []string
-	if m.selectedShow.Score > 0 {
-		metaParts = append(metaParts, fmt.Sprintf("Score: %.2f", m.selectedShow.Score))
-	}
-	if m.selectedShow.Type != "" {
-		metaParts = append(metaParts, m.selectedShow.Type)
-	}
-	if m.selectedShow.Season.Quarter != "" && m.selectedShow.Season.Year > 0 {
-		metaParts = append(metaParts, fmt.Sprintf("%s %d", m.selectedShow.Season.Quarter, m.selectedShow.Season.Year))
-	}
-	metaLine := strings.Join(metaParts, "  •  ")
-
-	desc := cleanHTML(m.selectedShow.Description)
-	if desc == "" {
-		desc = "No synopsis available for this show."
-	} else if len(desc) > 350 {
-		desc = desc[:347] + "..."
-	}
-
-	selectedEpDetails := ""
-	if item := m.episodeList.SelectedItem(); item != nil {
-		if epItem, ok := item.(episodeItem); ok {
-			selectedEpDetails = fmt.Sprintf("\n\n%s\n", headerStyle.Render("SELECTED EPISODE DETAILS"))
-			selectedEpDetails += fmt.Sprintf("  Episode: %s\n", epItem.epNo)
-			if info, ok := m.episodeDetails[epItem.epNo]; ok {
-				selectedEpDetails += fmt.Sprintf("  Title:   %s\n", info.Title)
-				if info.Aired != "" {
-					selectedEpDetails += fmt.Sprintf("  Aired:   %s\n", info.Aired)
-				}
-				status := "Normal"
-				if info.Filler {
-					status = "Filler"
-				}
-				if info.Recap {
-					status = "Recap"
-				}
-				selectedEpDetails += fmt.Sprintf("  Type:    %s\n", status)
-			} else {
-				selectedEpDetails += "  Title:   Loading...\n"
-			}
-		}
-	}
-
-	panelContent := fmt.Sprintf(
-		"%s\n%s\n\n%s\n\n%s%s",
-		headerStyle.Render(m.selectedShow.Name),
-		metaStyle.Render(metaLine),
-		bodyStyle.Render(desc),
-		selectedEpDetails,
-	)
-
-	s.WriteString(borderStyle.Render(panelContent))
-	return s.String()
-}
-
 func parseEpisodeNumber(ep string) float64 {
 	var numStr strings.Builder
 	hasDot := false
@@ -944,16 +873,4 @@ func parseEpisodeNumber(ep string) float64 {
 	var val float64
 	fmt.Sscanf(numStr.String(), "%f", &val)
 	return val
-}
-
-func cleanHTML(input string) string {
-	r := strings.NewReplacer("<br>", "\n", "<br/>", "\n", "<br />", "\n")
-	s := r.Replace(input)
-	re := regexp.MustCompile("<[^>]*>")
-	s = re.ReplaceAllString(s, "")
-	s = strings.ReplaceAll(s, "&quot;", "\"")
-	s = strings.ReplaceAll(s, "&amp;", "&")
-	s = strings.ReplaceAll(s, "&lt;", "<")
-	s = strings.ReplaceAll(s, "&gt;", ">")
-	return strings.TrimSpace(s)
 }

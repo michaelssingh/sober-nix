@@ -162,9 +162,15 @@ func playSingleCmd(streamURL, title, epNo, malID string) (*exec.Cmd, string, err
 }
 
 func playDualCmd(subStream, dubStream string, title, epNo, malID string) (*exec.Cmd, string, error) {
+	subTracks := countAudioStreams(subStream)
+	if subTracks <= 0 {
+		debugLog("playDualCmd: subTracks is %d, falling back to 1", subTracks)
+		subTracks = 1
+	}
+	aid := fmt.Sprintf("%d", subTracks+1)
 	extraArgs := []string{
 		"--audio-file=" + dubStream,
-		"--aid=last",
+		"--aid=" + aid,
 	}
 	return getMpvCmd(subStream, title, epNo, malID, extraArgs)
 }
