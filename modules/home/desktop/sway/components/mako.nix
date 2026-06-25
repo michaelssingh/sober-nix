@@ -17,6 +17,8 @@ in
       border-radius = 5;
       border-size = 2;
       padding = "10";
+      width = 450;
+      height = 400;
       default-timeout = 5000;
       layer = "overlay";
       on-notify = "exec ${pkgs.pipewire}/bin/pw-play ${./tri-tone.mp3}";
