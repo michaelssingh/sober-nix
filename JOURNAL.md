@@ -6,6 +6,18 @@ This journal serves as the local, persistent source of truth for work-in-progres
 
 ## 📅 Chronological Development Sessions
 
+### Session 5: 2026-06-25 14:20 (Declarative SSHD Wrapper & Auto-Healing Privilege Separation)
+* **Goal**: Fix persistent SSH daemon connection resets caused by missing `/run/sshd` on remote VM boot/recreation.
+* **Commits**:
+  - `3b2e00d` (Michael S. Singh): *config: add declarative sshd wrapper to prevent missing /run/sshd failures*
+* **Accomplishments**:
+  - Created a wrapper script `~/.sshd-wrapper.sh` that ensures `/run/sshd` exists before starting the SSH daemon.
+  - Registered `~/.sshd-wrapper.sh` as the launch argument for the `sshd` Sprite Service in `sprite-env` via the Home Manager activation hook.
+  - Added self-healing logic to the activation hook to automatically detect and recreate/upgrade legacy direct `sshd` service definitions in the remote VM environment.
+  - Verified remote `nix-daemon` and `sshd` services are running, stable, and persistent.
+
+---
+
 ### Session 4: 2026-06-25 17:40 (Environment Recovery & SSH Agent Bridge Automation)
 * **Goal**: Recover development environment after VM reboot, fix SSH daemon tmpfs initialization, and automate agent forwarding.
 * **Commits**:
