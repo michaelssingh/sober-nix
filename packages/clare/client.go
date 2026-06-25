@@ -337,7 +337,7 @@ func fetchProviderLinks(sourceURL string) (map[string]string, error) {
 }
 
 func searchAnime(query, mode string) ([]AnimeShow, error) {
-	searchGQL := `query( $search: SearchInput $limit: Int $page: Int $translationType: VaildTranslationTypeEnumType $countryOrigin: VaildCountryOriginEnumType ) { shows( search: $search limit: $limit page: $page translationType: $translationType countryOrigin: $countryOrigin ) { edges { _id name availableEpisodes englishName nativeName thumbnail description malId aniListId type score season { quarter year } __typename } }}`
+	searchGQL := `query( $search: SearchInput $limit: Int $page: Int $translationType: VaildTranslationTypeEnumType $countryOrigin: VaildCountryOriginEnumType ) { shows( search: $search limit: $limit page: $page translationType: $translationType countryOrigin: $countryOrigin ) { edges { _id name availableEpisodes englishName nativeName thumbnail description malId aniListId type score season __typename } }}`
 
 	payload := map[string]any{
 		"variables": map[string]any{
@@ -390,7 +390,7 @@ func searchAnime(query, mode string) ([]AnimeShow, error) {
 }
 
 func fetchEpisodeList(showID, mode string) (AnimeShow, []string, error) {
-	showGQL := `query ($showId: String!) { show( _id: $showId ) { _id name englishName nativeName thumbnail description malId aniListId type score season { quarter year } availableEpisodesDetail }}`
+	showGQL := `query ($showId: String!) { show( _id: $showId ) { _id name englishName nativeName thumbnail description malId aniListId type score season availableEpisodesDetail }}`
 	payload := map[string]any{
 		"variables": map[string]any{
 			"showId": showID,
