@@ -59,6 +59,8 @@ in
     AuthorizedKeysFile .ssh/authorized_keys
     StrictModes no
     UsePAM yes
+    UseDNS no
+    GSSAPIAuthentication no
     Subsystem sftp /usr/lib/openssh/sftp-server
     PidFile /home/sprite/sshd.pid
   '';
