@@ -58,6 +58,18 @@ type AnimeShow struct {
 	ID                string `json:"_id"`
 	Name              string `json:"name"`
 	AvailableEpisodes any    `json:"availableEpisodes"`
+	EnglishName       string `json:"englishName"`
+	NativeName        string `json:"nativeName"`
+	Thumbnail         string `json:"thumbnail"`
+	Description       string `json:"description"`
+	MALID             string `json:"malId"`
+	AniListID         string `json:"aniListId"`
+	Type              string `json:"type"`
+	Score             float64 `json:"score"`
+	Season            struct {
+		Quarter string `json:"quarter"`
+		Year    int    `json:"year"`
+	} `json:"season"`
 }
 
 func (s AnimeShow) EpCount() int {
@@ -325,7 +337,7 @@ func fetchProviderLinks(sourceURL string) (map[string]string, error) {
 }
 
 func searchAnime(query, mode string) ([]AnimeShow, error) {
-	searchGQL := `query( $search: SearchInput $limit: Int $page: Int $translationType: VaildTranslationTypeEnumType $countryOrigin: VaildCountryOriginEnumType ) { shows( search: $search limit: $limit page: $page translationType: $translationType countryOrigin: $countryOrigin ) { edges { _id name availableEpisodes __typename } }}`
+	searchGQL := `query( $search: SearchInput $limit: Int $page: Int $translationType: VaildTranslationTypeEnumType $countryOrigin: VaildCountryOriginEnumType ) { shows( search: $search limit: $limit page: $page translationType: $translationType countryOrigin: $countryOrigin ) { edges { _id name availableEpisodes englishName nativeName thumbnail description malId aniListId type score season { quarter year } __typename } }}`
 
 	payload := map[string]any{
 		"variables": map[string]any{
@@ -377,20 +389,20 @@ func searchAnime(query, mode string) ([]AnimeShow, error) {
 	return result.Data.Shows.Edges, nil
 }
 
-func fetchEpisodeList(showID, mode string) ([]string, error) {
-	episodesListGQL := `query ($showId: String!) { show( _id: $showId ) { _id availableEpisodesDetail }}`
+func fetchEpisodeList(showID, mode string) (AnimeShow, []string, error) {
+	showGQL := `query ($showId: String!) { show( _id: $showId ) { _id name englishName nativeName thumbnail description malId aniListId type score season { quarter year } availableEpisodesDetail }}`
 	payload := map[string]any{
 		"variables": map[string]any{
 			"showId": showID,
 		},
-		"query": episodesListGQL,
+		"query": showGQL,
 	}
 	jsonPayload, _ := json.Marshal(payload)
 
 	client := &http.Client{Timeout: 10 * time.Second}
 	req, err := http.NewRequest("POST", AllAnimeAPI, bytes.NewReader(jsonPayload))
 	if err != nil {
-		return nil, err
+		return AnimeShow{}, nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("User-Agent", UserAgent)
@@ -398,24 +410,25 @@ func fetchEpisodeList(showID, mode string) ([]string, error) {
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, err
+		return AnimeShow{}, nil, err
 	}
 	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, err
+		return AnimeShow{}, nil, err
 	}
 
 	var result struct {
 		Data struct {
 			Show struct {
+				AnimeShow
 				AvailableEpisodesDetail map[string][]string `json:"availableEpisodesDetail"`
 			} `json:"show"`
 		} `json:"data"`
 	}
 
 	if err := json.Unmarshal(body, &result); err != nil {
-		return nil, err
+		return AnimeShow{}, nil, err
 	}
 
 	episodes := result.Data.Show.AvailableEpisodesDetail[mode]
@@ -428,7 +441,7 @@ func fetchEpisodeList(showID, mode string) ([]string, error) {
 		}
 	}
 
-	return episodes, nil
+	return result.Data.Show.AnimeShow, episodes, nil
 }
 
 func resolveStreamURL(showID, mode, episodeNo, quality string) (string, error) {

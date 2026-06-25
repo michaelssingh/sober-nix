@@ -1,9 +1,14 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"os/exec"
+	"regexp"
+	"sort"
 	"strings"
 	"time"
 
@@ -84,16 +89,37 @@ func (s showItem) FilterValue() string { return s.show.Name }
 type episodeItem struct {
 	epNo   string
 	isNext bool
+	title  string
+	desc   string
 }
 
 func (e episodeItem) Title() string {
+	if e.title != "" {
+		if e.isNext {
+			return fmt.Sprintf("%s (Next Up)", e.title)
+		}
+		return e.title
+	}
 	if e.isNext {
 		return fmt.Sprintf("Episode %s (Next Up)", e.epNo)
 	}
 	return fmt.Sprintf("Episode %s", e.epNo)
 }
-func (e episodeItem) Description() string { return "" }
+func (e episodeItem) Description() string { return e.desc }
 func (e episodeItem) FilterValue() string { return e.epNo }
+
+type JikanEpInfo struct {
+	Title  string
+	Aired  string
+	Filler bool
+	Recap  bool
+}
+
+type jikanMetadataMsg struct {
+	malID    string
+	metadata map[string]JikanEpInfo
+	err      error
+}
 
 // Msg definitions
 type searchResultMsg struct {
@@ -102,6 +128,7 @@ type searchResultMsg struct {
 }
 
 type episodesResultMsg struct {
+	show     AnimeShow
 	episodes []string
 	err      error
 }
@@ -119,26 +146,28 @@ type playbackFinishedMsg struct {
 
 // Bubble Tea Model
 type model struct {
-	state          tuiState
-	historyItems   []list.Item
-	historyList    list.Model
-	searchInput    textinput.Model
-	spinner        spinner.Model
-	showItems      []list.Item
-	showList       list.Model
-	episodeItems   []list.Item
-	episodeList    list.Model
-	selectedShow   AnimeShow
-	selectedEp     string
-	episodes       []string
-	download       bool
-	quality        string
-	mode           string // sub, dub, dual
-	err            error
-	width, height  int
-	loadingMsg     string
-	tempLuaFile    string
-	initialSearch  string
+	state            tuiState
+	historyItems     []list.Item
+	historyList      list.Model
+	searchInput      textinput.Model
+	spinner          spinner.Model
+	showItems        []list.Item
+	showList         list.Model
+	episodeItems     []list.Item
+	episodeList      list.Model
+	selectedShow     AnimeShow
+	selectedEp       string
+	episodes         []string
+	download         bool
+	quality          string
+	mode             string // sub, dub, dual
+	err              error
+	width, height    int
+	loadingMsg       string
+	tempLuaFile      string
+	initialSearch    string
+	episodeDetails   map[string]JikanEpInfo
+	loadedJikanPages map[int]bool
 }
 
 func createMinimalList(title string) list.Model {
@@ -188,16 +217,18 @@ func initialModel(initialSearch, mode, quality string, download bool) model {
 	eList := createMinimalList("Select Episode")
 
 	m := model{
-		state:         stateHistory,
-		historyList:   hList,
-		searchInput:   ti,
-		spinner:       s,
-		showList:      sList,
-		episodeList:   eList,
-		mode:          mode,
-		quality:       quality,
-		download:      download,
-		initialSearch: initialSearch,
+		state:            stateHistory,
+		historyList:      hList,
+		searchInput:      ti,
+		spinner:          s,
+		showList:         sList,
+		episodeList:      eList,
+		mode:             mode,
+		quality:          quality,
+		download:         download,
+		initialSearch:    initialSearch,
+		episodeDetails:   make(map[string]JikanEpInfo),
+		loadedJikanPages: make(map[int]bool),
 	}
 
 	m.refreshHistory()
@@ -251,9 +282,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if listHeight < 5 {
 			listHeight = 5
 		}
+		leftWidth := m.width / 2
+		if leftWidth < 35 {
+			leftWidth = 35
+		}
 		m.historyList.SetSize(m.width-4, listHeight)
 		m.showList.SetSize(m.width-4, listHeight)
-		m.episodeList.SetSize(m.width-4, listHeight)
+		m.episodeList.SetSize(leftWidth, listHeight)
 		return m, nil
 
 	case spinner.TickMsg:
@@ -299,10 +334,38 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 
+		m.selectedShow = msg.show
 		m.episodes = msg.episodes
 		m.state = stateEpisodeSelect
 
-		// Determine if there is a "next episode" to suggest based on watch history
+		// Clear metadata maps
+		m.episodeDetails = make(map[string]JikanEpInfo)
+		m.loadedJikanPages = make(map[int]bool)
+
+		// Sort episodes in ascending order
+		sort.Slice(m.episodes, func(i, j int) bool {
+			valI := parseEpisodeNumber(m.episodes[i])
+			valJ := parseEpisodeNumber(m.episodes[j])
+			if valI == valJ {
+				return m.episodes[i] < m.episodes[j]
+			}
+			return valI < valJ
+		})
+
+		// Rebuild the list items with current (empty/fallback) titles
+		m.refreshEpisodeListItems()
+
+		// Set list selection to the next up episode (or index 0 if not found)
+		selectIndex := 0
+		for i, item := range m.episodeItems {
+			if epItem, ok := item.(episodeItem); ok && epItem.isNext {
+				selectIndex = i
+				break
+			}
+		}
+		m.episodeList.Select(selectIndex)
+
+		// Determine which page to fetch first
 		lastEp := ""
 		rawHist, _ := loadHistory()
 		for _, h := range rawHist {
@@ -312,31 +375,17 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 
-		nextEp := ""
+		page := 1
 		if lastEp != "" {
-			for i, ep := range m.episodes {
-				if ep == lastEp {
-					if i+1 < len(m.episodes) {
-						nextEp = m.episodes[i+1]
-					}
-					break
-				}
+			var val int
+			fmt.Sscanf(lastEp, "%d", &val)
+			if val > 0 {
+				page = (val - 1) / 100 + 1
 			}
 		}
+		m.loadedJikanPages[page] = true
 
-		var items []list.Item
-		selectIndex := 0
-		for i, ep := range m.episodes {
-			isNext := ep == nextEp
-			if isNext {
-				selectIndex = i
-			}
-			items = append(items, episodeItem{epNo: ep, isNext: isNext})
-		}
-		m.episodeItems = items
-		m.episodeList.SetItems(items)
-		m.episodeList.Select(selectIndex)
-		return m, nil
+		return m, doFetchJikanMetadata(m.selectedShow.MALID, page)
 
 	case resolvedPlaybackMsg:
 		debugLog("TUI resolvedPlaybackMsg: err=%v, warning=%s, tempLuaFile=%s", msg.err, msg.warning, msg.tempLuaFile)
@@ -375,6 +424,17 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.state = stateSearchRunning
 		m.loadingMsg = "Refreshing episode list..."
 		return m, doFetchEpisodes(m.selectedShow.ID, "sub")
+
+	case jikanMetadataMsg:
+		if msg.err != nil {
+			debugLog("TUI jikanMetadataMsg error: %v", msg.err)
+			return m, nil
+		}
+		for k, v := range msg.metadata {
+			m.episodeDetails[k] = v
+		}
+		m.refreshEpisodeListItems()
+		return m, nil
 
 	case tea.KeyMsg:
 		debugLog("TUI KeyMsg: key=%s, state=%d", msg.String(), m.state)
@@ -492,6 +552,21 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			var cmd tea.Cmd
 			m.episodeList, cmd = m.episodeList.Update(msg)
+
+			// Lazy load metadata page for currently selected episode if needed
+			if item := m.episodeList.SelectedItem(); item != nil {
+				if epItem, ok := item.(episodeItem); ok {
+					var val int
+					fmt.Sscanf(epItem.epNo, "%d", &val)
+					if val > 0 {
+						page := (val - 1) / 100 + 1
+						if !m.loadedJikanPages[page] {
+							m.loadedJikanPages[page] = true
+							return m, tea.Batch(cmd, doFetchJikanMetadata(m.selectedShow.MALID, page))
+						}
+					}
+				}
+			}
 			return m, cmd
 
 		case stateError:
@@ -533,8 +608,19 @@ func (m model) View() string {
 		s.WriteString("\n\n" + helpStyle("enter: select show | esc: back | q: quit"))
 
 	case stateEpisodeSelect:
-		s.WriteString(accentColorStyle.Render(fmt.Sprintf("Show: %s", m.selectedShow.Name)) + "\n\n")
-		s.WriteString(m.episodeList.View())
+		leftWidth := m.width / 2
+		if leftWidth < 35 {
+			leftWidth = 35
+		}
+		rightWidth := m.width - leftWidth - 4
+		if rightWidth < 10 {
+			rightWidth = 10
+		}
+
+		leftView := m.episodeList.View()
+		rightView := m.renderShowDetailsPanel(rightWidth)
+
+		s.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, leftView, rightView))
 		s.WriteString("\n\n" + helpStyle("enter: play episode | esc: back | q: quit"))
 
 	case statePlaybackPreparing:
@@ -567,8 +653,8 @@ func doSearch(query, mode string) tea.Cmd {
 // Async episodes fetch command
 func doFetchEpisodes(showID, mode string) tea.Cmd {
 	return func() tea.Msg {
-		eps, err := fetchEpisodeList(showID, mode)
-		return episodesResultMsg{episodes: eps, err: err}
+		show, eps, err := fetchEpisodeList(showID, mode)
+		return episodesResultMsg{show: show, episodes: eps, err: err}
 	}
 }
 
@@ -630,4 +716,209 @@ func doPreparePlayback(selectedShow AnimeShow, epNo, mode, quality string, downl
 
 		return resolvedPlaybackMsg{cmd: cmd, tempLuaFile: tempLua, err: err}
 	}
+}
+
+
+func doFetchJikanMetadata(malID string, page int) tea.Cmd {
+	return func() tea.Msg {
+		if malID == "" || malID == "0" {
+			return jikanMetadataMsg{err: fmt.Errorf("no MAL ID")}
+		}
+		client := &http.Client{Timeout: 8 * time.Second}
+		url := fmt.Sprintf("https://api.jikan.moe/v4/anime/%s/episodes?page=%d", malID, page)
+		resp, err := client.Get(url)
+		if err != nil {
+			return jikanMetadataMsg{err: err}
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			return jikanMetadataMsg{err: fmt.Errorf("status %d", resp.StatusCode)}
+		}
+		var res struct {
+			Data []struct {
+				MalID  int    `json:"mal_id"`
+				Title  string `json:"title"`
+				Aired  string `json:"aired"`
+				Filler bool   `json:"filler"`
+				Recap  bool   `json:"recap"`
+			} `json:"data"`
+		}
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return jikanMetadataMsg{err: err}
+		}
+		if err := json.Unmarshal(body, &res); err != nil {
+			return jikanMetadataMsg{err: err}
+		}
+		metadata := make(map[string]JikanEpInfo)
+		for _, d := range res.Data {
+			epNum := fmt.Sprintf("%d", d.MalID)
+			airedStr := d.Aired
+			if len(airedStr) >= 10 {
+				airedStr = airedStr[:10]
+			}
+			metadata[epNum] = JikanEpInfo{
+				Title:  d.Title,
+				Aired:  airedStr,
+				Filler: d.Filler,
+				Recap:  d.Recap,
+			}
+		}
+		return jikanMetadataMsg{malID: malID, metadata: metadata}
+	}
+}
+
+func (m *model) refreshEpisodeListItems() {
+	lastEp := ""
+	rawHist, _ := loadHistory()
+	for _, h := range rawHist {
+		if h.ShowID == m.selectedShow.ID {
+			lastEp = h.Episode
+			break
+		}
+	}
+
+	nextEp := ""
+	if lastEp != "" {
+		for i, ep := range m.episodes {
+			if ep == lastEp {
+				if i+1 < len(m.episodes) {
+					nextEp = m.episodes[i+1]
+				}
+				break
+			}
+		}
+	}
+
+	var items []list.Item
+	for _, ep := range m.episodes {
+		isNext := ep == nextEp
+		title := ""
+		desc := ""
+		if info, ok := m.episodeDetails[ep]; ok {
+			title = fmt.Sprintf("Ep %s: %s", ep, info.Title)
+			var tags []string
+			if info.Filler {
+				tags = append(tags, "Filler")
+			}
+			if info.Recap {
+				tags = append(tags, "Recap")
+			}
+			if info.Aired != "" {
+				tags = append(tags, "Aired: "+info.Aired)
+			}
+			desc = strings.Join(tags, " | ")
+		} else {
+			title = fmt.Sprintf("Episode %s", ep)
+		}
+
+		items = append(items, episodeItem{
+			epNo:   ep,
+			isNext: isNext,
+			title:  title,
+			desc:   desc,
+		})
+	}
+	m.episodeItems = items
+	m.episodeList.SetItems(items)
+}
+
+func (m model) renderShowDetailsPanel(width int) string {
+	var s strings.Builder
+
+	headerStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#bb9af7"))
+	metaStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#7dcfff"))
+	bodyStyle := lipgloss.NewStyle().Width(width).Foreground(lipgloss.Color("#c0caf5"))
+	borderStyle := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("#7aa2f7")).
+		Padding(1, 2).
+		Width(width)
+
+	var metaParts []string
+	if m.selectedShow.Score > 0 {
+		metaParts = append(metaParts, fmt.Sprintf("Score: %.2f", m.selectedShow.Score))
+	}
+	if m.selectedShow.Type != "" {
+		metaParts = append(metaParts, m.selectedShow.Type)
+	}
+	if m.selectedShow.Season.Quarter != "" && m.selectedShow.Season.Year > 0 {
+		metaParts = append(metaParts, fmt.Sprintf("%s %d", m.selectedShow.Season.Quarter, m.selectedShow.Season.Year))
+	}
+	metaLine := strings.Join(metaParts, "  •  ")
+
+	desc := cleanHTML(m.selectedShow.Description)
+	if desc == "" {
+		desc = "No synopsis available for this show."
+	} else if len(desc) > 350 {
+		desc = desc[:347] + "..."
+	}
+
+	selectedEpDetails := ""
+	if item := m.episodeList.SelectedItem(); item != nil {
+		if epItem, ok := item.(episodeItem); ok {
+			selectedEpDetails = fmt.Sprintf("\n\n%s\n", headerStyle.Render("SELECTED EPISODE DETAILS"))
+			selectedEpDetails += fmt.Sprintf("  Episode: %s\n", epItem.epNo)
+			if info, ok := m.episodeDetails[epItem.epNo]; ok {
+				selectedEpDetails += fmt.Sprintf("  Title:   %s\n", info.Title)
+				if info.Aired != "" {
+					selectedEpDetails += fmt.Sprintf("  Aired:   %s\n", info.Aired)
+				}
+				status := "Normal"
+				if info.Filler {
+					status = "Filler"
+				}
+				if info.Recap {
+					status = "Recap"
+				}
+				selectedEpDetails += fmt.Sprintf("  Type:    %s\n", status)
+			} else {
+				selectedEpDetails += "  Title:   Loading...\n"
+			}
+		}
+	}
+
+	panelContent := fmt.Sprintf(
+		"%s\n%s\n\n%s\n\n%s%s",
+		headerStyle.Render(m.selectedShow.Name),
+		metaStyle.Render(metaLine),
+		bodyStyle.Render(desc),
+		selectedEpDetails,
+	)
+
+	s.WriteString(borderStyle.Render(panelContent))
+	return s.String()
+}
+
+func parseEpisodeNumber(ep string) float64 {
+	var numStr strings.Builder
+	hasDot := false
+	for _, r := range ep {
+		if r >= '0' && r <= '9' {
+			numStr.WriteRune(r)
+		} else if r == '.' && !hasDot {
+			numStr.WriteRune(r)
+			hasDot = true
+		} else if numStr.Len() > 0 {
+			break
+		}
+	}
+	if numStr.Len() == 0 {
+		return 0
+	}
+	var val float64
+	fmt.Sscanf(numStr.String(), "%f", &val)
+	return val
+}
+
+func cleanHTML(input string) string {
+	r := strings.NewReplacer("<br>", "\n", "<br/>", "\n", "<br />", "\n")
+	s := r.Replace(input)
+	re := regexp.MustCompile("<[^>]*>")
+	s = re.ReplaceAllString(s, "")
+	s = strings.ReplaceAll(s, "&quot;", "\"")
+	s = strings.ReplaceAll(s, "&amp;", "&")
+	s = strings.ReplaceAll(s, "&lt;", "<")
+	s = strings.ReplaceAll(s, "&gt;", ">")
+	return strings.TrimSpace(s)
 }
