@@ -21,7 +21,7 @@ echo "${BOLD}${CYAN}==> 1. Pulling latest changes on otus...${RESET}"
 git pull || echo "Warning: git pull failed (you may have uncommitted local changes on otus)."
 
 echo -e "\n${BOLD}${CYAN}==> 2. Triggering Nix build on remote VM ($VM_HOST:$VM_PORT)...${RESET}"
-out_path=$(ssh -p "$VM_PORT" $SSH_OPTS "$VM_HOST" "cd \"$FLAKE_DIR\" && git pull && NIX_REMOTE=daemon nix build .#nixosConfigurations.otus.config.system.build.toplevel --print-out-paths --no-link --extra-experimental-features 'nix-command flakes'")
+out_path=$(ssh -p "$VM_PORT" $SSH_OPTS "$VM_HOST" "export SSH_AUTH_SOCK=/home/sprite/.ssh-agent.sock && cd \"$FLAKE_DIR\" && git pull && NIX_REMOTE=daemon nix build .#nixosConfigurations.otus.config.system.build.toplevel --print-out-paths --no-link --extra-experimental-features 'nix-command flakes'")
 
 if [[ -z "$out_path" ]]; then
     echo "${RED}Error: Failed to obtain build path from VM.${RESET}" >&2
