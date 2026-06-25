@@ -111,5 +111,10 @@ in
         --no-stream
     fi
     $DRY_RUN_CMD /.sprite/bin/sprite-env services start sshd || true
+
+    # 4. Set default login shell to fish
+    if [ "$(getent passwd sprite | cut -d: -f7)" != "/usr/bin/fish" ]; then
+      $DRY_RUN_CMD /usr/bin/sudo /usr/bin/chsh -s /usr/bin/fish sprite
+    fi
   '';
 }
