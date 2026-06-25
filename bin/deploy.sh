@@ -68,9 +68,11 @@ if command -v notify-send >/dev/null 2>&1; then
     fi
 
     if [[ -n "$diff_output" ]]; then
-        formatted_diff=$(echo "$diff_output" | sed 's/^/  • /' | head -n 12)
+        # Strip ANSI escape sequences
+        clean_diff=$(echo "$diff_output" | sed 's/\x1b\[[0-9;]*[a-zA-Z]//g')
+        formatted_diff=$(echo "$clean_diff" | sed 's/^/  • /' | head -n 12)
         diff_section="\n\nPackage Changes:\n$formatted_diff"
-        if [[ $(echo "$diff_output" | wc -l) -gt 12 ]]; then
+        if [[ $(echo "$clean_diff" | wc -l) -gt 12 ]]; then
             diff_section="$diff_section\n  • ... (and more)"
         fi
     else
