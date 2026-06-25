@@ -11,7 +11,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-const Version = "0.1.8"
+const Version = "0.1.9"
 
 func main() {
 	searchQuery := flag.String("s", "", "Search query for anime")
@@ -48,7 +48,23 @@ func main() {
 			os.Exit(1)
 		}
 
-		selectedShow := shows[0]
+		// Parse requested episode number to filter candidates
+		reqEpVal := parseEpisodeNumber(epNo)
+		var selectedShow AnimeShow
+		found := false
+
+		for _, s := range shows {
+			if reqEpVal > 0 && s.EpCount() > 0 && int(reqEpVal) > s.EpCount() {
+				continue
+			}
+			selectedShow = s
+			found = true
+			break
+		}
+
+		if !found {
+			selectedShow = shows[0]
+		}
 		fmt.Printf("Playing from show: %s\n", selectedShow.Name)
 
 		if *downloadFlag {
