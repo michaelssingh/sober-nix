@@ -1,13 +1,11 @@
 --- a/ani-cli
 +++ b/ani-cli
-@@ -295,28 +295,74 @@
+@@ -295,28 +295,88 @@
      episode_embed_gql='query ($showId: String!, $translationType: VaildTranslationTypeEnumType!, $episodeString: String!) { episode( showId: $showId translationType: $translationType episodeString: $episodeString ) { episodeString sourceUrls }}'
  
      query_hash="d405d0edd690624b66baba3068e0edc3ac90f1597d898a1ec8db4e5c43c00fec"
 -    query_vars="{\"showId\":\"$id\",\"translationType\":\"$mode\",\"episodeString\":\"$ep_no\"}"
 -    query_ext="{\"persistedQuery\":{\"version\":1,\"sha256Hash\":\"$query_hash\"}}"
- 
--    api_resp="$(curl -e "$allanime_refr" -sG -A "$agent" -H "Origin: ${allanime_refr}" "${allanime_api}/api" --data-urlencode "variables=${query_vars}" --data-urlencode "extensions=${query_ext}")"
 +    if [ "$mode" = "dub" ]; then
 +        # 1. Fetch DUB link
 +        query_vars="{\"showId\":\"$id\",\"translationType\":\"dub\",\"episodeString\":\"$ep_no\"}"
@@ -43,7 +41,7 @@
 +        sub_links="$(cat "$cache_dir"/* | sort -g -r -s)"
 +        rm -r "$cache_dir"
 +
-+        # Filter out DUB links that share the exact same URL as SUB links to avoid duplicated Japanese audio sources
++        # Filter out DUB links that share the exact same URL as SUB links
 +        sub_urls="$(printf "%s\n" "$sub_links" | cut -d'>' -f2 | grep -v '^$')"
 +        filtered_dub_links="$(awk -v sub_urls_str="$sub_urls" 'BEGIN { split(sub_urls_str, temp, "\n"); for (i in temp) { if (temp[i] != "") sub_urls[temp[i]] = 1; } } { split($0, parts, ">"); url = parts[2]; if (!(url in sub_urls)) { print $0; } }' <<EOF
 +$dub_links
@@ -70,7 +68,8 @@
 +    else
 +        query_vars="{\"showId\":\"$id\",\"translationType\":\"$mode\",\"episodeString\":\"$ep_no\"}"
 +        query_ext="{\"persistedQuery\":{\"version\":1,\"sha256Hash\":\"$query_hash\"}}"
-+
+ 
+-    api_resp="$(curl -e "$allanime_refr" -sG -A "$agent" -H "Origin: ${allanime_refr}" "${allanime_api}/api" --data-urlencode "variables=${query_vars}" --data-urlencode "extensions=${query_ext}")"
 +        api_resp="$(curl -e "$allanime_refr" -sG -A "$agent" -H "Origin: ${allanime_refr}" "${allanime_api}/api" --data-urlencode "variables=${query_vars}" --data-urlencode "extensions=${query_ext}")"
  
 -    if [ -z "$api_resp" ] || ! printf "%s" "$api_resp" | grep -q "tobeparsed"; then
@@ -104,10 +103,11 @@
 -    links=$(cat "$cache_dir"/* | sort -g -r -s)
 -    rm -r "$cache_dir"
 -    select_quality "$quality"
++    if printf "%s" "$ep_list"
      if printf "%s" "$ep_list" | grep -q "^$ep_no$"; then
          [ -z "$episode" ] && die "Episode is released, but no valid sources!"
      else
-@@ -404,6 +450,8 @@
+@@ -404,6 +464,8 @@
  }
  
  play_episode() {
@@ -116,7 +116,7 @@
      [ "$log_episode" = 1 ] && [ "$player_function" != "debug" ] && [ "$player_function" != "download" ] && command -v logger >/dev/null && logger -t ani-cli "${allanime_title}${ep_no}"
      [ "$skip_intro" = 1 ] && skip_flag="$(ani-skip -q "$mal_id" -e "$ep_no")"
      [ -z "$episode" ] && get_episode_url
-@@ -415,9 +463,9 @@
+@@ -415,9 +477,9 @@
              ;;
          mpv*)
              if [ "$no_detach" = 0 ]; then
@@ -128,7 +128,7 @@
                  mpv_exitcode=$?
                  [ "$exit_after_play" = 1 ] && [ -z "$range" ] && exit "$mpv_exitcode"
              fi
-@@ -445,7 +493,7 @@
+@@ -445,7 +507,7 @@
          *) nohup $player_function "$episode" >/dev/null 2>&1 & ;;
      esac
      replay="$episode"
