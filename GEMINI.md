@@ -95,19 +95,13 @@ ssh-add -l
 Nix is installed via the official multi-user installer. The daemon does not run as a systemd service
 (Ubuntu's init system is not configured it). 
 
-#### Remote VM Initialization Protocol (Agent Mitigation)
-To mitigate VM restarts and connection/build issues, the agent must proactively check and start the required background daemons at the beginning of every session:
+#### Remote VM Initialization Protocol (Sprite Services)
+The background daemons (`nix-daemon` and `sshd`) are fully codified and registered as persistent **Sprite Services** under Home-Manager. They are monitored and will auto-start/restart on boot:
+- Check service status: `/.sprite/bin/sprite-env services list`
+- If stopped or failing, restart them: `/.sprite/bin/sprite-env services start <name>`
 
-1. **SSH Daemon**: Check if `sshd` is running. If not, start it:
-   ```bash
-   sudo mkdir -p /run/sshd
-   sudo /usr/sbin/sshd
-   ```
-2. **Nix Daemon**: Check if `nix-daemon` is running. If not, start it:
-   ```bash
-   sudo /nix/var/nix/profiles/default/bin/nix-daemon 2>/tmp/nix-daemon.log &
-   sleep 3
-   ```
+Both services run as root using `sudo` wrapper commands.
+
 
 Critical configuration in `/etc/nix/nix.conf` — must contain:
 ```
@@ -186,5 +180,20 @@ Alternatively, you can use the automated deployment script from `otus` to build 
   `distributedBuilds`, `nixbuild.net` build machines). These are intentional for `otus`'s hardware.
 - **The remote VM is Ubuntu**, not NixOS. Do not use `nixos-rebuild`, `nh os switch`, or attempt
   to manage systemd units here.
-- **The Nix daemon must be manually started** each agent session — there is no persistent systemd
-  service managing it on this VM.
+- **The Nix daemon and SSH daemon are managed as Sprite Services** — they restart automatically on boot, so manual daemon starting is no longer required unless a service fails.
+
+### VM Persistence & Data Loss Mitigation Protocol
+
+To prevent work-in-progress data loss on the remote VM, developers and agents must adhere to the following protocol:
+
+1. **Declarative VM State**: All configurations (SSHD configs, SSH keys, Nix configs, installed tools) must be declared in [users/sprite/default.nix](file:///home/sprite/sober-nix/users/sprite/default.nix). Avoid manual, ad-hoc state changes outside this configuration.
+2. **One-Command Recovery**: In the event of a VM recreation or filesystem loss, use the bootstrapper:
+   ```bash
+   ./bin/bootstrap-sprite
+   ```
+   This will cleanly bootstrap Nix, clone the repo, and activate the codified Home Manager environment from scratch.
+3. **Commit & Push Early**: Do not leave significant uncommitted work in the VM's working directory. Push active branches regularly to `github` or the private `origin` Forgejo remotes to guarantee safety.
+4. **Sprite Checkpoints**: Create point-in-time snapshots of the VM's overlay filesystem before risky tasks or when stable milestones are reached:
+   ```bash
+   /.sprite/bin/sprite-env checkpoints create "Comment describing the milestone"
+   ```
