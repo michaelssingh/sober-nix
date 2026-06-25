@@ -3,6 +3,7 @@
 # Run this on otus.
 set -euo pipefail
 
+start_time=$(date +%s)
 BOLD=$'\e[1m'
 CYAN=$'\e[36m'
 GREEN=$'\e[32m'
@@ -37,6 +38,7 @@ NIX_REMOTE=daemon nix copy \
     --extra-experimental-features 'nix-command flakes'
 
 echo -e "\n${BOLD}${CYAN}==> 4. Activating new configuration...${RESET}"
+old_path=$(readlink -f /nix/var/nix/profiles/system 2>/dev/null || true)
 sudo nix-env --profile /nix/var/nix/profiles/system --set "$out_path"
 sudo "$out_path/bin/switch-to-configuration" switch
 
@@ -44,13 +46,40 @@ sudo "$out_path/bin/switch-to-configuration" switch
 
 # Send detailed notification on success if notify-send is available
 if command -v notify-send >/dev/null 2>&1; then
+    end_time=$(date +%s)
+    duration=$((end_time - start_time))
+    if [[ $duration -ge 60 ]]; then
+        duration_str="$((duration / 60))m $((duration % 60))s"
+    else
+        duration_str="${duration}s"
+    fi
+
     gen_id=$(readlink /nix/var/nix/profiles/system | cut -d'-' -f2 || echo "unknown")
     system_id=$(basename "$out_path" | cut -d'-' -f1 || echo "unknown")
     commit_hash=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
     commit_msg=$(git log -1 --pretty=%s 2>/dev/null || echo "unknown")
+
+    sys_size=$(nix path-info -Sh "$out_path" --extra-experimental-features 'nix-command' 2>/dev/null | awk '{print $2}' || echo "unknown")
+
+    if [[ -n "${old_path:-}" && "$old_path" != "$out_path" ]]; then
+        diff_output=$(nix store diff-closures "$old_path" "$out_path" --extra-experimental-features 'nix-command' 2>/dev/null || echo "")
+    else
+        diff_output=""
+    fi
+
+    if [[ -n "$diff_output" ]]; then
+        formatted_diff=$(echo "$diff_output" | sed 's/^/  • /' | head -n 12)
+        diff_section="\n\nPackage Changes:\n$formatted_diff"
+        if [[ $(echo "$diff_output" | wc -l) -gt 12 ]]; then
+            diff_section="$diff_section\n  • ... (and more)"
+        fi
+    else
+        diff_section="\n\nPackage Changes: None"
+    fi
+
     notify-send -a "System Deploy" -u normal \
         "Deployment Successful (Generation #$gen_id)" \
-        "System successfully built, copied, and activated.\n\nGeneration: #$gen_id\nSystem ID: $system_id\nCommit: $commit_hash - $commit_msg\nPath: $out_path\nUser: $(whoami)\nDate: $(date)" || true
+        "System successfully built, copied, and activated.\n\nGeneration: #$gen_id\nSystem ID: $system_id ($sys_size)\nDuration: $duration_str\nCommit: $commit_hash - $commit_msg\nPath: $out_path\nUser: $(whoami)\nDate: $(date)$diff_section" || true
 fi
 
 echo -e "\n${BOLD}${GREEN}✔ Deployment completed successfully!${RESET}"
