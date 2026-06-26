@@ -358,6 +358,11 @@ func searchAnime(query, mode string) ([]AnimeShow, error) {
 }
 
 func fetchEpisodeList(showID, mode string) (AnimeShow, []string, error) {
+	if show, eps, found := loadShowCache(showID); found {
+		debugLog("fetchEpisodeList: loaded show %s from cache", showID)
+		return show, eps, nil
+	}
+
 	showGQL := `query ($showId: String!) { show( _id: $showId ) { _id name englishName nativeName thumbnail description malId aniListId type score season availableEpisodesDetail }}`
 	payload := map[string]any{
 		"variables": map[string]any{
@@ -405,6 +410,7 @@ func fetchEpisodeList(showID, mode string) (AnimeShow, []string, error) {
 		}
 	}
 
+	_ = saveShowCache(showID, result.Data.Show.AnimeShow, episodes)
 	return result.Data.Show.AnimeShow, episodes, nil
 }
 

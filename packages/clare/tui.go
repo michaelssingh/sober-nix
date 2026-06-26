@@ -354,6 +354,26 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.episodeDetails = make(map[string]JikanEpInfo)
 		m.loadedJikanPages = make(map[int]bool)
 
+		// Load Jikan cache if MAL ID is present
+		if m.selectedShow.MALID != "" && m.selectedShow.MALID != "0" {
+			if cacheData, err := loadJikanCache(m.selectedShow.MALID); err == nil && len(cacheData) > 0 {
+				for k, v := range cacheData {
+					m.episodeDetails[k] = v
+				}
+				// Pre-mark pages that are fully cached
+				for _, ep := range m.episodes {
+					var val int
+					fmt.Sscanf(ep, "%d", &val)
+					if val > 0 {
+						page := (val - 1) / 100 + 1
+						if _, ok := cacheData[ep]; ok {
+							m.loadedJikanPages[page] = true
+						}
+					}
+				}
+			}
+		}
+
 		// Sort episodes in ascending order
 		sort.Slice(m.episodes, func(i, j int) bool {
 			valI := parseEpisodeNumber(m.episodes[i])
@@ -466,9 +486,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.loadedJikanPages[msg.page] = false // Allow retry later
 			return m, nil
 		}
+		// Save new page metadata to cache
+		cacheData, _ := loadJikanCache(msg.malID)
+		if cacheData == nil {
+			cacheData = make(map[string]JikanEpInfo)
+		}
 		for k, v := range msg.metadata {
 			m.episodeDetails[k] = v
+			cacheData[k] = v
 		}
+		_ = saveJikanCache(msg.malID, cacheData)
 		m.refreshEpisodeListItems()
 		return m, nil
 
