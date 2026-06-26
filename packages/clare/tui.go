@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -146,6 +147,12 @@ type episodesResultMsg struct {
 	err      error
 }
 
+type showDetailsResultMsg struct {
+	showID string
+	show   AnimeShow
+	err    error
+}
+
 type resolvedPlaybackMsg struct {
 	warning string
 	cmd         *exec.Cmd
@@ -159,30 +166,31 @@ type playbackFinishedMsg struct {
 
 // Bubble Tea Model
 type model struct {
-	state            tuiState
-	historyItems     []list.Item
-	historyList      list.Model
-	searchInput      textinput.Model
-	spinner          spinner.Model
-	showItems        []list.Item
-	showList         list.Model
-	episodeItems     []list.Item
-	episodeList      list.Model
-	selectedShow     AnimeShow
-	selectedEp       string
-	episodes         []string
-	download         bool
-	quality          string
-	mode             string // sub, dub, dual
-	err              error
-	width, height    int
-	loadingMsg       string
-	tempLuaFile      string
-	initialSearch    string
-	episodeDetails   map[string]JikanEpInfo
-	loadedJikanPages map[int]bool
-	autoplay         bool
-	triggerAutoplay  bool
+	state              tuiState
+	historyItems       []list.Item
+	historyList        list.Model
+	searchInput        textinput.Model
+	spinner            spinner.Model
+	showItems          []list.Item
+	showList           list.Model
+	episodeItems       []list.Item
+	episodeList        list.Model
+	selectedShow       AnimeShow
+	selectedEp         string
+	episodes           []string
+	download           bool
+	quality            string
+	mode               string // sub, dub, dual
+	err                error
+	width, height      int
+	loadingMsg         string
+	tempLuaFile        string
+	initialSearch      string
+	episodeDetails     map[string]JikanEpInfo
+	loadedJikanPages   map[int]bool
+	autoplay           bool
+	triggerAutoplay    bool
+	historyShowDetails map[string]AnimeShow
 }
 
 func createMinimalList(title string) list.Model {
@@ -232,19 +240,20 @@ func initialModel(initialSearch, mode, quality string, download bool) model {
 	eList := createMinimalList("Select Episode")
 
 	m := model{
-		state:            stateHistory,
-		historyList:      hList,
-		searchInput:      ti,
-		spinner:          s,
-		showList:         sList,
-		episodeList:      eList,
-		mode:             mode,
-		quality:          quality,
-		download:         download,
-		initialSearch:    initialSearch,
-		episodeDetails:   make(map[string]JikanEpInfo),
-		loadedJikanPages: make(map[int]bool),
-		autoplay:         true, // Autoplay on by default
+		state:              stateHistory,
+		historyList:        hList,
+		searchInput:        ti,
+		spinner:            s,
+		showList:           sList,
+		episodeList:        eList,
+		mode:               mode,
+		quality:            quality,
+		download:           download,
+		initialSearch:      initialSearch,
+		episodeDetails:     make(map[string]JikanEpInfo),
+		loadedJikanPages:   make(map[int]bool),
+		autoplay:           true, // Autoplay on by default
+		historyShowDetails: make(map[string]AnimeShow),
 	}
 
 	m.refreshHistory()
@@ -282,6 +291,21 @@ func (m model) Init() tea.Cmd {
 	cmds = append(cmds, m.spinner.Tick)
 	if m.initialSearch != "" {
 		cmds = append(cmds, doSearch(m.initialSearch, "sub"))
+	} else if m.state == stateHistory {
+		if len(m.historyItems) > 0 {
+			if selected, ok := m.historyItems[0].(historyItem); ok {
+				if show, _, found := loadShowCache(selected.showID); found {
+					m.historyShowDetails[selected.showID] = show
+				} else {
+					m.historyShowDetails[selected.showID] = AnimeShow{
+						ID:          selected.showID,
+						Name:        selected.showName,
+						Description: "Loading details...",
+					}
+					cmds = append(cmds, doFetchShowDetails(selected.showID))
+				}
+			}
+		}
 	}
 	return tea.Batch(cmds...)
 }
@@ -298,9 +322,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if listHeight < 5 {
 			listHeight = 5
 		}
-		m.historyList.SetSize(m.width-4, listHeight)
-		m.showList.SetSize(m.width-4, listHeight)
-		m.episodeList.SetSize(m.width-4, listHeight)
+		leftWidth := m.width - 4
+		if m.width >= 80 {
+			leftWidth = m.width / 2
+			if leftWidth < 35 {
+				leftWidth = 35
+			}
+		}
+		m.historyList.SetSize(leftWidth, listHeight)
+		m.showList.SetSize(leftWidth, listHeight)
+		m.episodeList.SetSize(leftWidth, listHeight)
 		return m, nil
 
 	case spinner.TickMsg:
@@ -480,6 +511,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.loadingMsg = "Refreshing episode list..."
 		return m, doFetchEpisodes(m.selectedShow.ID, "sub")
 
+	case showDetailsResultMsg:
+		if msg.err == nil {
+			m.historyShowDetails[msg.showID] = msg.show
+		} else {
+			debugLog("TUI showDetailsResultMsg error: %v", msg.err)
+		}
+		return m, nil
+
 	case jikanMetadataMsg:
 		if msg.err != nil {
 			debugLog("TUI jikanMetadataMsg error: %v", msg.err)
@@ -550,6 +589,22 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			var cmd tea.Cmd
 			m.historyList, cmd = m.historyList.Update(msg)
+			
+			// Trigger details fetch for currently highlighted history item if not loaded
+			if selected, ok := m.historyList.SelectedItem().(historyItem); ok {
+				if _, loaded := m.historyShowDetails[selected.showID]; !loaded {
+					if show, _, found := loadShowCache(selected.showID); found {
+						m.historyShowDetails[selected.showID] = show
+					} else {
+						m.historyShowDetails[selected.showID] = AnimeShow{
+							ID:          selected.showID,
+							Name:        selected.showName,
+							Description: "Loading details...",
+						}
+						return m, tea.Batch(cmd, doFetchShowDetails(selected.showID))
+					}
+				}
+			}
 			return m, cmd
 
 		case stateSearchInput:
@@ -610,6 +665,20 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.state = stateShowSelect
 				} else if len(m.historyItems) > 0 {
 					m.state = stateHistory
+					if selected, ok := m.historyList.SelectedItem().(historyItem); ok {
+						if _, loaded := m.historyShowDetails[selected.showID]; !loaded {
+							if show, _, found := loadShowCache(selected.showID); found {
+								m.historyShowDetails[selected.showID] = show
+							} else {
+								m.historyShowDetails[selected.showID] = AnimeShow{
+									ID:          selected.showID,
+									Name:        selected.showName,
+									Description: "Loading details...",
+								}
+								return m, doFetchShowDetails(selected.showID)
+							}
+						}
+					}
 				} else {
 					m.state = stateSearchInput
 					m.searchInput.Focus()
@@ -658,7 +727,38 @@ func (m model) View() string {
 
 	switch m.state {
 	case stateHistory:
-		s.WriteString(m.historyList.View())
+		if m.width >= 80 {
+			leftWidth := m.width / 2
+			if leftWidth < 35 {
+				leftWidth = 35
+			}
+			rightWidth := m.width - leftWidth - 4
+			if rightWidth < 10 {
+				rightWidth = 10
+			}
+
+			leftView := m.historyList.View()
+			var rightView string
+			if selected, ok := m.historyList.SelectedItem().(historyItem); ok {
+				if show, loaded := m.historyShowDetails[selected.showID]; loaded {
+					rightView = renderShowDetailsPanel(show, rightWidth)
+				} else {
+					tempShow := AnimeShow{ID: selected.showID, Name: selected.showName, Description: "Loading details..."}
+					rightView = renderShowDetailsPanel(tempShow, rightWidth)
+				}
+			} else {
+				rightView = lipgloss.NewStyle().
+					Border(lipgloss.RoundedBorder()).
+					BorderForeground(lipgloss.Color("#7aa2f7")).
+					Padding(1, 2).
+					Width(rightWidth).
+					Render("No show selected.")
+			}
+
+			s.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, leftView, rightView))
+		} else {
+			s.WriteString(m.historyList.View())
+		}
 		s.WriteString("\n\n" + helpStyle("s: search | enter: select show | q: quit"))
 
 	case stateSearchInput:
@@ -670,11 +770,53 @@ func (m model) View() string {
 		s.WriteString(fmt.Sprintf("%s %s\n", m.spinner.View(), m.loadingMsg))
 
 	case stateShowSelect:
-		s.WriteString(m.showList.View())
+		if m.width >= 80 {
+			leftWidth := m.width / 2
+			if leftWidth < 35 {
+				leftWidth = 35
+			}
+			rightWidth := m.width - leftWidth - 4
+			if rightWidth < 10 {
+				rightWidth = 10
+			}
+
+			leftView := m.showList.View()
+			var rightView string
+			if selected, ok := m.showList.SelectedItem().(showItem); ok {
+				rightView = renderShowDetailsPanel(selected.show, rightWidth)
+			} else {
+				rightView = lipgloss.NewStyle().
+					Border(lipgloss.RoundedBorder()).
+					BorderForeground(lipgloss.Color("#7aa2f7")).
+					Padding(1, 2).
+					Width(rightWidth).
+					Render("No show selected.")
+			}
+
+			s.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, leftView, rightView))
+		} else {
+			s.WriteString(m.showList.View())
+		}
 		s.WriteString("\n\n" + helpStyle("enter: select show | esc: back | q: quit"))
 
 	case stateEpisodeSelect:
-		s.WriteString(m.episodeList.View())
+		if m.width >= 80 {
+			leftWidth := m.width / 2
+			if leftWidth < 35 {
+				leftWidth = 35
+			}
+			rightWidth := m.width - leftWidth - 4
+			if rightWidth < 10 {
+				rightWidth = 10
+			}
+
+			leftView := m.episodeList.View()
+			rightView := m.renderEpisodeDetailsPanel(rightWidth)
+
+			s.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, leftView, rightView))
+		} else {
+			s.WriteString(m.episodeList.View())
+		}
 		autoplayStr := "autoplay: OFF"
 		if m.autoplay {
 			autoplayStr = "autoplay: ON"
@@ -900,4 +1042,128 @@ func parseEpisodeNumber(ep string) float64 {
 	var val float64
 	fmt.Sscanf(numStr.String(), "%f", &val)
 	return val
+}
+
+func doFetchShowDetails(showID string) tea.Cmd {
+	return func() tea.Msg {
+		show, _, err := fetchEpisodeList(showID, "sub")
+		return showDetailsResultMsg{showID: showID, show: show, err: err}
+	}
+}
+
+func renderShowDetailsPanel(show AnimeShow, width int) string {
+	var s strings.Builder
+
+	headerStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#bb9af7"))
+	metaStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#7dcfff"))
+	bodyStyle := lipgloss.NewStyle().Width(width - 6).Foreground(lipgloss.Color("#c0caf5"))
+	borderStyle := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("#7aa2f7")).
+		Padding(1, 2).
+		Width(width)
+
+	var metaParts []string
+	if show.Score > 0 {
+		metaParts = append(metaParts, fmt.Sprintf("Score: %.2f", show.Score))
+	}
+	if show.Type != "" {
+		metaParts = append(metaParts, show.Type)
+	}
+	if show.Season.Quarter != "" && show.Season.Year > 0 {
+		metaParts = append(metaParts, fmt.Sprintf("%s %d", show.Season.Quarter, show.Season.Year))
+	}
+	if show.EpCount() > 0 {
+		metaParts = append(metaParts, fmt.Sprintf("%d eps", show.EpCount()))
+	}
+	metaLine := strings.Join(metaParts, "  •  ")
+
+	desc := cleanHTML(show.Description)
+	if desc == "" {
+		desc = "No synopsis available."
+	} else if len(desc) > 500 {
+		desc = desc[:497] + "..."
+	}
+
+	panelContent := fmt.Sprintf(
+		"%s\n%s\n\n%s",
+		headerStyle.Render(show.Name),
+		metaStyle.Render(metaLine),
+		bodyStyle.Render(desc),
+	)
+
+	s.WriteString(borderStyle.Render(panelContent))
+	return s.String()
+}
+
+func (m model) renderEpisodeDetailsPanel(width int) string {
+	var s strings.Builder
+
+	headerStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#bb9af7"))
+	metaStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#7dcfff"))
+	bodyStyle := lipgloss.NewStyle().Width(width - 6).Foreground(lipgloss.Color("#c0caf5"))
+	borderStyle := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("#7aa2f7")).
+		Padding(1, 2).
+		Width(width)
+
+	item := m.episodeList.SelectedItem()
+	if item == nil {
+		return borderStyle.Render("No episode selected.")
+	}
+
+	epItem, ok := item.(episodeItem)
+	if !ok {
+		return borderStyle.Render("No episode selected.")
+	}
+
+	title := fmt.Sprintf("Episode %s", epItem.epNo)
+	aired := "Unknown"
+	fillerStr := "Normal"
+
+	if info, ok := m.episodeDetails[epItem.epNo]; ok {
+		if info.Title != "" {
+			title = fmt.Sprintf("Ep %s: %s", epItem.epNo, info.Title)
+		}
+		if info.Aired != "" {
+			aired = info.Aired
+		}
+		if info.Filler {
+			fillerStr = "Filler"
+		}
+		if info.Recap {
+			fillerStr = "Recap"
+		}
+	} else if m.selectedShow.MALID == "" || m.selectedShow.MALID == "0" {
+		title = fmt.Sprintf("Episode %s", epItem.epNo)
+		aired = "N/A (No MAL ID)"
+		fillerStr = "Normal"
+	} else {
+		title = fmt.Sprintf("Episode %s", epItem.epNo)
+		aired = "Loading..."
+		fillerStr = "Loading..."
+	}
+
+	panelContent := fmt.Sprintf(
+		"%s\n\n%s\n%s",
+		headerStyle.Render(title),
+		metaStyle.Render(fmt.Sprintf("Aired: %s", aired)),
+		bodyStyle.Render(fmt.Sprintf("Type:  %s", fillerStr)),
+	)
+
+	s.WriteString(borderStyle.Render(panelContent))
+	return s.String()
+}
+
+func cleanHTML(input string) string {
+	r := strings.NewReplacer("<br>", "\n", "<br/>", "\n", "<br />", "\n")
+	s := r.Replace(input)
+	re := regexp.MustCompile("<[^>]*>")
+	s = re.ReplaceAllString(s, "")
+	s = strings.ReplaceAll(s, "&quot;", "\"")
+	s = strings.ReplaceAll(s, "&amp;", "&")
+	s = strings.ReplaceAll(s, "&lt;", "<")
+	s = strings.ReplaceAll(s, "&gt;", ">")
+	return strings.TrimSpace(s)
 }
