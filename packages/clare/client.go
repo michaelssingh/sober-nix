@@ -203,29 +203,18 @@ func decodeToBeParsed(blob string) ([]SourceInfo, error) {
 }
 
 func fetchEpisodeSources(showID, mode, episodeNo string) ([]SourceInfo, error) {
-	client := &http.Client{Timeout: 10 * time.Second}
 	queryVars := fmt.Sprintf(`{"showId":"%s","translationType":"%s","episodeString":"%s"}`, showID, mode, episodeNo)
 	queryExt := fmt.Sprintf(`{"persistedQuery":{"version":1,"sha256Hash":"%s"}}`, allAnimeQueryHash)
-
 	reqURL := fmt.Sprintf("%s?variables=%s&extensions=%s", AllAnimeAPI, url.QueryEscape(queryVars), url.QueryEscape(queryExt))
-	req, err := http.NewRequest("GET", reqURL, nil)
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("User-Agent", UserAgent)
-	req.Header.Set("Referer", AllAnimeReferer)
-	req.Header.Set("Origin", allAnimeQueryOrigin)
 
-	resp, err := client.Do(req)
-	var body []byte
-	if err == nil {
-		defer resp.Body.Close()
-		if resp.StatusCode == 200 {
-			body, _ = io.ReadAll(resp.Body)
-		}
+	headers := map[string]string{
+		"User-Agent": UserAgent,
+		"Referer":    AllAnimeReferer,
+		"Origin":     allAnimeQueryOrigin,
 	}
 
-	if len(body) == 0 || !strings.Contains(string(body), "tobeparsed") {
+	body, err := doHTTPReqWithRetry("GET", reqURL, nil, headers)
+	if err != nil || len(body) == 0 || !strings.Contains(string(body), "tobeparsed") {
 		episodeEmbedGQL := `query ($showId: String!, $translationType: VaildTranslationTypeEnumType!, $episodeString: String!) { episode( showId: $showId translationType: $translationType episodeString: $episodeString ) { episodeString sourceUrls }}`
 		payload := map[string]any{
 			"variables": map[string]any{
@@ -237,20 +226,12 @@ func fetchEpisodeSources(showID, mode, episodeNo string) ([]SourceInfo, error) {
 		}
 		jsonPayload, _ := json.Marshal(payload)
 
-		req, err = http.NewRequest("POST", AllAnimeAPI, bytes.NewReader(jsonPayload))
-		if err != nil {
-			return nil, err
+		postHeaders := map[string]string{
+			"Content-Type": "application/json",
+			"User-Agent":   UserAgent,
+			"Referer":      AllAnimeReferer,
 		}
-		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("User-Agent", UserAgent)
-		req.Header.Set("Referer", AllAnimeReferer)
-
-		resp, err = client.Do(req)
-		if err != nil {
-			return nil, err
-		}
-		defer resp.Body.Close()
-		body, err = io.ReadAll(resp.Body)
+		body, err = doHTTPReqWithRetry("POST", AllAnimeAPI, jsonPayload, postHeaders)
 		if err != nil {
 			return nil, err
 		}
@@ -287,20 +268,11 @@ func fetchEpisodeSources(showID, mode, episodeNo string) ([]SourceInfo, error) {
 }
 
 func fetchProviderLinks(sourceURL string) (map[string]string, error) {
-	client := &http.Client{Timeout: 8 * time.Second}
-	req, err := http.NewRequest("GET", sourceURL, nil)
-	if err != nil {
-		return nil, err
+	headers := map[string]string{
+		"User-Agent": UserAgent,
+		"Referer":    AllAnimeReferer,
 	}
-	req.Header.Set("User-Agent", UserAgent)
-	req.Header.Set("Referer", AllAnimeReferer)
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
+	body, err := doHTTPReqWithRetry("GET", sourceURL, nil, headers)
 	if err != nil {
 		return nil, err
 	}
@@ -355,21 +327,13 @@ func searchAnime(query, mode string) ([]AnimeShow, error) {
 	}
 	jsonPayload, _ := json.Marshal(payload)
 
-	client := &http.Client{Timeout: 10 * time.Second}
-	req, err := http.NewRequest("POST", AllAnimeAPI, bytes.NewReader(jsonPayload))
-	if err != nil {
-		return nil, err
+	headers := map[string]string{
+		"Content-Type": "application/json",
+		"User-Agent":   UserAgent,
+		"Referer":      AllAnimeReferer,
 	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("User-Agent", UserAgent)
-	req.Header.Set("Referer", AllAnimeReferer)
 
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
+	body, err := doHTTPReqWithRetry("POST", AllAnimeAPI, jsonPayload, headers)
 	if err != nil {
 		return nil, err
 	}
@@ -403,21 +367,13 @@ func fetchEpisodeList(showID, mode string) (AnimeShow, []string, error) {
 	}
 	jsonPayload, _ := json.Marshal(payload)
 
-	client := &http.Client{Timeout: 10 * time.Second}
-	req, err := http.NewRequest("POST", AllAnimeAPI, bytes.NewReader(jsonPayload))
-	if err != nil {
-		return AnimeShow{}, nil, err
+	headers := map[string]string{
+		"Content-Type": "application/json",
+		"User-Agent":   UserAgent,
+		"Referer":      AllAnimeReferer,
 	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("User-Agent", UserAgent)
-	req.Header.Set("Referer", AllAnimeReferer)
 
-	resp, err := client.Do(req)
-	if err != nil {
-		return AnimeShow{}, nil, err
-	}
-	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
+	body, err := doHTTPReqWithRetry("POST", AllAnimeAPI, jsonPayload, headers)
 	if err != nil {
 		return AnimeShow{}, nil, err
 	}
@@ -509,4 +465,51 @@ func selectBestLink(links map[string]string, requested string) string {
 		return val
 	}
 	return ""
+}
+
+func doHTTPReqWithRetry(method, url string, payload []byte, headers map[string]string) ([]byte, error) {
+	var body []byte
+	var err error
+	client := &http.Client{Timeout: 10 * time.Second}
+
+	for attempt := 1; attempt <= 3; attempt++ {
+		var req *http.Request
+		if len(payload) > 0 {
+			req, err = http.NewRequest(method, url, bytes.NewReader(payload))
+		} else {
+			req, err = http.NewRequest(method, url, nil)
+		}
+		if err != nil {
+			return nil, err
+		}
+
+		for k, v := range headers {
+			req.Header.Set(k, v)
+		}
+
+		var resp *http.Response
+		resp, err = client.Do(req)
+		if err == nil {
+			defer resp.Body.Close()
+			body, err = io.ReadAll(resp.Body)
+			if err == nil {
+				isTransientError := resp.StatusCode == 502 || resp.StatusCode == 503 || resp.StatusCode == 504 || resp.StatusCode == 429
+				bodyStr := string(body)
+				if !isTransientError && (strings.Contains(bodyStr, "error code: 502") || strings.Contains(bodyStr, "error code: 503")) {
+					isTransientError = true
+				}
+
+				if !isTransientError {
+					return body, nil
+				}
+				err = fmt.Errorf("transient HTTP error (status %d): %s", resp.StatusCode, strings.TrimSpace(bodyStr))
+			}
+		}
+
+		debugLog("HTTP request attempt %d failed for %s: %v", attempt, url, err)
+		if attempt < 3 {
+			time.Sleep(time.Duration(attempt) * time.Second)
+		}
+	}
+	return nil, fmt.Errorf("after 3 attempts, request failed: %w", err)
 }
