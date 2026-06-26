@@ -725,6 +725,11 @@ func (m model) View() string {
 	s.WriteString(titleStyle.Render(" CLARE "))
 	s.WriteString("\n")
 
+	listHeight := m.height - 6
+	if listHeight < 5 {
+		listHeight = 5
+	}
+
 	switch m.state {
 	case stateHistory:
 		if m.width >= 80 {
@@ -741,10 +746,10 @@ func (m model) View() string {
 			var rightView string
 			if selected, ok := m.historyList.SelectedItem().(historyItem); ok {
 				if show, loaded := m.historyShowDetails[selected.showID]; loaded {
-					rightView = renderShowDetailsPanel(show, rightWidth)
+					rightView = renderShowDetailsPanel(show, rightWidth, listHeight)
 				} else {
 					tempShow := AnimeShow{ID: selected.showID, Name: selected.showName, Description: "Loading details..."}
-					rightView = renderShowDetailsPanel(tempShow, rightWidth)
+					rightView = renderShowDetailsPanel(tempShow, rightWidth, listHeight)
 				}
 			} else {
 				rightView = lipgloss.NewStyle().
@@ -752,6 +757,7 @@ func (m model) View() string {
 					BorderForeground(lipgloss.Color("#7aa2f7")).
 					Padding(1, 2).
 					Width(rightWidth).
+					Height(listHeight).
 					Render("No show selected.")
 			}
 
@@ -783,13 +789,14 @@ func (m model) View() string {
 			leftView := m.showList.View()
 			var rightView string
 			if selected, ok := m.showList.SelectedItem().(showItem); ok {
-				rightView = renderShowDetailsPanel(selected.show, rightWidth)
+				rightView = renderShowDetailsPanel(selected.show, rightWidth, listHeight)
 			} else {
 				rightView = lipgloss.NewStyle().
 					Border(lipgloss.RoundedBorder()).
 					BorderForeground(lipgloss.Color("#7aa2f7")).
 					Padding(1, 2).
 					Width(rightWidth).
+					Height(listHeight).
 					Render("No show selected.")
 			}
 
@@ -811,7 +818,7 @@ func (m model) View() string {
 			}
 
 			leftView := m.episodeList.View()
-			rightView := m.renderEpisodeDetailsPanel(rightWidth)
+			rightView := m.renderEpisodeDetailsPanel(rightWidth, listHeight)
 
 			s.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, leftView, rightView))
 		} else {
@@ -1051,62 +1058,113 @@ func doFetchShowDetails(showID string) tea.Cmd {
 	}
 }
 
-func renderShowDetailsPanel(show AnimeShow, width int) string {
+func renderShowDetailsPanel(show AnimeShow, width, height int) string {
 	var s strings.Builder
 
-	headerStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#bb9af7"))
-	metaStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#7dcfff"))
-	bodyStyle := lipgloss.NewStyle().Width(width - 6).Foreground(lipgloss.Color("#c0caf5"))
+	headerStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#bb9af7")) // Tokyonight purple
+	titleStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#c0caf5"))
+	metaKeyStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#565f89"))
+	metaValStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#7dcfff"))
+	bodyStyle := lipgloss.NewStyle().Width(width - 6).Foreground(lipgloss.Color("#a9b1d6"))
+	
+	// Full-height border aligned with the list
 	borderStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color("#7aa2f7")).
 		Padding(1, 2).
-		Width(width)
+		Width(width).
+		Height(height)
 
-	var metaParts []string
+	// Format metadata lines
+	scoreStr := "N/A"
 	if show.Score > 0 {
-		metaParts = append(metaParts, fmt.Sprintf("Score: %.2f", show.Score))
+		stars := int(show.Score / 2.0 + 0.5)
+		if stars < 1 { stars = 1 }
+		if stars > 5 { stars = 5 }
+		var starBuf strings.Builder
+		for i := 0; i < 5; i++ {
+			if i < stars {
+				starBuf.WriteString("★")
+			} else {
+				starBuf.WriteString("☆")
+			}
+		}
+		goldStars := lipgloss.NewStyle().Foreground(lipgloss.Color("#e0af68")).Render(starBuf.String())
+		scoreStr = fmt.Sprintf("%s  %.2f", goldStars, show.Score)
 	}
-	if show.Type != "" {
-		metaParts = append(metaParts, show.Type)
-	}
+
+	seasonStr := "Unknown"
 	if show.Season.Quarter != "" && show.Season.Year > 0 {
-		metaParts = append(metaParts, fmt.Sprintf("%s %d", show.Season.Quarter, show.Season.Year))
+		seasonStr = fmt.Sprintf("%s %d", show.Season.Quarter, show.Season.Year)
 	}
+
+	typeStr := "Unknown"
+	if show.Type != "" {
+		typeStr = show.Type
+	}
+
+	epsStr := "Unknown"
 	if show.EpCount() > 0 {
-		metaParts = append(metaParts, fmt.Sprintf("%d eps", show.EpCount()))
+		epsStr = fmt.Sprintf("%d Episodes", show.EpCount())
 	}
-	metaLine := strings.Join(metaParts, "  •  ")
 
 	desc := cleanHTML(show.Description)
 	if desc == "" {
 		desc = "No synopsis available."
-	} else if len(desc) > 500 {
-		desc = desc[:497] + "..."
 	}
 
+	// We calculate remaining lines in the container to truncate description gracefully
+	// Header is 1 line, title wraps (assume 1-2 lines), separator/margins/spacing is ~6 lines.
+	// That's roughly 8 lines of overhead.
+	overhead := 8
+	descMaxHeight := height - overhead - 2 // padding
+	if descMaxHeight < 3 {
+		descMaxHeight = 3
+	}
+
+	// Truncate description to fit nicely
+	descLines := strings.Split(bodyStyle.Render(desc), "\n")
+	if len(descLines) > descMaxHeight {
+		descLines = descLines[:descMaxHeight]
+		lastLine := descLines[len(descLines)-1]
+		if len(lastLine) > 3 {
+			descLines[len(descLines)-1] = lastLine[:len(lastLine)-3] + "..."
+		} else {
+			descLines[len(descLines)-1] = "..."
+		}
+	}
+	truncatedDesc := strings.Join(descLines, "\n")
+
 	panelContent := fmt.Sprintf(
-		"%s\n%s\n\n%s",
-		headerStyle.Render(show.Name),
-		metaStyle.Render(metaLine),
-		bodyStyle.Render(desc),
+		"%s\n%s\n\n%s\n%s\n%s\n%s\n\n%s\n%s",
+		headerStyle.Render("◆ SHOW DETAILS ◆"),
+		titleStyle.Render(show.Name),
+		fmt.Sprintf("%s %s", metaKeyStyle.Render("Rating:    "), scoreStr),
+		fmt.Sprintf("%s %s", metaKeyStyle.Render("Format:    "), metaValStyle.Render(typeStr)),
+		fmt.Sprintf("%s %s", metaKeyStyle.Render("Release:   "), metaValStyle.Render(seasonStr)),
+		fmt.Sprintf("%s %s", metaKeyStyle.Render("Length:    "), metaValStyle.Render(epsStr)),
+		headerStyle.Render("◆ SYNOPSIS ◆"),
+		truncatedDesc,
 	)
 
 	s.WriteString(borderStyle.Render(panelContent))
 	return s.String()
 }
 
-func (m model) renderEpisodeDetailsPanel(width int) string {
+func (m model) renderEpisodeDetailsPanel(width, height int) string {
 	var s strings.Builder
 
-	headerStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#bb9af7"))
-	metaStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#7dcfff"))
-	bodyStyle := lipgloss.NewStyle().Width(width - 6).Foreground(lipgloss.Color("#c0caf5"))
+	headerStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#bb9af7")) // Tokyonight purple
+	titleStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#c0caf5"))
+	metaKeyStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#565f89"))
+	metaValStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#7dcfff"))
+	
 	borderStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color("#7aa2f7")).
 		Padding(1, 2).
-		Width(width)
+		Width(width).
+		Height(height)
 
 	item := m.episodeList.SelectedItem()
 	if item == nil {
@@ -1120,7 +1178,7 @@ func (m model) renderEpisodeDetailsPanel(width int) string {
 
 	title := fmt.Sprintf("Episode %s", epItem.epNo)
 	aired := "Unknown"
-	fillerStr := "Normal"
+	classification := lipgloss.NewStyle().Foreground(lipgloss.Color("#9ece6a")).Render("Canon") // green for canon
 
 	if info, ok := m.episodeDetails[epItem.epNo]; ok {
 		if info.Title != "" {
@@ -1130,26 +1188,41 @@ func (m model) renderEpisodeDetailsPanel(width int) string {
 			aired = info.Aired
 		}
 		if info.Filler {
-			fillerStr = "Filler"
-		}
-		if info.Recap {
-			fillerStr = "Recap"
+			classification = lipgloss.NewStyle().Foreground(lipgloss.Color("#f7768e")).Render("Filler (Non-Canon)")
+		} else if info.Recap {
+			classification = lipgloss.NewStyle().Foreground(lipgloss.Color("#e0af68")).Render("Recap")
 		}
 	} else if m.selectedShow.MALID == "" || m.selectedShow.MALID == "0" {
 		title = fmt.Sprintf("Episode %s", epItem.epNo)
 		aired = "N/A (No MAL ID)"
-		fillerStr = "Normal"
+		classification = lipgloss.NewStyle().Foreground(lipgloss.Color("#565f89")).Render("Unknown (No MAL)")
 	} else {
 		title = fmt.Sprintf("Episode %s", epItem.epNo)
 		aired = "Loading..."
-		fillerStr = "Loading..."
+		classification = lipgloss.NewStyle().Foreground(lipgloss.Color("#565f89")).Render("Loading...")
 	}
 
+	// Calculate spacing for controls at the bottom
+	hintsStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#565f89")).Width(width - 6)
+	hints := "\n\n\n\n"
+	hintOverhead := 8
+	hintSpaces := height - hintOverhead - 4 // spacing
+	if hintSpaces > 0 {
+		hints = strings.Repeat("\n", hintSpaces)
+	}
+	hints += fmt.Sprintf(
+		"◆ CONTROLS ◆\n%s",
+		hintsStyle.Render("• enter : play episode\n• a     : toggle autoplay\n• esc   : back to shows"),
+	)
+
 	panelContent := fmt.Sprintf(
-		"%s\n\n%s\n%s",
-		headerStyle.Render(title),
-		metaStyle.Render(fmt.Sprintf("Aired: %s", aired)),
-		bodyStyle.Render(fmt.Sprintf("Type:  %s", fillerStr)),
+		"%s\n%s\n\n%s\n%s\n%s\n%s%s",
+		headerStyle.Render("◆ EPISODE DETAILS ◆"),
+		lipgloss.NewStyle().Foreground(lipgloss.Color("#565f89")).Render(m.selectedShow.Name),
+		titleStyle.Render(title),
+		fmt.Sprintf("%s %s", metaKeyStyle.Render("Release Date:  "), metaValStyle.Render(aired)),
+		fmt.Sprintf("%s %s", metaKeyStyle.Render("Classification:"), classification),
+		hints,
 	)
 
 	s.WriteString(borderStyle.Render(panelContent))
