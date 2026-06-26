@@ -9,6 +9,8 @@ This journal serves as the local, persistent source of truth for work-in-progres
 ### Session 8: 2026-06-26 12:50 (Clare TUI Metadata Details Panels, Local Caching & Debug Mode)
 * **Host / Context**: Developed and compiled on remote VM `agy` (by Antigravity agent), verified via local Nix build validation.
 * **Commits**:
+  - `32145b8` (Antigravity on `agy`): *fix(deploy): robustly extract remote nix build path, filtering out warnings*
+  - `086cd3b` (Antigravity on `agy`): *bump(clare): update default.nix package version to 0.1.14*
   - `d7a3d8f` (Antigravity on `agy`): *feat(clare): restore split-screen details panels with cache lookup, bump version to 0.1.14*
   - `6b6b610` (Antigravity on `agy`): *feat(clare): add local caching for show episode lists and Jikan metadata, bump version to 0.1.13*
   - `27da44e` (Antigravity on `agy`): *fix(clare): add automatic HTTP request retry for transient error codes (like 502), bump version to 0.1.12*
@@ -24,6 +26,7 @@ This journal serves as the local, persistent source of truth for work-in-progres
   - **Local File Caching**: Codified caching managers in `packages/clare/cache.go` backing AllAnime metadata to `cache/shows/<id>.json` (24h invalidation) and Jikan metadata to `cache/jikan/<mal_id>.json`.
   - **HTTP Request Robustness**: Implemented linear backoff retry wrappers for transient gateway/CDN errors (502, 503, 504, 429) inside `client.go`.
   - **CLI Diagnostic Aids**: Integrated a `-debug` flag for detailed stderr logging, and included raw response snippets inside JSON API parse error contexts.
+  - **Robust Deploy Path Extraction**: Enhanced `bin/deploy.sh` to capture remote build stdout/stderr as a raw buffer and filter it using a strict `/nix/store/` regex prefix. This prevents warnings (such as transient SQLite eval cache lock busy alerts) from polluting the parsed path variable and causing downstream deployment failures.
 
 ---
 
