@@ -6,6 +6,27 @@ This journal serves as the local, persistent source of truth for work-in-progres
 
 ## 📅 Chronological Development Sessions
 
+### Session 8: 2026-06-26 12:50 (Clare TUI Metadata Details Panels, Local Caching & Debug Mode)
+* **Host / Context**: Developed and compiled on remote VM `agy` (by Antigravity agent), verified via local Nix build validation.
+* **Commits**:
+  - `d7a3d8f` (Antigravity on `agy`): *feat(clare): restore split-screen details panels with cache lookup, bump version to 0.1.14*
+  - `6b6b610` (Antigravity on `agy`): *feat(clare): add local caching for show episode lists and Jikan metadata, bump version to 0.1.13*
+  - `27da44e` (Antigravity on `agy`): *fix(clare): add automatic HTTP request retry for transient error codes (like 502), bump version to 0.1.12*
+  - `5721a76` (Antigravity on `agy`): *feat(clare): add -debug CLI flag, bump version to 0.1.11*
+  - `aa5953e` (Antigravity on `agy`): *fix(clare): add detailed response body snippet to API json unmarshal errors*
+  - `f8b3827` (Antigravity on `agy`): *chore(clare): bump main.go version to 0.1.10*
+* **Accomplishments**:
+  - **Netflix-Style Details Panels**: Restored horizontal split-screen view layouts across:
+    1. **Continue Watching**: details loaded asynchronously for the highlighted show using `doFetchShowDetails`.
+    2. **Show Selection**: details of the highlighted show rendered from Edge result items.
+    3. **Episode Selection**: episode details (Title, Aired date, Type tag) from Jikan metadata.
+  - **Adaptive Sizing**: Added responsive viewport detection that automatically disables the side panel on terminals narrower than 80 columns.
+  - **Local File Caching**: Codified caching managers in `packages/clare/cache.go` backing AllAnime metadata to `cache/shows/<id>.json` (24h invalidation) and Jikan metadata to `cache/jikan/<mal_id>.json`.
+  - **HTTP Request Robustness**: Implemented linear backoff retry wrappers for transient gateway/CDN errors (502, 503, 504, 429) inside `client.go`.
+  - **CLI Diagnostic Aids**: Integrated a `-debug` flag for detailed stderr logging, and included raw response snippets inside JSON API parse error contexts.
+
+---
+
 ### Session 7: 2026-06-25 19:40 (Clare TUI Robustness & Deploy Script Stabilization)
 * **Host / Context**: Developed on remote VM `agy` and local workstation `otus` (by Antigravity agent).
 * **Commits**:
