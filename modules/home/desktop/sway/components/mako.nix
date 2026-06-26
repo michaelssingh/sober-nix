@@ -11,17 +11,24 @@ in
     enable = true;
     settings = {
       font = "Inter 10";
-      background-color = colors.bg_dark;
-      text-color = colors.fg;
-      border-color = colors.accent;
+
+      # Added 'ff' to guarantee Mako parses the colors correctly
+      background-color = "${colors.bg_dark}ff";
+      text-color = "${colors.fg}ff";
+      border-color = "${colors.accent}ff";
+
       border-radius = 5;
       border-size = 2;
       padding = "10";
-      width = 450;
-      height = 400;
       default-timeout = 5000;
       layer = "overlay";
       on-notify = "exec ${pkgs.pipewire}/bin/pw-play ${./tri-tone.mp3}";
+
+      "app-name=System Deploy" = {
+        width = 450; # Wide enough for paths/hashes
+        height = 400; # High ceiling that shrinks to fit the log size
+        default-timeout = 0; # Keeps it on screen until dismissed
+      };
     };
   };
 }
