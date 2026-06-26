@@ -6,6 +6,20 @@ This journal serves as the local, persistent source of truth for work-in-progres
 
 ## 📅 Chronological Development Sessions
 
+### Session 9: 2026-06-26 13:40 (Clare TUI Cover Art Rendering via Chafa & Multi-Remote Pushes)
+* **Host / Context**: Developed and compiled on remote VM `agy` (by Antigravity agent), verified via local Nix build, deployed and activated on `otus` via SSH reverse tunnel.
+* **Commits**:
+  - `774579d` (Antigravity on `agy`): *feat(clare): include cover art in details panels, update version to 0.1.16*
+* **Accomplishments**:
+  - **Chafa Integration**: Configured `packages/clare/default.nix` to include the `chafa` utility inside the wrapper path, providing a hermetic block art image rendering engine.
+  - **Cover Art Rendering & Local Caching**: Coded `downloadThumbnail` and `renderImageANSI` helper functions in `cache.go`. Downloaded thumbnails are cached locally under `cache/thumbnails/<show_id>.<ext>` to minimize network load. Images are processed through `chafa` to generate 16x11 character block ANSI string art.
+  - **Netflix-Style Split Details Layout**: Rewrote the details panel view in `tui.go` to support a horizontal split. Left side displays the 16x11 cover art (with beautiful fallback loading/missing status card outlines), and the right side displays the show's metadata and description.
+  - **Asynchronous Selection Triggers**: Integrated cover art fetching triggers when navigating through search results (`stateShowSelect`), browsing the continue watching history (`stateHistory`), or returning to the show list via `esc` from episode selection.
+  - **Robust Git Push Workflow**: Resolved connection/proxy timeout issues when pushing to the local Forgejo repository `origin` (`sober-bubo.flycast`) by executing the pull and push locally on `otus` using the SSH reverse tunnel on port 2223.
+  - **Automated Hands-Off Deployment**: Successfully triggered `bin/deploy.sh` on `otus` via SSH to pull latest changes, perform Nix build validation, and activate the new system generation.
+
+---
+
 ### Session 8: 2026-06-26 12:50 (Clare TUI Metadata Details Panels, Local Caching & Debug Mode)
 * **Host / Context**: Developed and compiled on remote VM `agy` (by Antigravity agent), verified via local Nix build validation.
 * **Commits**:
