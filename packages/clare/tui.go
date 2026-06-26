@@ -153,6 +153,11 @@ type showDetailsResultMsg struct {
 	err    error
 }
 
+type coverArtResultMsg struct {
+	showID string
+	ansi   string
+}
+
 type resolvedPlaybackMsg struct {
 	warning string
 	cmd         *exec.Cmd
@@ -191,6 +196,7 @@ type model struct {
 	autoplay           bool
 	triggerAutoplay    bool
 	historyShowDetails map[string]AnimeShow
+	coverArtCache      map[string]string
 }
 
 func createMinimalList(title string) list.Model {
@@ -254,6 +260,7 @@ func initialModel(initialSearch, mode, quality string, download bool) model {
 		loadedJikanPages:   make(map[int]bool),
 		autoplay:           true, // Autoplay on by default
 		historyShowDetails: make(map[string]AnimeShow),
+		coverArtCache:      make(map[string]string),
 	}
 
 	m.refreshHistory()
@@ -296,6 +303,10 @@ func (m model) Init() tea.Cmd {
 			if selected, ok := m.historyItems[0].(historyItem); ok {
 				if show, _, found := loadShowCache(selected.showID); found {
 					m.historyShowDetails[selected.showID] = show
+					if show.Thumbnail != "" {
+						m.coverArtCache[selected.showID] = "Loading..."
+						cmds = append(cmds, doFetchCoverArt(selected.showID, show.Thumbnail, 16, 11))
+					}
 				} else {
 					m.historyShowDetails[selected.showID] = AnimeShow{
 						ID:          selected.showID,
@@ -366,6 +377,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.state = stateSearchRunning
 			m.loadingMsg = fmt.Sprintf("Fetching episode list for %s...", m.selectedShow.Name)
 			return m, doFetchEpisodes(m.selectedShow.ID, "sub")
+		}
+
+		if len(msg.shows) > 1 {
+			firstShow := msg.shows[0]
+			if firstShow.Thumbnail != "" {
+				if _, ok := m.coverArtCache[firstShow.ID]; !ok {
+					m.coverArtCache[firstShow.ID] = "Loading..."
+					return m, doFetchCoverArt(firstShow.ID, firstShow.Thumbnail, 16, 11)
+				}
+			}
 		}
 		return m, nil
 
@@ -514,8 +535,22 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case showDetailsResultMsg:
 		if msg.err == nil {
 			m.historyShowDetails[msg.showID] = msg.show
+			if msg.show.Thumbnail != "" {
+				if _, ok := m.coverArtCache[msg.showID]; !ok {
+					m.coverArtCache[msg.showID] = "Loading..."
+					return m, doFetchCoverArt(msg.showID, msg.show.Thumbnail, 16, 11)
+				}
+			}
 		} else {
 			debugLog("TUI showDetailsResultMsg error: %v", msg.err)
+		}
+		return m, nil
+
+	case coverArtResultMsg:
+		if msg.ansi != "" {
+			m.coverArtCache[msg.showID] = msg.ansi
+		} else {
+			m.coverArtCache[msg.showID] = ""
 		}
 		return m, nil
 
@@ -592,17 +627,35 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			
 			// Trigger details fetch for currently highlighted history item if not loaded
 			if selected, ok := m.historyList.SelectedItem().(historyItem); ok {
+				var cmds []tea.Cmd
 				if _, loaded := m.historyShowDetails[selected.showID]; !loaded {
 					if show, _, found := loadShowCache(selected.showID); found {
 						m.historyShowDetails[selected.showID] = show
+						if show.Thumbnail != "" {
+							if _, ok := m.coverArtCache[selected.showID]; !ok {
+								m.coverArtCache[selected.showID] = "Loading..."
+								cmds = append(cmds, doFetchCoverArt(selected.showID, show.Thumbnail, 16, 11))
+							}
+						}
 					} else {
 						m.historyShowDetails[selected.showID] = AnimeShow{
 							ID:          selected.showID,
 							Name:        selected.showName,
 							Description: "Loading details...",
 						}
-						return m, tea.Batch(cmd, doFetchShowDetails(selected.showID))
+						cmds = append(cmds, doFetchShowDetails(selected.showID))
 					}
+				} else {
+					show := m.historyShowDetails[selected.showID]
+					if show.Thumbnail != "" {
+						if _, ok := m.coverArtCache[selected.showID]; !ok {
+							m.coverArtCache[selected.showID] = "Loading..."
+							cmds = append(cmds, doFetchCoverArt(selected.showID, show.Thumbnail, 16, 11))
+						}
+					}
+				}
+				if len(cmds) > 0 {
+					return m, tea.Batch(append(cmds, cmd)...)
 				}
 			}
 			return m, cmd
@@ -644,6 +697,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			var cmd tea.Cmd
 			m.showList, cmd = m.showList.Update(msg)
+			if selected, ok := m.showList.SelectedItem().(showItem); ok {
+				if selected.show.Thumbnail != "" {
+					if _, ok := m.coverArtCache[selected.show.ID]; !ok {
+						m.coverArtCache[selected.show.ID] = "Loading..."
+						return m, tea.Batch(cmd, doFetchCoverArt(selected.show.ID, selected.show.Thumbnail, 16, 11))
+					}
+				}
+			}
 			return m, cmd
 
 		case stateEpisodeSelect:
@@ -663,20 +724,46 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				// If we came from history, go back to history. Else, show selection.
 				if len(m.showItems) > 1 {
 					m.state = stateShowSelect
+					if selected, ok := m.showList.SelectedItem().(showItem); ok {
+						if selected.show.Thumbnail != "" {
+							if _, ok := m.coverArtCache[selected.show.ID]; !ok {
+								m.coverArtCache[selected.show.ID] = "Loading..."
+								return m, tea.Batch(doFetchCoverArt(selected.show.ID, selected.show.Thumbnail, 16, 11))
+							}
+						}
+					}
 				} else if len(m.historyItems) > 0 {
 					m.state = stateHistory
 					if selected, ok := m.historyList.SelectedItem().(historyItem); ok {
+						var cmds []tea.Cmd
 						if _, loaded := m.historyShowDetails[selected.showID]; !loaded {
 							if show, _, found := loadShowCache(selected.showID); found {
 								m.historyShowDetails[selected.showID] = show
+								if show.Thumbnail != "" {
+									if _, ok := m.coverArtCache[selected.showID]; !ok {
+										m.coverArtCache[selected.showID] = "Loading..."
+										cmds = append(cmds, doFetchCoverArt(selected.showID, show.Thumbnail, 16, 11))
+									}
+								}
 							} else {
 								m.historyShowDetails[selected.showID] = AnimeShow{
 									ID:          selected.showID,
 									Name:        selected.showName,
 									Description: "Loading details...",
 								}
-								return m, doFetchShowDetails(selected.showID)
+								cmds = append(cmds, doFetchShowDetails(selected.showID))
 							}
+						} else {
+							show := m.historyShowDetails[selected.showID]
+							if show.Thumbnail != "" {
+								if _, ok := m.coverArtCache[selected.showID]; !ok {
+									m.coverArtCache[selected.showID] = "Loading..."
+									cmds = append(cmds, doFetchCoverArt(selected.showID, show.Thumbnail, 16, 11))
+								}
+							}
+						}
+						if len(cmds) > 0 {
+							return m, tea.Batch(cmds...)
 						}
 					}
 				} else {
@@ -745,11 +832,12 @@ func (m model) View() string {
 			leftView := m.historyList.View()
 			var rightView string
 			if selected, ok := m.historyList.SelectedItem().(historyItem); ok {
+				art := m.coverArtCache[selected.showID]
 				if show, loaded := m.historyShowDetails[selected.showID]; loaded {
-					rightView = renderShowDetailsPanel(show, rightWidth, listHeight)
+					rightView = renderShowDetailsPanel(show, art, rightWidth, listHeight)
 				} else {
 					tempShow := AnimeShow{ID: selected.showID, Name: selected.showName, Description: "Loading details..."}
-					rightView = renderShowDetailsPanel(tempShow, rightWidth, listHeight)
+					rightView = renderShowDetailsPanel(tempShow, art, rightWidth, listHeight)
 				}
 			} else {
 				rightView = lipgloss.NewStyle().
@@ -789,7 +877,8 @@ func (m model) View() string {
 			leftView := m.showList.View()
 			var rightView string
 			if selected, ok := m.showList.SelectedItem().(showItem); ok {
-				rightView = renderShowDetailsPanel(selected.show, rightWidth, listHeight)
+				art := m.coverArtCache[selected.show.ID]
+				rightView = renderShowDetailsPanel(selected.show, art, rightWidth, listHeight)
 			} else {
 				rightView = lipgloss.NewStyle().
 					Border(lipgloss.RoundedBorder()).
@@ -1058,14 +1147,28 @@ func doFetchShowDetails(showID string) tea.Cmd {
 	}
 }
 
-func renderShowDetailsPanel(show AnimeShow, width, height int) string {
+func doFetchCoverArt(showID, urlStr string, width, height int) tea.Cmd {
+	return func() tea.Msg {
+		if urlStr == "" {
+			return coverArtResultMsg{showID: showID, ansi: ""}
+		}
+		imgPath, err := downloadThumbnail(showID, urlStr)
+		if err != nil {
+			debugLog("doFetchCoverArt download failed: %v", err)
+			return coverArtResultMsg{showID: showID, ansi: ""}
+		}
+		ansi := renderImageANSI(imgPath, width, height)
+		return coverArtResultMsg{showID: showID, ansi: ansi}
+	}
+}
+
+func renderShowDetailsPanel(show AnimeShow, coverArtANSI string, width, height int) string {
 	var s strings.Builder
 
 	headerStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#bb9af7")) // Tokyonight purple
 	titleStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#c0caf5"))
 	metaKeyStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#565f89"))
 	metaValStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#7dcfff"))
-	bodyStyle := lipgloss.NewStyle().Width(width - 6).Foreground(lipgloss.Color("#a9b1d6"))
 	
 	// Full-height border aligned with the list
 	borderStyle := lipgloss.NewStyle().
@@ -1113,6 +1216,45 @@ func renderShowDetailsPanel(show AnimeShow, width, height int) string {
 		desc = "No synopsis available."
 	}
 
+	// Layout size calculations:
+	// We split horizontally: Left is cover art, Right is metadata/synopsis
+	imgWidth := 16
+	imgHeight := 11
+	
+	var leftPanel string
+	if coverArtANSI == "Loading..." {
+		placeholderStyle := lipgloss.NewStyle().
+			Width(imgWidth).
+			Height(imgHeight).
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("#3b4261")).
+			Align(lipgloss.Center, lipgloss.Center).
+			Foreground(lipgloss.Color("#565f89"))
+		leftPanel = placeholderStyle.Render("Loading\nArt...")
+	} else if coverArtANSI != "" {
+		frameStyle := lipgloss.NewStyle().
+			Border(lipgloss.NormalBorder()).
+			BorderForeground(lipgloss.Color("#3b4261")).
+			Padding(0)
+		leftPanel = frameStyle.Render(coverArtANSI)
+	} else {
+		placeholderStyle := lipgloss.NewStyle().
+			Width(imgWidth).
+			Height(imgHeight).
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("#3b4261")).
+			Align(lipgloss.Center, lipgloss.Center).
+			Foreground(lipgloss.Color("#565f89"))
+		leftPanel = placeholderStyle.Render("No Cover\nArt")
+	}
+
+	rightColWidth := width - imgWidth - 8
+	if rightColWidth < 15 {
+		rightColWidth = 15
+	}
+	
+	rightBodyStyle := lipgloss.NewStyle().Width(rightColWidth).Foreground(lipgloss.Color("#a9b1d6"))
+
 	// We calculate remaining lines in the container to truncate description gracefully
 	// Header is 1 line, title wraps (assume 1-2 lines), separator/margins/spacing is ~6 lines.
 	// That's roughly 8 lines of overhead.
@@ -1123,7 +1265,7 @@ func renderShowDetailsPanel(show AnimeShow, width, height int) string {
 	}
 
 	// Truncate description to fit nicely
-	descLines := strings.Split(bodyStyle.Render(desc), "\n")
+	descLines := strings.Split(rightBodyStyle.Render(desc), "\n")
 	if len(descLines) > descMaxHeight {
 		descLines = descLines[:descMaxHeight]
 		lastLine := descLines[len(descLines)-1]
@@ -1135,16 +1277,24 @@ func renderShowDetailsPanel(show AnimeShow, width, height int) string {
 	}
 	truncatedDesc := strings.Join(descLines, "\n")
 
-	panelContent := fmt.Sprintf(
-		"%s\n%s\n\n%s\n%s\n%s\n%s\n\n%s\n%s",
-		headerStyle.Render("◆ SHOW DETAILS ◆"),
+	rightPanelContent := fmt.Sprintf(
+		"%s\n\n%s\n%s\n%s\n%s\n\n%s\n%s",
 		titleStyle.Render(show.Name),
-		fmt.Sprintf("%s %s", metaKeyStyle.Render("Rating:    "), scoreStr),
-		fmt.Sprintf("%s %s", metaKeyStyle.Render("Format:    "), metaValStyle.Render(typeStr)),
-		fmt.Sprintf("%s %s", metaKeyStyle.Render("Release:   "), metaValStyle.Render(seasonStr)),
-		fmt.Sprintf("%s %s", metaKeyStyle.Render("Length:    "), metaValStyle.Render(epsStr)),
+		fmt.Sprintf("%s %s", metaKeyStyle.Render("Rating:  "), scoreStr),
+		fmt.Sprintf("%s %s", metaKeyStyle.Render("Format:  "), metaValStyle.Render(typeStr)),
+		fmt.Sprintf("%s %s", metaKeyStyle.Render("Release: "), metaValStyle.Render(seasonStr)),
+		fmt.Sprintf("%s %s", metaKeyStyle.Render("Length:  "), metaValStyle.Render(epsStr)),
 		headerStyle.Render("◆ SYNOPSIS ◆"),
 		truncatedDesc,
+	)
+
+	// Combine left and right panels side-by-side
+	bodyContent := lipgloss.JoinHorizontal(lipgloss.Top, leftPanel, "  ", rightPanelContent)
+
+	panelContent := fmt.Sprintf(
+		"%s\n%s",
+		headerStyle.Render("◆ SHOW DETAILS ◆"),
+		bodyContent,
 	)
 
 	s.WriteString(borderStyle.Render(panelContent))
