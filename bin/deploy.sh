@@ -22,10 +22,15 @@ echo "${BOLD}${CYAN}==> 1. Pulling latest changes on otus...${RESET}"
 git pull || echo "Warning: git pull failed (you may have uncommitted local changes on otus)."
 
 echo -e "\n${BOLD}${CYAN}==> 2. Triggering Nix build on remote VM ($VM_HOST:$VM_PORT)...${RESET}"
-out_path=$(ssh -p "$VM_PORT" $SSH_OPTS "$VM_HOST" "export SSH_AUTH_SOCK=/home/sprite/.ssh-agent.sock && cd \"$FLAKE_DIR\" && git pull >&2 && NIX_REMOTE=daemon nix build .#nixosConfigurations.otus.config.system.build.toplevel --print-out-paths --no-link --extra-experimental-features 'nix-command flakes'")
+raw_output=$(ssh -p "$VM_PORT" $SSH_OPTS "$VM_HOST" "export SSH_AUTH_SOCK=/home/sprite/.ssh-agent.sock && cd \"$FLAKE_DIR\" && git pull >&2 && NIX_REMOTE=daemon nix build .#nixosConfigurations.otus.config.system.build.toplevel --print-out-paths --no-link --extra-experimental-features 'nix-command flakes'")
+
+# Extract the nix store path robustly (ignoring SQLite database locks/evaluation warnings)
+out_path=$(echo "$raw_output" | grep -E '^/nix/store/' | head -n 1 || true)
 
 if [[ -z "$out_path" ]]; then
     echo "${RED}Error: Failed to obtain build path from VM.${RESET}" >&2
+    echo "Raw remote output was:" >&2
+    echo "$raw_output" >&2
     exit 1
 fi
 echo "  Built: $out_path"
