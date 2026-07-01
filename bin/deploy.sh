@@ -22,10 +22,11 @@ echo "${BOLD}${CYAN}==> 1. Pulling latest changes on otus...${RESET}"
 git pull || echo "Warning: git pull failed (you may have uncommitted local changes on otus)."
 
 echo -e "\n${BOLD}${CYAN}==> 2. Triggering Nix build on remote VM ($VM_HOST:$VM_PORT) and pushing to Cachix...${RESET}"
-raw_output=$(ssh -p "$VM_PORT" $SSH_OPTS "$VM_HOST" "export SSH_AUTH_SOCK=/home/sprite/.ssh-agent.sock && cd \"$FLAKE_DIR\" && git pull >&2 && env PATH=/home/sprite/.nix-profile/bin:\$PATH GOTELEMETRY=off GODEBUG=telemetry=off nix build .#nixosConfigurations.otus.config.system.build.toplevel --print-out-paths --no-link --extra-experimental-features 'nix-command flakes' | tee /dev/stderr | xargs -r env PATH=/home/sprite/.nix-profile/bin:\$PATH cachix push sober-nix")
+# Saves the raw built path to a temporary file on the worker, outputs it cleanly, and silences Cachix stdout
+raw_output=$(ssh -p "$VM_PORT" $SSH_OPTS "$VM_HOST" "export SSH_AUTH_SOCK=/home/sprite/.ssh-agent.sock && cd \"$FLAKE_DIR\" && git pull >&2 && env PATH=/home/sprite/.nix-profile/bin:\$PATH GOTELEMETRY=off GODEBUG=telemetry=off nix build .#nixosConfigurations.otus.config.system.build.toplevel --print-out-paths --no-link --extra-experimental-features 'nix-command flakes' > /tmp/build_path.txt && cat /tmp/build_path.txt && cat /tmp/build_path.txt | xargs -r env PATH=/home/sprite/.nix-profile/bin:\$PATH cachix push sober-nix >&2")
 
-# Extract the nix store path robustly (ignoring SQLite database locks/evaluation warnings)
-out_path=$(echo "$raw_output" | grep -E '^/nix/store/' | head -n 1 || true)
+# Extract the nix store path robustly and strip all trailing spaces/newlines
+out_path=$(echo "$raw_output" | grep -E '^/nix/store/' | head -n 1 | tr -d '[:space:]' || true)
 
 if [[ -z "$out_path" ]]; then
     echo "${RED}Error: Failed to obtain build path from VM.${RESET}" >&2
@@ -36,9 +37,10 @@ fi
 echo "  Built: $out_path"
 
 echo -e "\n${BOLD}${CYAN}==> 3. Copying built system ($out_path) from VM to local store...${RESET}"
+# Direct execution path to the single-user nix binary on the remote box to entirely sidestep the remote shell environment.
 NIX_REMOTE=daemon nix copy \
     --no-check-sigs \
-    --from "ssh://$VM_HOST:$VM_PORT?remote-program=/nix/var/nix/profiles/default/bin/nix-store" \
+    --from "ssh://$VM_HOST:$VM_PORT?remote-program=/home/sprite/.nix-profile/bin/nix-store" \
     "$out_path" \
     --extra-experimental-features 'nix-command flakes'
 
@@ -46,8 +48,6 @@ echo -e "\n${BOLD}${CYAN}==> 4. Activating new configuration...${RESET}"
 old_path=$(readlink -f /nix/var/nix/profiles/system 2>/dev/null || true)
 sudo nix-env --profile /nix/var/nix/profiles/system --set "$out_path"
 sudo "$out_path/bin/switch-to-configuration" switch
-
-# Step 5 intentionally omitted — git pull already done at step 1
 
 # Send detailed notification on success if notify-send is available
 if command -v notify-send >/dev/null 2>&1; then
