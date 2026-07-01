@@ -46,6 +46,7 @@ in
     jq
     antigravity
     sprite
+    cachix
   ];
 
   # Declarative antigravity CLI Authentication
@@ -89,6 +90,10 @@ in
     max-jobs = 8
     cores = 0
     builders-use-substitutes = true
+
+    # Cachix Cache Configurations
+    substituters = https://cache.nixos.org https://sober-nix.cachix.org
+    trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= sober-nix.cachix.org-1:5txyMvuBOEoGah9zLW5SHrdLD92/h7eMiSv3VkErSG4=
   '';
 
   # --- Declarative SSH Agent Bridge Script wrapper to avoid comma-parsing bugs in sprite-env ---
