@@ -145,6 +145,7 @@ end)
 	tmpFile.Close()
 
 	args := []string{
+		"--really-quiet",
 		"--tls-verify=no",
 		"--force-media-title=" + title + " - Episode " + epNo,
 		"--script=" + tmpFile.Name(),

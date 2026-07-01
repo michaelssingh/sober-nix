@@ -712,6 +712,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "a":
 				m.autoplay = !m.autoplay
 				return m, nil
+			case "m":
+				m.mode = nextMode(m.mode)
+				return m, nil
 			case "enter":
 				selected, ok := m.episodeList.SelectedItem().(episodeItem)
 				if ok {
@@ -774,6 +777,17 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			var cmd tea.Cmd
 			m.episodeList, cmd = m.episodeList.Update(msg)
+			
+			var cmds []tea.Cmd
+			cmds = append(cmds, cmd)
+
+			// Trigger cover art fetch if not cached
+			if m.selectedShow.Thumbnail != "" {
+				if _, ok := m.coverArtCache[m.selectedShow.ID]; !ok {
+					m.coverArtCache[m.selectedShow.ID] = "Loading..."
+					cmds = append(cmds, doFetchCoverArt(m.selectedShow.ID, m.selectedShow.Thumbnail, 16, 11))
+				}
+			}
 
 			// Lazy load metadata page for currently selected episode if needed
 			if item := m.episodeList.SelectedItem(); item != nil {
@@ -784,12 +798,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						page := (val - 1) / 100 + 1
 						if !m.loadedJikanPages[page] {
 							m.loadedJikanPages[page] = true
-							return m, tea.Batch(cmd, doFetchJikanMetadata(m.selectedShow.MALID, page))
+							cmds = append(cmds, doFetchJikanMetadata(m.selectedShow.MALID, page))
 						}
 					}
 				}
 			}
-			return m, cmd
+			return m, tea.Batch(cmds...)
 
 		case stateError:
 			switch msg.String() {
@@ -917,7 +931,8 @@ func (m model) View() string {
 		if m.autoplay {
 			autoplayStr = "autoplay: ON"
 		}
-		s.WriteString("\n\n" + helpStyle(fmt.Sprintf("enter: play | a: toggle autoplay (%s) | esc: back | q: quit", autoplayStr)))
+		modeStr := strings.ToUpper(m.mode)
+		s.WriteString("\n\n" + helpStyle(fmt.Sprintf("enter: play | a: toggle autoplay (%s) | m: toggle mode (mode: %s) | esc: back | q: quit", autoplayStr, modeStr)))
 
 	case statePlaybackPreparing:
 		s.WriteString(fmt.Sprintf("%s %s\n", m.spinner.View(), m.loadingMsg))
@@ -1229,14 +1244,27 @@ func renderShowDetailsPanel(show AnimeShow, coverArtANSI string, width, height i
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(lipgloss.Color("#3b4261")).
 			Align(lipgloss.Center, lipgloss.Center).
-			Foreground(lipgloss.Color("#565f89"))
+			Foreground(lipgloss.Color("#565f89")).
+			Background(lipgloss.Color("#1a1b26"))
 		leftPanel = placeholderStyle.Render("Loading\nArt...")
 	} else if coverArtANSI != "" {
 		frameStyle := lipgloss.NewStyle().
 			Border(lipgloss.NormalBorder()).
 			BorderForeground(lipgloss.Color("#3b4261")).
 			Padding(0)
-		leftPanel = frameStyle.Render(coverArtANSI)
+		if strings.HasPrefix(coverArtANSI, "\x1b") {
+			emptySpaces := ""
+			for i := 0; i < imgHeight; i++ {
+				emptySpaces += strings.Repeat(" ", imgWidth)
+				if i < imgHeight-1 {
+					emptySpaces += "\n"
+				}
+			}
+			leftPanel = frameStyle.Render(emptySpaces)
+			leftPanel = "\x1b[s\x1b[1C\x1b[1B" + coverArtANSI + "\x1b[u" + leftPanel
+		} else {
+			leftPanel = frameStyle.Render(coverArtANSI)
+		}
 	} else {
 		placeholderStyle := lipgloss.NewStyle().
 			Width(imgWidth).
@@ -1244,7 +1272,8 @@ func renderShowDetailsPanel(show AnimeShow, coverArtANSI string, width, height i
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(lipgloss.Color("#3b4261")).
 			Align(lipgloss.Center, lipgloss.Center).
-			Foreground(lipgloss.Color("#565f89"))
+			Foreground(lipgloss.Color("#565f89")).
+			Background(lipgloss.Color("#1a1b26"))
 		leftPanel = placeholderStyle.Render("No Cover\nArt")
 	}
 
@@ -1352,27 +1381,84 @@ func (m model) renderEpisodeDetailsPanel(width, height int) string {
 		classification = lipgloss.NewStyle().Foreground(lipgloss.Color("#565f89")).Render("Loading...")
 	}
 
+	// Layout size calculations:
+	imgWidth := 16
+	imgHeight := 11
+	
+	coverArtANSI := m.coverArtCache[m.selectedShow.ID]
+	var leftPanel string
+	if coverArtANSI == "Loading..." {
+		placeholderStyle := lipgloss.NewStyle().
+			Width(imgWidth).
+			Height(imgHeight).
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("#3b4261")).
+			Align(lipgloss.Center, lipgloss.Center).
+			Foreground(lipgloss.Color("#565f89")).
+			Background(lipgloss.Color("#1a1b26"))
+		leftPanel = placeholderStyle.Render("Loading\nArt...")
+	} else if coverArtANSI != "" {
+		frameStyle := lipgloss.NewStyle().
+			Border(lipgloss.NormalBorder()).
+			BorderForeground(lipgloss.Color("#3b4261")).
+			Padding(0)
+		if strings.HasPrefix(coverArtANSI, "\x1b") {
+			emptySpaces := ""
+			for i := 0; i < imgHeight; i++ {
+				emptySpaces += strings.Repeat(" ", imgWidth)
+				if i < imgHeight-1 {
+					emptySpaces += "\n"
+				}
+			}
+			leftPanel = frameStyle.Render(emptySpaces)
+			leftPanel = "\x1b[s\x1b[1C\x1b[1B" + coverArtANSI + "\x1b[u" + leftPanel
+		} else {
+			leftPanel = frameStyle.Render(coverArtANSI)
+		}
+	} else {
+		placeholderStyle := lipgloss.NewStyle().
+			Width(imgWidth).
+			Height(imgHeight).
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("#3b4261")).
+			Align(lipgloss.Center, lipgloss.Center).
+			Foreground(lipgloss.Color("#565f89")).
+			Background(lipgloss.Color("#1a1b26"))
+		leftPanel = placeholderStyle.Render("No Cover\nArt")
+	}
+
+	rightColWidth := width - imgWidth - 8
+	if rightColWidth < 15 {
+		rightColWidth = 15
+	}
+
 	// Calculate spacing for controls at the bottom
-	hintsStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#565f89")).Width(width - 6)
+	hintsStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#565f89")).Width(rightColWidth)
 	hints := "\n\n\n\n"
-	hintOverhead := 8
-	hintSpaces := height - hintOverhead - 4 // spacing
+	hintSpaces := height - imgHeight - 11 // spacing
 	if hintSpaces > 0 {
 		hints = strings.Repeat("\n", hintSpaces)
 	}
 	hints += fmt.Sprintf(
 		"◆ CONTROLS ◆\n%s",
-		hintsStyle.Render("• enter : play episode\n• a     : toggle autoplay\n• esc   : back to shows"),
+		hintsStyle.Render(fmt.Sprintf("• enter : play episode\n• a     : toggle autoplay\n• m     : toggle mode (current: %s)\n• esc   : back to shows", strings.ToUpper(m.mode))),
 	)
 
-	panelContent := fmt.Sprintf(
-		"%s\n%s\n\n%s\n%s\n%s\n%s",
-		headerStyle.Render("◆ EPISODE DETAILS ◆"),
+	rightPanelContent := fmt.Sprintf(
+		"%s\n%s\n\n%s\n%s\n%s",
 		lipgloss.NewStyle().Foreground(lipgloss.Color("#565f89")).Render(m.selectedShow.Name),
 		titleStyle.Render(title),
 		fmt.Sprintf("%s %s", metaKeyStyle.Render("Release Date:  "), metaValStyle.Render(aired)),
 		fmt.Sprintf("%s %s", metaKeyStyle.Render("Classification:"), classification),
 		hints,
+	)
+
+	bodyContent := lipgloss.JoinHorizontal(lipgloss.Top, leftPanel, "  ", rightPanelContent)
+
+	panelContent := fmt.Sprintf(
+		"%s\n%s",
+		headerStyle.Render("◆ EPISODE DETAILS ◆"),
+		bodyContent,
 	)
 
 	s.WriteString(borderStyle.Render(panelContent))
@@ -1389,4 +1475,15 @@ func cleanHTML(input string) string {
 	s = strings.ReplaceAll(s, "&lt;", "<")
 	s = strings.ReplaceAll(s, "&gt;", ">")
 	return strings.TrimSpace(s)
+}
+
+func nextMode(current string) string {
+	switch current {
+	case "dual":
+		return "sub"
+	case "sub":
+		return "dub"
+	default:
+		return "dual"
+	}
 }
