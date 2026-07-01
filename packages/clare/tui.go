@@ -1366,7 +1366,7 @@ func (m model) renderEpisodeDetailsPanel(width, height int) string {
 	)
 
 	panelContent := fmt.Sprintf(
-		"%s\n%s\n\n%s\n%s\n%s\n%s%s",
+		"%s\n%s\n\n%s\n%s\n%s\n%s",
 		headerStyle.Render("◆ EPISODE DETAILS ◆"),
 		lipgloss.NewStyle().Foreground(lipgloss.Color("#565f89")).Render(m.selectedShow.Name),
 		titleStyle.Render(title),
