@@ -1,5 +1,6 @@
 -- save-position.lua
 -- Saves the current playback position on quit/pause, using the media-title as the key
+-- Note: mal_id, ep_no, and jikan_duration are dynamically prepended to this script by Go.
 
 local utils = require 'mp.utils'
 
@@ -36,47 +37,44 @@ local function save_positions(positions)
 end
 
 local function update_position()
-    local title = mp.get_property("media-title")
-    if title and title ~= "" then
-        local time = mp.get_property_number("time-pos")
-        local percent = mp.get_property_number("percent-pos")
-        if time then
-            local positions = load_positions()
-            -- If we are near the end (e.g. > 95%), clear the position
-            if percent and percent > 95 then
-                positions[title] = nil
-            else
-                positions[title] = time
+    if not mal_id or mal_id == "" or mal_id == "0" then return end
+    local time = mp.get_property_pos and mp.get_property_number("time-pos") or mp.get_property_number("time-pos")
+    local duration = mp.get_property_number("duration") or jikan_duration or 1440.0
+    if time and duration and duration > 0 then
+        local percent = time / duration
+        local data = load_positions()
+        if not data[mal_id] then
+            data[mal_id] = {
+                resume_state = nil,
+                completed_episodes = {}
+            }
+        end
+        local show = data[mal_id]
+        
+        if percent >= 0.8 then
+            show.resume_state = nil
+            local found = false
+            for _, val in ipairs(show.completed_episodes) do
+                if val == ep_no then
+                    found = true
+                    break
+                end
             end
-            save_positions(positions)
+            if not found then
+                table.insert(show.completed_episodes, ep_no)
+            end
+        else
+            show.resume_state = {
+                episode = ep_no,
+                position_seconds = time,
+                total_seconds = duration
+            }
         end
+        
+        data[mal_id] = show
+        save_positions(data)
     end
 end
-
-local function format_time(seconds)
-    local m = math.floor(seconds / 60)
-    local s = math.floor(seconds % 60)
-    return string.format("%d:%02d", m, s)
-end
-
--- On file loaded, check if we have a saved position for this title
-mp.register_event("file-loaded", function()
-    local title = mp.get_property("media-title")
-    if title and title ~= "" then
-        local positions = load_positions()
-        local pos = positions[title]
-        if pos and pos > 0 then
-            mp.msg.info("Resuming at position: " .. pos)
-            mp.commandv("seek", pos, "absolute")
-            mp.osd_message("Resumed at " .. format_time(pos), 3)
-        end
-    end
-end)
-
--- On pause, also update position
-mp.observe_property("pause", "bool", function(name, val)
-    update_position()
-end)
 
 -- Periodically save every 15 seconds
 mp.add_periodic_timer(15, update_position)

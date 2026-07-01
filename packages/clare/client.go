@@ -70,6 +70,7 @@ type AnimeShow struct {
 		Quarter string `json:"quarter"`
 		Year    int    `json:"year"`
 	} `json:"season"`
+	Duration          string `json:"duration"`
 }
 
 func (s AnimeShow) EpCount() int {

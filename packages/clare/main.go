@@ -109,7 +109,7 @@ func main() {
 					fmt.Printf("Error: failed to resolve DUB stream: %v\n", errDub)
 					os.Exit(1)
 				}
-				c, tmp, err := playSingleCmd(dubStream, selectedShow.Name, epNo, selectedShow.MALID)
+				c, tmp, err := playSingleCmd(dubStream, selectedShow.Name, epNo, selectedShow.MALID, selectedShow.Duration)
 				if err != nil {
 					fmt.Printf("Error preparing playback: %v\n", err)
 					os.Exit(1)
@@ -117,12 +117,14 @@ func main() {
 				tempLua = tmp
 				c.Stdout = os.Stdout
 				c.Stderr = os.Stderr
-				if err := c.Run(); err == nil {
+				if err := c.Start(); err == nil {
+					go monitorAndInjectChapters(selectedShow.MALID, epNo, parseJikanDuration(selectedShow.Duration))
+					_ = c.Wait()
 					playbackLaunched = true
 				}
 			} else if errDub != nil {
 				fmt.Printf("Warning: failed to resolve DUB stream: %v. Playing SUB only.\n", errDub)
-				c, tmp, err := playSingleCmd(subStream, selectedShow.Name, epNo, selectedShow.MALID)
+				c, tmp, err := playSingleCmd(subStream, selectedShow.Name, epNo, selectedShow.MALID, selectedShow.Duration)
 				if err != nil {
 					fmt.Printf("Error preparing playback: %v\n", err)
 					os.Exit(1)
@@ -130,12 +132,14 @@ func main() {
 				tempLua = tmp
 				c.Stdout = os.Stdout
 				c.Stderr = os.Stderr
-				if err := c.Run(); err == nil {
+				if err := c.Start(); err == nil {
+					go monitorAndInjectChapters(selectedShow.MALID, epNo, parseJikanDuration(selectedShow.Duration))
+					_ = c.Wait()
 					playbackLaunched = true
 				}
 			} else {
 				fmt.Println("Launching dual-audio playback (English dub + Japanese video)...")
-				c, tmp, err := playDualCmd(subStream, dubStream, selectedShow.Name, epNo, selectedShow.MALID)
+				c, tmp, err := playDualCmd(subStream, dubStream, selectedShow.Name, epNo, selectedShow.MALID, selectedShow.Duration)
 				if err != nil {
 					fmt.Printf("Error preparing playback: %v\n", err)
 					os.Exit(1)
@@ -143,7 +147,9 @@ func main() {
 				tempLua = tmp
 				c.Stdout = os.Stdout
 				c.Stderr = os.Stderr
-				if err := c.Run(); err == nil {
+				if err := c.Start(); err == nil {
+					go monitorAndInjectChapters(selectedShow.MALID, epNo, parseJikanDuration(selectedShow.Duration))
+					_ = c.Wait()
 					playbackLaunched = true
 				}
 			}
@@ -153,7 +159,7 @@ func main() {
 				fmt.Printf("Error resolving DUB stream: %v\n", err)
 				os.Exit(1)
 			}
-			c, tmp, err := playSingleCmd(dubStream, selectedShow.Name, epNo, selectedShow.MALID)
+			c, tmp, err := playSingleCmd(dubStream, selectedShow.Name, epNo, selectedShow.MALID, selectedShow.Duration)
 			if err != nil {
 				fmt.Printf("Error preparing playback: %v\n", err)
 				os.Exit(1)
@@ -161,7 +167,9 @@ func main() {
 			tempLua = tmp
 			c.Stdout = os.Stdout
 			c.Stderr = os.Stderr
-			if err := c.Run(); err == nil {
+			if err := c.Start(); err == nil {
+				go monitorAndInjectChapters(selectedShow.MALID, epNo, parseJikanDuration(selectedShow.Duration))
+				_ = c.Wait()
 				playbackLaunched = true
 			}
 		} else {
@@ -170,7 +178,7 @@ func main() {
 				fmt.Printf("Error resolving SUB stream: %v\n", err)
 				os.Exit(1)
 			}
-			c, tmp, err := playSingleCmd(subStream, selectedShow.Name, epNo, selectedShow.MALID)
+			c, tmp, err := playSingleCmd(subStream, selectedShow.Name, epNo, selectedShow.MALID, selectedShow.Duration)
 			if err != nil {
 				fmt.Printf("Error preparing playback: %v\n", err)
 				os.Exit(1)
@@ -178,7 +186,9 @@ func main() {
 			tempLua = tmp
 			c.Stdout = os.Stdout
 			c.Stderr = os.Stderr
-			if err := c.Run(); err == nil {
+			if err := c.Start(); err == nil {
+				go monitorAndInjectChapters(selectedShow.MALID, epNo, parseJikanDuration(selectedShow.Duration))
+				_ = c.Wait()
 				playbackLaunched = true
 			}
 		}

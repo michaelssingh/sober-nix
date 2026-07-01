@@ -93,3 +93,63 @@ func recordWatch(showID, showName, episode string) error {
 
 	return saveHistory(history)
 }
+
+type ResumeState struct {
+	Episode         float64 `json:"episode"`
+	PositionSeconds float64 `json:"position_seconds"`
+	TotalSeconds    float64 `json:"total_seconds"`
+}
+
+type ShowState struct {
+	ResumeState       *ResumeState `json:"resume_state"`
+	CompletedEpisodes []float64    `json:"completed_episodes"`
+}
+
+type PositionsData map[string]ShowState
+
+func getPositionsPath() string {
+	dir := os.Getenv("CLARE_STATE_DIR")
+	if dir == "" {
+		stateHome := os.Getenv("XDG_STATE_HOME")
+		if stateHome == "" {
+			home, _ := os.UserHomeDir()
+			stateHome = filepath.Join(home, ".local", "state")
+		}
+		dir = filepath.Join(stateHome, "clare")
+	}
+	return filepath.Join(dir, "positions.json")
+}
+
+func loadPositions() (PositionsData, error) {
+	path := getPositionsPath()
+	f, err := os.Open(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return make(PositionsData), nil
+		}
+		return nil, err
+	}
+	defer f.Close()
+
+	var data PositionsData
+	if err := json.NewDecoder(f).Decode(&data); err != nil {
+		return nil, err
+	}
+	return data, nil
+}
+
+func savePositions(data PositionsData) error {
+	path := getPositionsPath()
+	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+		return err
+	}
+	f, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	encoder := json.NewEncoder(f)
+	encoder.SetIndent("", "  ")
+	return encoder.Encode(data)
+}

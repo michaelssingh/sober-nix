@@ -6,9 +6,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"os"
 	"os/exec"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -58,7 +60,7 @@ type AniSkipResponse struct {
 	Results []AniSkipResult `json:"results"`
 }
 
-func fetchAniSkipTimes(malID string, epNo string) []AniSkipResult {
+func fetchAniSkipTimes(malID string, epNo string, durationSeconds float64) []AniSkipResult {
 	if malID == "" || malID == "0" || epNo == "" {
 		return nil
 	}
@@ -75,7 +77,7 @@ func fetchAniSkipTimes(malID string, epNo string) []AniSkipResult {
 	}
 
 	client := &http.Client{Timeout: 4 * time.Second}
-	url := fmt.Sprintf("https://api.aniskip.com/v1/skip-times/%s/%s?types[]=op&types[]=ed&types[]=recap&types[]=mixed-op&types[]=mixed-ed", malID, cleanEp)
+	url := fmt.Sprintf("https://api.aniskip.com/v1/skip-times/%s/%s?types[]=op&types[]=ed&types[]=recap&types[]=mixed-op&types[]=mixed-ed&episodeLength=%f", malID, cleanEp, durationSeconds)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil
@@ -100,38 +102,45 @@ func fetchAniSkipTimes(malID string, epNo string) []AniSkipResult {
 	return result.Results
 }
 
-func getMpvCmd(streamURL string, title string, epNo string, malID string, extraArgs []string) (*exec.Cmd, string, error) {
-	skipTimes := fetchAniSkipTimes(malID, epNo)
-	luaContent := savePositionLua
-	if len(skipTimes) > 0 {
-		var intervals []string
-		for _, t := range skipTimes {
-			label := "Opening"
-			if t.SkipType == "ed" || t.SkipType == "mixed-ed" {
-				label = "Ending"
-			} else if t.SkipType == "recap" {
-				label = "Recap"
+func parseJikanDuration(d string) float64 {
+	d = strings.ToLower(d)
+	total := 0.0
+	r := regexp.MustCompile(`(\d+)\s*(hr|min|sec|s|m|h)`)
+	matches := r.FindAllStringSubmatch(d, -1)
+	if len(matches) > 0 {
+		for _, m := range matches {
+			var val float64
+			fmt.Sscanf(m[1], "%f", &val)
+			unit := m[2]
+			if strings.HasPrefix(unit, "h") {
+				total += val * 3600
+			} else if strings.HasPrefix(unit, "m") {
+				total += val * 60
+			} else if strings.HasPrefix(unit, "s") {
+				total += val
 			}
-			intervals = append(intervals, fmt.Sprintf("{ start = %f, [\"end\"] = %f, label = %q }", t.Interval.StartTime, t.Interval.EndTime, label))
 		}
-		luaContent += fmt.Sprintf(`
--- Auto-generated AniSkip auto-skipper
-local skip_intervals = {
-    %s
+		return total
+	}
+	rDigits := regexp.MustCompile(`\d+`)
+	if m := rDigits.FindString(d); m != "" {
+		var val float64
+		fmt.Sscanf(m, "%f", &val)
+		return val * 60
+	}
+	return 1440.0 // Default 24 mins
 }
 
-mp.observe_property("time-pos", "number", function(name, val)
-    if not val then return end
-    for _, interval in ipairs(skip_intervals) do
-        if val >= interval.start and val < interval["end"] - 0.5 then
-            mp.commandv("seek", interval["end"], "absolute")
-            mp.osd_message("Auto-skipped " .. interval.label, 3)
-            break
-        end
-    end
-end)
-`, strings.Join(intervals, ",\n    "))
-	}
+func getMpvCmd(streamURL string, title string, epNo string, malID string, durationStr string, extraArgs []string) (*exec.Cmd, string, error) {
+	durationSeconds := parseJikanDuration(durationStr)
+	epVal := parseEpisodeNumber(epNo)
+
+	// Prepend injected configuration variables to the savePositionLua content
+	luaContent := fmt.Sprintf(`
+local mal_id = %q
+local ep_no = %f
+local jikan_duration = %f
+`, malID, epVal, durationSeconds) + savePositionLua
 
 	tmpFile, err := os.CreateTemp("", "clare-save-position-*.lua")
 	if err != nil {
@@ -150,7 +159,25 @@ end)
 		"--force-media-title=" + title + " - Episode " + epNo,
 		"--script=" + tmpFile.Name(),
 		"--http-header-fields=Referer: " + AllAnimeReferer + ",User-Agent: " + UserAgent,
+		"--input-ipc-server=/tmp/clare-mpv.sock",
+		"--osc=yes",
 	}
+
+	// Retrieve resume position from positions.json and append --start if present
+	startSeconds := 0.0
+	positions, err := loadPositions()
+	if err == nil && positions != nil && malID != "" {
+		if showState, ok := positions[malID]; ok && showState.ResumeState != nil {
+			reqEp := parseEpisodeNumber(epNo)
+			if showState.ResumeState.Episode == reqEp {
+				startSeconds = showState.ResumeState.PositionSeconds
+			}
+		}
+	}
+	if startSeconds > 0 {
+		args = append(args, fmt.Sprintf("--start=%f", startSeconds))
+	}
+
 	args = append(args, extraArgs...)
 	args = append(args, streamURL)
 
@@ -158,11 +185,11 @@ end)
 	return cmd, tmpFile.Name(), nil
 }
 
-func playSingleCmd(streamURL, title, epNo, malID string) (*exec.Cmd, string, error) {
-	return getMpvCmd(streamURL, title, epNo, malID, nil)
+func playSingleCmd(streamURL, title, epNo, malID, durationStr string) (*exec.Cmd, string, error) {
+	return getMpvCmd(streamURL, title, epNo, malID, durationStr, nil)
 }
 
-func playDualCmd(subStream, dubStream string, title, epNo, malID string) (*exec.Cmd, string, error) {
+func playDualCmd(subStream, dubStream string, title, epNo, malID, durationStr string) (*exec.Cmd, string, error) {
 	subTracks := countAudioStreams(subStream)
 	if subTracks <= 0 {
 		debugLog("playDualCmd: subTracks is %d, falling back to 1", subTracks)
@@ -173,7 +200,7 @@ func playDualCmd(subStream, dubStream string, title, epNo, malID string) (*exec.
 		"--audio-file=" + dubStream,
 		"--aid=" + aid,
 	}
-	return getMpvCmd(subStream, title, epNo, malID, extraArgs)
+	return getMpvCmd(subStream, title, epNo, malID, durationStr, extraArgs)
 }
 
 func downloadCmd(streamURL, title, epNo string) *exec.Cmd {
@@ -197,4 +224,71 @@ func downloadCmd(streamURL, title, epNo string) *exec.Cmd {
 		)
 	}
 	return cmd
+}
+
+func monitorAndInjectChapters(malID, epNo string, duration float64) {
+	if malID == "" || malID == "0" {
+		return
+	}
+	skipTimes := fetchAniSkipTimes(malID, epNo, duration)
+	if len(skipTimes) == 0 {
+		return
+	}
+
+	var chapters []map[string]any
+	opStart := -1.0
+	opEnd := -1.0
+	edStart := -1.0
+	edEnd := -1.0
+
+	for _, t := range skipTimes {
+		if t.SkipType == "op" || t.SkipType == "mixed-op" {
+			opStart = t.Interval.StartTime
+			opEnd = t.Interval.EndTime
+		} else if t.SkipType == "ed" || t.SkipType == "mixed-ed" {
+			edStart = t.Interval.StartTime
+			edEnd = t.Interval.EndTime
+		}
+	}
+
+	if opStart > 0 {
+		chapters = append(chapters, map[string]any{"title": "Prologue", "time": 0.0})
+		chapters = append(chapters, map[string]any{"title": "Opening", "time": opStart})
+		chapters = append(chapters, map[string]any{"title": "Episode Start", "time": opEnd})
+	} else if opStart == 0 {
+		chapters = append(chapters, map[string]any{"title": "Opening", "time": 0.0})
+		chapters = append(chapters, map[string]any{"title": "Episode Start", "time": opEnd})
+	} else {
+		chapters = append(chapters, map[string]any{"title": "Episode Start", "time": 0.0})
+	}
+
+	if edStart > 0 {
+		chapters = append(chapters, map[string]any{"title": "Ending", "time": edStart})
+		if edEnd < duration {
+			chapters = append(chapters, map[string]any{"title": "Outro", "time": edEnd})
+		}
+	}
+
+	socketPath := "/tmp/clare-mpv.sock"
+	for i := 0; i < 30; i++ {
+		conn, err := net.Dial("unix", socketPath)
+		if err == nil {
+			defer conn.Close()
+			payload := map[string]any{
+				"command": []any{
+					"set_property",
+					"chapter-list",
+					chapters,
+				},
+			}
+			data, err := json.Marshal(payload)
+			if err == nil {
+				conn.Write(append(data, '\n'))
+				debugLog("monitorAndInjectChapters: successfully injected chapters payload: %s", string(data))
+			}
+			return
+		}
+		time.Sleep(200 * time.Millisecond)
+	}
+	debugLog("monitorAndInjectChapters: failed to connect to mpv IPC socket after 6 seconds")
 }

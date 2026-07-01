@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -15,6 +16,7 @@ import (
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/textinput"
+	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
@@ -122,10 +124,11 @@ func (e episodeItem) Description() string { return e.desc }
 func (e episodeItem) FilterValue() string { return e.epNo }
 
 type JikanEpInfo struct {
-	Title  string
-	Aired  string
-	Filler bool
-	Recap  bool
+	Title    string
+	Aired    string
+	Synopsis string
+	Filler   bool
+	Recap    bool
 }
 
 type jikanMetadataMsg struct {
@@ -153,13 +156,20 @@ type showDetailsResultMsg struct {
 	err    error
 }
 
-type coverArtResultMsg struct {
-	showID string
-	ansi   string
+type CoverArtLoadedMsg struct {
+	ShowID string
+	Ansi   string
+}
+
+type MpvLogMsg string
+
+type aniSkipCheckedMsg struct {
+	epNo  string
+	ready bool
 }
 
 type resolvedPlaybackMsg struct {
-	warning string
+	warning     string
 	cmd         *exec.Cmd
 	tempLuaFile string
 	err         error
@@ -171,34 +181,39 @@ type playbackFinishedMsg struct {
 
 // Bubble Tea Model
 type model struct {
-	state              tuiState
-	historyItems       []list.Item
-	historyList        list.Model
-	searchInput        textinput.Model
-	spinner            spinner.Model
-	showItems          []list.Item
-	showList           list.Model
-	episodeItems       []list.Item
-	episodeList        list.Model
-	selectedShow       AnimeShow
-	selectedEp         string
-	episodes           []string
-	download           bool
-	quality            string
-	mode               string // sub, dub, dual
-	err                error
-	width, height      int
-	loadingMsg         string
-	tempLuaFile        string
-	initialSearch      string
-	episodeDetails     map[string]JikanEpInfo
-	loadedJikanPages   map[int]bool
-	autoplay           bool
-	triggerAutoplay    bool
-	historyShowDetails map[string]AnimeShow
+	state               tuiState
+	historyItems        []list.Item
+	historyList         list.Model
+	searchInput         textinput.Model
+	spinner             spinner.Model
+	showItems           []list.Item
+	showList            list.Model
+	episodeItems        []list.Item
+	episodeList         list.Model
+	selectedShow        AnimeShow
+	selectedEp          string
+	episodes            []string
+	download            bool
+	quality             string
+	mode                string // sub, dub, dual
+	err                 error
+	width, height       int
+	loadingMsg          string
+	tempLuaFile         string
+	initialSearch       string
+	episodeDetails      map[string]JikanEpInfo
+	loadedJikanPages    map[int]bool
+	autoplay            bool
+	triggerAutoplay     bool
+	historyShowDetails  map[string]AnimeShow
 	coverArtCache       map[string]string
 	detailsScrollOffset int
 	lastSelectedShowID  string
+	telemetryLogs       []string
+	telemetryViewport   viewport.Model
+	showTelemetry       bool
+	mpvLogChan          chan string
+	aniSkipReady        map[string]bool
 }
 
 func createMinimalList(title string) list.Model {
@@ -263,6 +278,9 @@ func initialModel(initialSearch, mode, quality string, download bool) model {
 		autoplay:           true, // Autoplay on by default
 		historyShowDetails: make(map[string]AnimeShow),
 		coverArtCache:      make(map[string]string),
+		telemetryViewport:  viewport.New(0, 0),
+		showTelemetry:      true, // Enabled by default
+		aniSkipReady:       make(map[string]bool),
 	}
 
 	m.refreshHistory()
@@ -507,20 +525,71 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.state = statePlaybackActive
 		m.tempLuaFile = msg.tempLuaFile
 
-		// Suspend TUI and run player command
-		return m, tea.ExecProcess(msg.cmd, func(err error) tea.Msg {
-			return playbackFinishedMsg{err}
-		})
+		stdout, err := msg.cmd.StdoutPipe()
+		if err != nil {
+			m.state = stateError
+			m.err = err
+			return m, nil
+		}
+		stderr, err := msg.cmd.StderrPipe()
+		if err != nil {
+			m.state = stateError
+			m.err = err
+			return m, nil
+		}
+
+		if err := msg.cmd.Start(); err != nil {
+			m.state = stateError
+			m.err = err
+			return m, nil
+		}
+
+		go monitorAndInjectChapters(m.selectedShow.MALID, m.selectedEp, parseJikanDuration(m.selectedShow.Duration))
+
+		m.telemetryLogs = []string{}
+		m.telemetryViewport.SetContent("")
+		m.mpvLogChan = make(chan string, 200)
+
+		go func() {
+			scanner := bufio.NewScanner(stdout)
+			for scanner.Scan() {
+				m.mpvLogChan <- scanner.Text()
+			}
+		}()
+
+		go func() {
+			scanner := bufio.NewScanner(stderr)
+			for scanner.Scan() {
+				m.mpvLogChan <- scanner.Text()
+			}
+		}()
+
+		return m, tea.Batch(
+			waitForExitCmd(msg.cmd),
+			readLogsCmd(m.mpvLogChan),
+		)
+
+	case MpvLogMsg:
+		line := string(msg)
+		m.telemetryLogs = append(m.telemetryLogs, line)
+		if len(m.telemetryLogs) > 50 {
+			m.telemetryLogs = m.telemetryLogs[len(m.telemetryLogs)-50:]
+		}
+		m.telemetryViewport.SetContent(strings.Join(m.telemetryLogs, "\n"))
+		m.telemetryViewport.GotoBottom()
+		return m, readLogsCmd(m.mpvLogChan)
+
+	case aniSkipCheckedMsg:
+		m.aniSkipReady[msg.epNo] = msg.ready
+		return m, nil
 
 	case playbackFinishedMsg:
 		debugLog("TUI playbackFinishedMsg: err=%v", msg.err)
-		// Delete temporary Lua script
 		if m.tempLuaFile != "" {
 			_ = os.Remove(m.tempLuaFile)
 			m.tempLuaFile = ""
 		}
 
-		// Update watch history if no playback launch error
 		if msg.err == nil {
 			_ = recordWatch(m.selectedShow.ID, m.selectedShow.Name, m.selectedEp)
 			m.refreshHistory()
@@ -529,7 +598,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 
-		// Re-fetch episode list to update the "Next Up" indicator and highlights
 		m.state = stateSearchRunning
 		m.loadingMsg = "Refreshing episode list..."
 		return m, doFetchEpisodes(m.selectedShow.ID, "sub")
@@ -548,11 +616,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
-	case coverArtResultMsg:
-		if msg.ansi != "" {
-			m.coverArtCache[msg.showID] = msg.ansi
+	case CoverArtLoadedMsg:
+		if msg.Ansi != "" {
+			m.coverArtCache[msg.ShowID] = msg.Ansi
 		} else {
-			m.coverArtCache[msg.showID] = ""
+			m.coverArtCache[msg.ShowID] = ""
 		}
 		return m, nil
 
@@ -731,6 +799,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case stateEpisodeSelect:
 			switch msg.String() {
+			case "tab", "h":
+				m.showTelemetry = !m.showTelemetry
+				return m, nil
 			case "a":
 				m.autoplay = !m.autoplay
 				return m, nil
@@ -823,9 +894,20 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 							cmds = append(cmds, doFetchJikanMetadata(m.selectedShow.MALID, page))
 						}
 					}
+					if _, checked := m.aniSkipReady[epItem.epNo]; !checked && m.selectedShow.MALID != "" {
+						m.aniSkipReady[epItem.epNo] = false
+						cmds = append(cmds, doCheckAniSkip(m.selectedShow.MALID, epItem.epNo))
+					}
 				}
 			}
 			return m, tea.Batch(cmds...)
+
+		case statePlaybackActive:
+			switch msg.String() {
+			case "tab", "h":
+				m.showTelemetry = !m.showTelemetry
+				return m, nil
+			}
 
 		case stateError:
 			switch msg.String() {
@@ -968,6 +1050,25 @@ func (m model) View() string {
 		s.WriteString(helpStyle("press enter or esc to return to search"))
 	}
 
+	if m.showTelemetry && (m.state == statePlaybackActive || m.state == stateEpisodeSelect) {
+		m.telemetryViewport.Width = m.width - 6
+		m.telemetryViewport.Height = 10
+
+		border := lipgloss.NewStyle().
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("#f7768e")).
+			Padding(0, 1).
+			Width(m.width - 4).
+			Height(12)
+
+		telemetryContent := fmt.Sprintf(
+			"%s\n%s",
+			lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#f7768e")).Render("◆ MPV TELEMETRY LOGS (press 'tab' or 'h' to collapse) ◆"),
+			m.telemetryViewport.View(),
+		)
+		s.WriteString("\n\n" + border.Render(telemetryContent))
+	}
+
 	return s.String()
 }
 
@@ -1022,35 +1123,58 @@ func doPreparePlayback(selectedShow AnimeShow, epNo, mode, quality string, downl
 					return resolvedPlaybackMsg{err: fmt.Errorf("failed to resolve dual streams: sub (%v), dub (%v)", errSub, errDub)}
 				}
 				debugLog("doPreparePlayback: sub failed (%v), falling back to dub-only", errSub)
-				cmd, tempLua, err = playSingleCmd(dubStream, selectedShow.Name, epNo, selectedShow.MALID)
+				cmd, tempLua, err = playSingleCmd(dubStream, selectedShow.Name, epNo, selectedShow.MALID, selectedShow.Duration)
 			} else if errDub != nil {
 				debugLog("doPreparePlayback: dub failed (%v), falling back to sub-only", errDub)
-				cmd, tempLua, err = playSingleCmd(subStream, selectedShow.Name, epNo, selectedShow.MALID)
+				cmd, tempLua, err = playSingleCmd(subStream, selectedShow.Name, epNo, selectedShow.MALID, selectedShow.Duration)
 				if err == nil {
 					return resolvedPlaybackMsg{cmd: cmd, tempLuaFile: tempLua, warning: fmt.Sprintf("⚠ Dub unavailable (%v) — playing sub only", errDub)}
 				}
 			} else {
 				debugLog("doPreparePlayback: both streams resolved, launching dual-audio")
-				cmd, tempLua, err = playDualCmd(subStream, dubStream, selectedShow.Name, epNo, selectedShow.MALID)
+				cmd, tempLua, err = playDualCmd(subStream, dubStream, selectedShow.Name, epNo, selectedShow.MALID, selectedShow.Duration)
 			}
 		} else if mode == "dub" {
 			dubStream, errDub := resolveStreamURL(selectedShow.ID, "dub", epNo, quality)
 			if errDub != nil {
 				return resolvedPlaybackMsg{err: errDub}
 			}
-			cmd, tempLua, err = playSingleCmd(dubStream, selectedShow.Name, epNo, selectedShow.MALID)
+			cmd, tempLua, err = playSingleCmd(dubStream, selectedShow.Name, epNo, selectedShow.MALID, selectedShow.Duration)
 		} else {
 			subStream, errSub := resolveStreamURL(selectedShow.ID, "sub", epNo, quality)
 			if errSub != nil {
 				return resolvedPlaybackMsg{err: errSub}
 			}
-			cmd, tempLua, err = playSingleCmd(subStream, selectedShow.Name, epNo, selectedShow.MALID)
+			cmd, tempLua, err = playSingleCmd(subStream, selectedShow.Name, epNo, selectedShow.MALID, selectedShow.Duration)
 		}
 
 		return resolvedPlaybackMsg{cmd: cmd, tempLuaFile: tempLua, err: err}
 	}
 }
 
+func waitForExitCmd(cmd *exec.Cmd) tea.Cmd {
+	return func() tea.Msg {
+		err := cmd.Wait()
+		return playbackFinishedMsg{err}
+	}
+}
+
+func readLogsCmd(logChan chan string) tea.Cmd {
+	return func() tea.Msg {
+		line, ok := <-logChan
+		if !ok {
+			return nil
+		}
+		return MpvLogMsg(line)
+	}
+}
+
+func doCheckAniSkip(malID, epNo string) tea.Cmd {
+	return func() tea.Msg {
+		times := fetchAniSkipTimes(malID, epNo, 1440.0)
+		return aniSkipCheckedMsg{epNo: epNo, ready: len(times) > 0}
+	}
+}
 
 func doFetchJikanMetadata(malID string, page int) tea.Cmd {
 	return func() tea.Msg {
@@ -1069,11 +1193,12 @@ func doFetchJikanMetadata(malID string, page int) tea.Cmd {
 		}
 		var res struct {
 			Data []struct {
-				MalID  int    `json:"mal_id"`
-				Title  string `json:"title"`
-				Aired  string `json:"aired"`
-				Filler bool   `json:"filler"`
-				Recap  bool   `json:"recap"`
+				MalID    int    `json:"mal_id"`
+				Title    string `json:"title"`
+				Aired    string `json:"aired"`
+				Synopsis string `json:"synopsis"`
+				Filler   bool   `json:"filler"`
+				Recap    bool   `json:"recap"`
 			} `json:"data"`
 		}
 		body, err := io.ReadAll(resp.Body)
@@ -1091,10 +1216,11 @@ func doFetchJikanMetadata(malID string, page int) tea.Cmd {
 				airedStr = airedStr[:10]
 			}
 			metadata[epNum] = JikanEpInfo{
-				Title:  d.Title,
-				Aired:  airedStr,
-				Filler: d.Filler,
-				Recap:  d.Recap,
+				Title:    d.Title,
+				Aired:    airedStr,
+				Synopsis: d.Synopsis,
+				Filler:   d.Filler,
+				Recap:    d.Recap,
 			}
 		}
 		return jikanMetadataMsg{malID: malID, page: page, metadata: metadata}
@@ -1112,7 +1238,33 @@ func (m *model) refreshEpisodeListItems() {
 	}
 
 	nextEp := ""
-	if lastEp != "" {
+	positions, _ := loadPositions()
+	if positions != nil && m.selectedShow.MALID != "" {
+		if showState, ok := positions[m.selectedShow.MALID]; ok {
+			if showState.ResumeState != nil {
+				nextEp = fmt.Sprintf("%.1f", showState.ResumeState.Episode)
+				if strings.HasSuffix(nextEp, ".0") {
+					nextEp = nextEp[:len(nextEp)-2]
+				}
+			} else if len(showState.CompletedEpisodes) > 0 {
+				maxEp := 0.0
+				for _, cEp := range showState.CompletedEpisodes {
+					if cEp > maxEp {
+						maxEp = cEp
+					}
+				}
+				for _, ep := range m.episodes {
+					val := parseEpisodeNumber(ep)
+					if val > maxEp {
+						nextEp = ep
+						break
+					}
+				}
+			}
+		}
+	}
+
+	if nextEp == "" && lastEp != "" {
 		for i, ep := range m.episodes {
 			if ep == lastEp {
 				if i+1 < len(m.episodes) {
@@ -1243,7 +1395,9 @@ func (m model) renderShowDetailsPanel(show AnimeShow, coverArtANSI string, width
 	}
 
 	epsStr := "Unknown"
-	if show.EpCount() > 0 {
+	if show.Duration != "" {
+		epsStr = show.Duration
+	} else if show.EpCount() > 0 {
 		epsStr = fmt.Sprintf("%d Episodes", show.EpCount())
 	}
 
@@ -1398,12 +1552,16 @@ func (m model) renderEpisodeDetailsPanel(width, height int) string {
 	aired := "Unknown"
 	classification := lipgloss.NewStyle().Foreground(lipgloss.Color("#9ece6a")).Render("Canon") // green for canon
 
+	synopsis := "No synopsis available."
 	if info, ok := m.episodeDetails[epItem.epNo]; ok {
 		if info.Title != "" {
 			title = fmt.Sprintf("Ep %s: %s", epItem.epNo, info.Title)
 		}
 		if info.Aired != "" {
 			aired = info.Aired
+		}
+		if info.Synopsis != "" {
+			synopsis = cleanHTML(info.Synopsis)
 		}
 		if info.Filler {
 			classification = lipgloss.NewStyle().Foreground(lipgloss.Color("#f7768e")).Render("Filler (Non-Canon)")
@@ -1471,25 +1629,78 @@ func (m model) renderEpisodeDetailsPanel(width, height int) string {
 		rightColWidth = 15
 	}
 
-	// Calculate spacing for controls at the bottom
-	hintsStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#565f89")).Width(rightColWidth)
-	hints := "\n\n\n\n"
-	hintSpaces := height - imgHeight - 11 // spacing
-	if hintSpaces > 0 {
-		hints = strings.Repeat("\n", hintSpaces)
+	// Calculate multiplexing status flags
+	videoStatus := "Video: RESOLVED"
+	audioStatus := "Audio: SINGLE-STREAM"
+	if m.mode == "dual" {
+		audioStatus = "Audio: DUAL-MAPPED"
 	}
-	hints += fmt.Sprintf(
-		"◆ CONTROLS ◆\n%s",
-		hintsStyle.Render(fmt.Sprintf("• enter : play episode\n• a     : toggle autoplay\n• m     : toggle mode (current: %s)\n• esc   : back to shows", strings.ToUpper(m.mode))),
-	)
+	metadataFlags := fmt.Sprintf("%s  •  %s", videoStatus, audioStatus)
 
-	rightPanelContent := fmt.Sprintf(
-		"%s\n%s\n\n%s\n%s\n%s",
-		lipgloss.NewStyle().Foreground(lipgloss.Color("#565f89")).Render(m.selectedShow.Name),
-		titleStyle.Render(title),
+	// Calculate AniSkip pre-flight badge
+	aniSkipBadge := "✨ AniSkip Checking..."
+	if ready, checked := m.aniSkipReady[epItem.epNo]; checked {
+		if ready {
+			aniSkipBadge = "✨ AniSkip Ready"
+		} else {
+			aniSkipBadge = "✨ AniSkip Unavailable"
+		}
+	}
+
+	// Calculate visual inline progress bar
+	progressBar := ""
+	positions, _ := loadPositions()
+	if positions != nil && m.selectedShow.MALID != "" {
+		if showState, ok := positions[m.selectedShow.MALID]; ok && showState.ResumeState != nil {
+			reqEp := parseEpisodeNumber(epItem.epNo)
+			if showState.ResumeState.Episode == reqEp {
+				pos := showState.ResumeState.PositionSeconds
+				total := showState.ResumeState.TotalSeconds
+				if total > 0 {
+					pct := pos / total
+					if pct > 1.0 { pct = 1.0 }
+					if pct < 0.0 { pct = 0.0 }
+					filled := int(pct * 10)
+					empty := 10 - filled
+					barStr := strings.Repeat("█", filled) + strings.Repeat("░", empty)
+					progressBar = fmt.Sprintf("[%s] %d%% watched", barStr, int(pct*100))
+				}
+			}
+		}
+	}
+
+	metaLines := []string{
 		fmt.Sprintf("%s %s", metaKeyStyle.Render("Release Date:  "), metaValStyle.Render(aired)),
 		fmt.Sprintf("%s %s", metaKeyStyle.Render("Classification:"), classification),
-		hints,
+		fmt.Sprintf("%s %s", metaKeyStyle.Render("Format/Audio:  "), metaValStyle.Render(metadataFlags)),
+		fmt.Sprintf("%s %s", metaKeyStyle.Render("AniSkip:       "), lipgloss.NewStyle().Foreground(lipgloss.Color("#7dcfff")).Render(aniSkipBadge)),
+	}
+	if progressBar != "" {
+		metaLines = append(metaLines, fmt.Sprintf("%s %s", metaKeyStyle.Render("Progress:      "), lipgloss.NewStyle().Foreground(lipgloss.Color("#9ece6a")).Render(progressBar)))
+	}
+
+	// Calculate spacing and height for synopsis
+	overhead := len(metaLines) + 8
+	synMaxHeight := height - overhead
+	if synMaxHeight < 3 {
+		synMaxHeight = 3
+	}
+
+	synBodyStyle := lipgloss.NewStyle().Width(rightColWidth).Foreground(lipgloss.Color("#a9b1d6"))
+	synLines := strings.Split(synBodyStyle.Render(synopsis), "\n")
+	if len(synLines) > synMaxHeight {
+		synLines = synLines[:synMaxHeight-1]
+		synLines = append(synLines, "... (truncated)")
+	}
+	wrappedSynopsis := strings.Join(synLines, "\n")
+
+	rightPanelContent := fmt.Sprintf(
+		"%s\n%s\n\n%s\n\n%s\n%s",
+		lipgloss.NewStyle().Foreground(lipgloss.Color("#565f89")).Render(m.selectedShow.Name),
+		titleStyle.Render(title),
+		strings.Join(metaLines, "\n"),
+		headerStyle.Render("◆ EPISODE SYNOPSIS ◆"),
+		wrappedSynopsis,
 	)
 
 	bodyContent := lipgloss.JoinHorizontal(lipgloss.Top, leftPanel, "  ", rightPanelContent)
