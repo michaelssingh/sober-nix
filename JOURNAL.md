@@ -6,6 +6,22 @@ This journal serves as the local, persistent source of truth for work-in-progres
 
 ## 📅 Chronological Development Sessions
 
+### Session 10: 2026-07-01 12:00 (Clare TUI Formatting, Sixel Format Support & Mako Dynamic Config)
+* **Host / Context**: Resumed after VM restart; synced user updates from `otus`, fixed TUI formatting and added Sixel formats, tested via automated test script, deployed to `otus` via `deploy.sh`.
+* **Commits**:
+  - `76e1a23` (Antigravity on `agy`): *feat(clare): configure chafa to render cover art using sixels format*
+  - `ea62f19` (Antigravity on `agy`): *fix(clare): resolve formatting verb mismatch in renderEpisodeDetailsPanel and track test script*
+  - `44276e7` (Michael S. Singh on `otus`): *feat(clare/mako): force chafa symbols format, fix octals, and quote mako app-name*
+  - `ce6bf5b` (Michael S. Singh on `otus`): *fix(mako) dynamically specify the notification parmeters for deploy.sh*
+* **Accomplishments**:
+  - **Mako App-Name Quotes & Parameter Tweaks**: Synced user commits that quotes the Sway/Mako deploy notification app-name and dynamically adjusts deployment notification parameters.
+  - **Clare Octal Fixes**: Fixed octal permissions in `cache.go` from `0755` to the Go-standard `0o755`.
+  - **Sixel Image Support**: Modified `renderImageANSI` in `cache.go` to invoke `chafa` with `-f sixels` to enable high-quality bitmap renderings on Sixel-capable terminal viewports, while preserving fallback logic to solid symbols block art.
+  - **TUI Controls Formatting Bugfix**: Fixed a string formatting verb mismatch in `renderEpisodeDetailsPanel` (which had 7 `%s` verbs but only 6 arguments), eliminating `%!s(MISSING)` inside the TUI controls details card.
+  - **Automated TUI Test Harness Integration**: Check-in, updated, and validated `bin/test-clare-tui.sh` using tmux to simulate search and selection states, using `Death Note` as a stable target query for CLI direct mode stream resolution.
+
+---
+
 ### Session 9: 2026-06-26 13:40 (Clare TUI Cover Art Rendering via Chafa & Multi-Remote Pushes)
 * **Host / Context**: Developed and compiled on remote VM `agy` (by Antigravity agent), verified via local Nix build, deployed and activated on `otus` via SSH reverse tunnel.
 * **Commits**:
