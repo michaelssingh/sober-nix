@@ -196,7 +196,9 @@ type model struct {
 	autoplay           bool
 	triggerAutoplay    bool
 	historyShowDetails map[string]AnimeShow
-	coverArtCache      map[string]string
+	coverArtCache       map[string]string
+	detailsScrollOffset int
+	lastSelectedShowID  string
 }
 
 func createMinimalList(title string) list.Model {
@@ -621,12 +623,22 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.searchInput.Reset()
 				m.searchInput.Focus()
 				return m, nil
+			case "left", "h":
+				m.detailsScrollOffset--
+				return m, nil
+			case "right", "l":
+				m.detailsScrollOffset++
+				return m, nil
 			}
 			var cmd tea.Cmd
 			m.historyList, cmd = m.historyList.Update(msg)
 			
 			// Trigger details fetch for currently highlighted history item if not loaded
 			if selected, ok := m.historyList.SelectedItem().(historyItem); ok {
+				if selected.showID != m.lastSelectedShowID {
+					m.detailsScrollOffset = 0
+					m.lastSelectedShowID = selected.showID
+				}
 				var cmds []tea.Cmd
 				if _, loaded := m.historyShowDetails[selected.showID]; !loaded {
 					if show, _, found := loadShowCache(selected.showID); found {
@@ -694,10 +706,20 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.state = stateSearchInput
 				m.searchInput.Focus()
 				return m, nil
+			case "left", "h":
+				m.detailsScrollOffset--
+				return m, nil
+			case "right", "l":
+				m.detailsScrollOffset++
+				return m, nil
 			}
 			var cmd tea.Cmd
 			m.showList, cmd = m.showList.Update(msg)
 			if selected, ok := m.showList.SelectedItem().(showItem); ok {
+				if selected.show.ID != m.lastSelectedShowID {
+					m.detailsScrollOffset = 0
+					m.lastSelectedShowID = selected.show.ID
+				}
 				if selected.show.Thumbnail != "" {
 					if _, ok := m.coverArtCache[selected.show.ID]; !ok {
 						m.coverArtCache[selected.show.ID] = "Loading..."
@@ -848,10 +870,10 @@ func (m model) View() string {
 			if selected, ok := m.historyList.SelectedItem().(historyItem); ok {
 				art := m.coverArtCache[selected.showID]
 				if show, loaded := m.historyShowDetails[selected.showID]; loaded {
-					rightView = renderShowDetailsPanel(show, art, rightWidth, listHeight)
+					rightView = m.renderShowDetailsPanel(show, art, rightWidth, listHeight)
 				} else {
 					tempShow := AnimeShow{ID: selected.showID, Name: selected.showName, Description: "Loading details..."}
-					rightView = renderShowDetailsPanel(tempShow, art, rightWidth, listHeight)
+					rightView = m.renderShowDetailsPanel(tempShow, art, rightWidth, listHeight)
 				}
 			} else {
 				rightView = lipgloss.NewStyle().
@@ -892,7 +914,7 @@ func (m model) View() string {
 			var rightView string
 			if selected, ok := m.showList.SelectedItem().(showItem); ok {
 				art := m.coverArtCache[selected.show.ID]
-				rightView = renderShowDetailsPanel(selected.show, art, rightWidth, listHeight)
+				rightView = m.renderShowDetailsPanel(selected.show, art, rightWidth, listHeight)
 			} else {
 				rightView = lipgloss.NewStyle().
 					Border(lipgloss.RoundedBorder()).
@@ -1177,7 +1199,7 @@ func doFetchCoverArt(showID, urlStr string, width, height int) tea.Cmd {
 	}
 }
 
-func renderShowDetailsPanel(show AnimeShow, coverArtANSI string, width, height int) string {
+func (m model) renderShowDetailsPanel(show AnimeShow, coverArtANSI string, width, height int) string {
 	var s strings.Builder
 
 	headerStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#bb9af7")) // Tokyonight purple
@@ -1185,7 +1207,6 @@ func renderShowDetailsPanel(show AnimeShow, coverArtANSI string, width, height i
 	metaKeyStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#565f89"))
 	metaValStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#7dcfff"))
 	
-	// Full-height border aligned with the list
 	borderStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color("#7aa2f7")).
@@ -1287,24 +1308,42 @@ func renderShowDetailsPanel(show AnimeShow, coverArtANSI string, width, height i
 	// We calculate remaining lines in the container to truncate description gracefully
 	// Header is 1 line, title wraps (assume 1-2 lines), separator/margins/spacing is ~6 lines.
 	// That's roughly 8 lines of overhead.
-	overhead := 8
+	overhead := 13
 	descMaxHeight := height - overhead - 2 // padding
 	if descMaxHeight < 3 {
 		descMaxHeight = 3
 	}
 
-	// Truncate description to fit nicely
+	// Truncate description to fit nicely with scroll support
 	descLines := strings.Split(rightBodyStyle.Render(desc), "\n")
-	if len(descLines) > descMaxHeight {
-		descLines = descLines[:descMaxHeight]
-		lastLine := descLines[len(descLines)-1]
-		if len(lastLine) > 3 {
-			descLines[len(descLines)-1] = lastLine[:len(lastLine)-3] + "..."
-		} else {
-			descLines[len(descLines)-1] = "..."
-		}
+	maxScroll := len(descLines) - descMaxHeight
+	if maxScroll < 0 {
+		maxScroll = 0
 	}
-	truncatedDesc := strings.Join(descLines, "\n")
+	if m.detailsScrollOffset > maxScroll {
+		m.detailsScrollOffset = maxScroll
+	}
+	if m.detailsScrollOffset < 0 {
+		m.detailsScrollOffset = 0
+	}
+
+	visibleLines := descLines
+	if len(descLines) > descMaxHeight {
+		start := m.detailsScrollOffset
+		end := start + descMaxHeight
+		if end > len(descLines) {
+			end = len(descLines)
+		}
+		visibleLines = descLines[start:end]
+	}
+	truncatedDesc := strings.Join(visibleLines, "\n")
+
+	synopsisHeader := "◆ SYNOPSIS ◆"
+	if maxScroll > 0 {
+		currLine := m.detailsScrollOffset + 1
+		maxLine := maxScroll + 1
+		synopsisHeader = fmt.Sprintf("◆ SYNOPSIS (scroll: h/l) [%d/%d] ◆", currLine, maxLine)
+	}
 
 	rightPanelContent := fmt.Sprintf(
 		"%s\n\n%s\n%s\n%s\n%s\n\n%s\n%s",
@@ -1313,7 +1352,7 @@ func renderShowDetailsPanel(show AnimeShow, coverArtANSI string, width, height i
 		fmt.Sprintf("%s %s", metaKeyStyle.Render("Format:  "), metaValStyle.Render(typeStr)),
 		fmt.Sprintf("%s %s", metaKeyStyle.Render("Release: "), metaValStyle.Render(seasonStr)),
 		fmt.Sprintf("%s %s", metaKeyStyle.Render("Length:  "), metaValStyle.Render(epsStr)),
-		headerStyle.Render("◆ SYNOPSIS ◆"),
+		headerStyle.Render(synopsisHeader),
 		truncatedDesc,
 	)
 
@@ -1474,6 +1513,15 @@ func cleanHTML(input string) string {
 	s = strings.ReplaceAll(s, "&amp;", "&")
 	s = strings.ReplaceAll(s, "&lt;", "<")
 	s = strings.ReplaceAll(s, "&gt;", ">")
+	s = strings.ReplaceAll(s, "&apos;", "'")
+	s = strings.ReplaceAll(s, "&#039;", "'")
+	s = strings.ReplaceAll(s, "&rsquo;", "'")
+	s = strings.ReplaceAll(s, "&lsquo;", "'")
+	s = strings.ReplaceAll(s, "&ldquo;", "\"")
+	s = strings.ReplaceAll(s, "&rdquo;", "\"")
+	s = strings.ReplaceAll(s, "&ndash;", "–")
+	s = strings.ReplaceAll(s, "&mdash;", "—")
+	s = strings.ReplaceAll(s, "&hellip;", "…")
 	return strings.TrimSpace(s)
 }
 
