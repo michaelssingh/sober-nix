@@ -47,6 +47,7 @@ in
     antigravity
     sprite
     cachix
+    sops
   ];
 
   # Declarative antigravity CLI Authentication
@@ -120,61 +121,104 @@ in
 
   # --- Sprite Services Setup Activation Hook ---
   home.activation.configure-sprite-environment = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-        # Export /usr/bin to PATH so that sprite-env can invoke 'curl' and 'jq'
-        export PATH="$PATH:/usr/bin"
+            # Export /usr/bin to PATH so that sprite-env can invoke 'curl' and 'jq'
+            export PATH="$PATH:/usr/bin"
 
-        # 0. Configure Cachix auth token
-        $DRY_RUN_CMD mkdir -p /home/sprite/.config/cachix
-        if [ -f "${config.sops.secrets.cachix_auth_token.path}" ]; then
-          token=$(cat "${config.sops.secrets.cachix_auth_token.path}")
-          $DRY_RUN_CMD tee /home/sprite/.config/cachix/cachix.dhall <<EOF >/dev/null
+            # 0. Manual secrets decryption for systemd-less container environments
+            export SOPS_AGE_KEY_FILE="/home/sprite/.config/sops/age/keys.txt"
+            if [ -f "$SOPS_AGE_KEY_FILE" ]; then
+              # Decrypt Antigravity OAuth Token
+              mkdir -p /home/sprite/.gemini/antigravity-cli
+              ${pkgs.sops}/bin/sops -d --extract '["antigravity_oauth_token"]' /home/sprite/sober-nix/secrets/secrets.yaml > /home/sprite/.gemini/antigravity-cli/antigravity-oauth-token 2>/dev/null || true
+              chmod 600 /home/sprite/.gemini/antigravity-cli/antigravity-oauth-token || true
+
+              # Decrypt Sprite API Token and write configuration
+              if ${pkgs.sops}/bin/sops -d --extract '["sprites_api_token"]' /home/sprite/sober-nix/secrets/secrets.yaml > /tmp/sprite_token 2>/dev/null; then
+                token=$(cat /tmp/sprite_token)
+                org=$(echo "$token" | cut -d/ -f1)
+                mkdir -p /home/sprite/.sprites
+                cat <<EOF > /home/sprite/.sprites/sprites.json
+    {
+      "version": "1",
+      "current_selection": {
+        "url": "https://api.sprites.dev",
+        "org": "$org"
+      },
+      "urls": {
+        "https://api.sprites.dev": {
+          "url": "https://api.sprites.dev",
+          "orgs": {
+            "$org": {
+              "name": "$org",
+              "api_token": "$token",
+              "use_keyring": false,
+              "sprites": {}
+            }
+          }
+        }
+      }
+    }
+    EOF
+                chmod 600 /home/sprite/.sprites/sprites.json
+                rm -f /tmp/sprite_token
+              fi
+
+              # Decrypt Cachix Auth Token
+              if ${pkgs.sops}/bin/sops -d --extract '["cachix_auth_token"]' /home/sprite/sober-nix/secrets/secrets.yaml > /tmp/cachix_token 2>/dev/null; then
+                token=$(cat /tmp/cachix_token)
+                mkdir -p /home/sprite/.config/cachix
+                cat <<EOF > /home/sprite/.config/cachix/cachix.dhall
     { authToken =
         "$token"
     , hostname = "https://cachix.org"
     , binaryCaches = [] : List { name : Text, secretKey : Text }
     }
     EOF
-          $DRY_RUN_CMD chmod 600 /home/sprite/.config/cachix/cachix.dhall
-        fi
+                chmod 600 /home/sprite/.config/cachix/cachix.dhall
+                rm -f /tmp/cachix_token
+              fi
+            fi
 
-        # 1. Update /etc/nix/nix.conf
-        $DRY_RUN_CMD /usr/bin/sudo mkdir -p /etc/nix
-        $DRY_RUN_CMD /usr/bin/sudo cp ${config.home.file.".nix.conf_source".source} /etc/nix/nix.conf
-        $DRY_RUN_CMD /usr/bin/sudo chmod 644 /etc/nix/nix.conf
+            # 1. Update /etc/nix/nix.conf
+            $DRY_RUN_CMD /usr/bin/sudo mkdir -p /etc/nix
+            $DRY_RUN_CMD /usr/bin/sudo cp ${
+              config.home.file.".nix.conf_source".source
+            } /etc/nix/nix.conf
+            $DRY_RUN_CMD /usr/bin/sudo chmod 644 /etc/nix/nix.conf
 
-        # 2. Register nix-daemon as a Sprite service if not present
-        if ! /.sprite/bin/sprite-env services list | grep -q "nix-daemon"; then
-          $DRY_RUN_CMD /.sprite/bin/sprite-env services create nix-daemon \
-            --cmd /usr/bin/sudo \
-            --args "/nix/var/nix/profiles/default/bin/nix-daemon" \
-            --no-stream
-        fi
-        $DRY_RUN_CMD /.sprite/bin/sprite-env services start nix-daemon || true
+            # 2. Register nix-daemon as a Sprite service if not present
+            if ! /.sprite/bin/sprite-env services list | grep -q "nix-daemon"; then
+              $DRY_RUN_CMD /.sprite/bin/sprite-env services create nix-daemon \
+                --cmd /usr/bin/sudo \
+                --args "/nix/var/nix/profiles/default/bin/nix-daemon" \
+                --no-stream
+            fi
+            $DRY_RUN_CMD /.sprite/bin/sprite-env services start nix-daemon || true
 
-        # 3. Register sshd as a Sprite service if not present, or recreate if legacy command is found
-        $DRY_RUN_CMD /usr/bin/sudo mkdir -p /run/sshd
-        if /.sprite/bin/sprite-env services list | grep -q "sshd" && ! /.sprite/bin/sprite-env services list | grep -q ".sshd-wrapper.sh"; then
-          $DRY_RUN_CMD /.sprite/bin/sprite-env services delete sshd
-        fi
-        if ! /.sprite/bin/sprite-env services list | grep -q "sshd"; then
-          $DRY_RUN_CMD /.sprite/bin/sprite-env services create sshd \
-            --cmd /usr/bin/sudo \
-            --args "/home/sprite/.sshd-wrapper.sh" \
-            --no-stream
-        fi
-        $DRY_RUN_CMD /.sprite/bin/sprite-env services start sshd || true
+            # 3. Register sshd as a Sprite service if not present, or recreate if legacy command is found
+            $DRY_RUN_CMD /usr/bin/sudo mkdir -p /run/sshd
+            if /.sprite/bin/sprite-env services list | grep -q "sshd" && ! /.sprite/bin/sprite-env services list | grep -q ".sshd-wrapper.sh"; then
+              $DRY_RUN_CMD /.sprite/bin/sprite-env services delete sshd
+            fi
+            if ! /.sprite/bin/sprite-env services list | grep -q "sshd"; then
+              $DRY_RUN_CMD /.sprite/bin/sprite-env services create sshd \
+                --cmd /usr/bin/sudo \
+                --args "/home/sprite/.sshd-wrapper.sh" \
+                --no-stream
+            fi
+            $DRY_RUN_CMD /.sprite/bin/sprite-env services start sshd || true
 
-        # 4. Register ssh-agent-bridge as a Sprite service if not present
-        if ! /.sprite/bin/sprite-env services list | grep -q "ssh-agent-bridge"; then
-          $DRY_RUN_CMD /.sprite/bin/sprite-env services create ssh-agent-bridge \
-            --cmd "/home/sprite/.ssh-agent-bridge.sh" \
-            --no-stream
-        fi
-        $DRY_RUN_CMD /.sprite/bin/sprite-env services start ssh-agent-bridge || true
+            # 4. Register ssh-agent-bridge as a Sprite service if not present
+            if ! /.sprite/bin/sprite-env services list | grep -q "ssh-agent-bridge"; then
+              $DRY_RUN_CMD /.sprite/bin/sprite-env services create ssh-agent-bridge \
+                --cmd "/home/sprite/.ssh-agent-bridge.sh" \
+                --no-stream
+            fi
+            $DRY_RUN_CMD /.sprite/bin/sprite-env services start ssh-agent-bridge || true
 
-        # 5. Set default login shell to fish
-        if [ "$(getent passwd sprite | cut -d: -f7)" != "/usr/bin/fish" ]; then
-          $DRY_RUN_CMD /usr/bin/sudo /usr/bin/chsh -s /usr/bin/fish sprite
-        fi
+            # 5. Set default login shell to fish
+            if [ "$(getent passwd sprite | cut -d: -f7)" != "/usr/bin/fish" ]; then
+              $DRY_RUN_CMD /usr/bin/sudo /usr/bin/chsh -s /usr/bin/fish sprite
+            fi
   '';
 }
