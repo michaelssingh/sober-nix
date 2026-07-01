@@ -86,7 +86,7 @@ fi
 tmux new-session -d -s clare-test-session -x 100 -y 30 "env CLARE_STATE_DIR=\"$TEST_DIR\" \"$CLARE_BIN\""
 
 echo "Waiting for Clare TUI to start..."
-sleep 2
+sleep 4
 
 # Capture initial screen
 tui_screen_1=$(tmux capture-pane -p -t clare-test-session)

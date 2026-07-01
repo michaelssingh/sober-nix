@@ -186,14 +186,13 @@ func renderImageANSI(imgPath string, width, height int) string {
 	}
 	widthStr := fmt.Sprintf("%dx%d", width, height)
 
-	// Added "-f", "symbols" to force character symbol mosaics instead of Kitty/Sixel graphics
-	cmd := exec.Command("chafa", "-f", "symbols", "-s", widthStr, "--symbols", "block", "--colors", "256", imgPath)
+	cmd := exec.Command("chafa", "-f", "sixels", "-s", widthStr, imgPath)
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	err := cmd.Run()
 	if err != nil {
-		// Fallback command also updated to force symbols format
-		cmd = exec.Command("chafa", "-f", "symbols", "-s", widthStr, imgPath)
+		// Fallback to symbols format if sixels fails
+		cmd = exec.Command("chafa", "-f", "symbols", "-s", widthStr, "--symbols", "block", "--colors", "256", imgPath)
 		out.Reset()
 		cmd.Stdout = &out
 		if cmd.Run() != nil {
