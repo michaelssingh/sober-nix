@@ -11,7 +11,6 @@ let
 in
 {
   imports = [
-    inputs.sops-nix.homeManagerModules.sops
     ../../modules/home/core/ssh.nix
     ../../modules/home/core/sober.nix
   ];
@@ -34,10 +33,6 @@ in
 
   programs.home-manager.enable = true;
 
-  # Sops-Nix Key Source for Home-Manager
-  sops.age.keyFile = "/home/sprite/.config/sops/age/keys.txt";
-  sops.defaultSopsFile = ../../secrets/secrets.yaml;
-
   home.packages = with pkgs; [
     git
     htop
@@ -52,14 +47,6 @@ in
   ];
 
   programs.fish.enable = true;
-
-  # Declarative antigravity CLI Authentication
-  sops.secrets.antigravity_oauth_token = {
-    path = "/home/sprite/.gemini/antigravity-cli/antigravity-oauth-token";
-  };
-
-  # Declarative Cachix CLI Authentication
-  sops.secrets.cachix_auth_token = { };
 
   # --- Declarative Git config to override platform defaults ---
   home.file.".gitconfig".text = ''
