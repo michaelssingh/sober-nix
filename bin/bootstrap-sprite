@@ -49,6 +49,10 @@ fi
 
 # 3. Setup SOPS age keys
 mkdir -p "$HOME/.config/sops/age"
+if [ -n "${SOPS_AGE_KEY:-}" ]; then
+    echo "$SOPS_AGE_KEY" > "$HOME/.config/sops/age/keys.txt"
+fi
+
 if [ ! -f "$HOME/.config/sops/age/keys.txt" ]; then
     step "Setting up SOPS Age Key..."
     echo "No Age key found at ~/.config/sops/age/keys.txt."
