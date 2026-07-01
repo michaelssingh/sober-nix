@@ -4,6 +4,8 @@
 # Sets up: Nix → Repo Clone → SOPS Age Key → Home Manager (sprite configuration)
 
 set -euo pipefail
+export USER=sprite
+
 
 GREEN='\033[0;32m'; CYAN='\033[0;36m'; RESET='\033[0m'
 step() { echo -e "\n${CYAN}▶ $*${RESET}"; }
