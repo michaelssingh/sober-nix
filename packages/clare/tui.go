@@ -1339,15 +1339,15 @@ func doFetchShowDetails(showID string) tea.Cmd {
 func doFetchCoverArt(showID, urlStr string, width, height int) tea.Cmd {
 	return func() tea.Msg {
 		if urlStr == "" {
-			return coverArtResultMsg{showID: showID, ansi: ""}
+			return CoverArtLoadedMsg{ShowID: showID, Ansi: ""}
 		}
 		imgPath, err := downloadThumbnail(showID, urlStr)
 		if err != nil {
 			debugLog("doFetchCoverArt download failed: %v", err)
-			return coverArtResultMsg{showID: showID, ansi: ""}
+			return CoverArtLoadedMsg{ShowID: showID, Ansi: ""}
 		}
 		ansi := renderImageANSI(imgPath, width, height)
-		return coverArtResultMsg{showID: showID, ansi: ansi}
+		return CoverArtLoadedMsg{ShowID: showID, Ansi: ansi}
 	}
 }
 
