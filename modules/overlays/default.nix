@@ -65,6 +65,10 @@
       ];
     });
 
+    mpv = prev.mpv.override {
+      scripts = [ prev.mpvScripts.mpris ];
+    };
+
     neomutt = prev.neomutt.overrideAttrs (_old: {
       version = "20260504";
       src = inputs.neomutt-src;
