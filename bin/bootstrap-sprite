@@ -64,7 +64,7 @@ ok "SOPS Age Key ready"
 step "Configuring Nix local options..."
 mkdir -p "$HOME/.config/nix"
 cat <<EOF > "$HOME/.config/nix/nix.conf"
-sandbox = true
+sandbox = false
 max-jobs = 8
 cores = 0
 experimental-features = nix-command flakes
