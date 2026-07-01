@@ -69,6 +69,14 @@
       scripts = [ prev.mpvScripts.mpris ];
     };
 
+    pythonPackagesExtensions = prev.pythonPackagesExtensions ++ [
+      (_python-final: python-prev: {
+        mpv = python-prev.mpv.overridePythonAttrs (_old: {
+          doCheck = false;
+        });
+      })
+    ];
+
     neomutt = prev.neomutt.overrideAttrs (_old: {
       version = "20260504";
       src = inputs.neomutt-src;
