@@ -11,6 +11,14 @@ ok()   { echo -e "${GREEN}✓ $*${RESET}"; }
 
 step "Starting sprite bootstrap..."
 
+# Ensure openssh-server is installed (required for the SSH tunnel and remote sshd service)
+if ! command -v sshd >/dev/null 2>&1 && [ ! -f /usr/sbin/sshd ]; then
+    step "Installing openssh-server (APT)..."
+    sudo apt-get update
+    sudo apt-get install -y openssh-server
+fi
+ok "openssh-server is installed"
+
 # 1. Nix check/install
 if ! command -v nix >/dev/null 2>&1; then
     step "Installing Nix (single-user)..."
