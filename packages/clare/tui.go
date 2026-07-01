@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"html"
 	"io"
 	"net/http"
 	"os"
@@ -169,10 +170,11 @@ type aniSkipCheckedMsg struct {
 }
 
 type resolvedPlaybackMsg struct {
-	warning     string
-	cmd         *exec.Cmd
-	tempLuaFile string
-	err         error
+	warning          string
+	cmd              *exec.Cmd
+	tempLuaFile      string
+	tempChaptersFile string
+	err              error
 }
 
 type playbackFinishedMsg struct {
@@ -200,6 +202,7 @@ type model struct {
 	width, height       int
 	loadingMsg          string
 	tempLuaFile         string
+	tempChaptersFile    string
 	initialSearch       string
 	episodeDetails      map[string]JikanEpInfo
 	loadedJikanPages    map[int]bool
@@ -512,7 +515,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, doFetchJikanMetadata(m.selectedShow.MALID, page)
 
 	case resolvedPlaybackMsg:
-		debugLog("TUI resolvedPlaybackMsg: err=%v, warning=%s, tempLuaFile=%s", msg.err, msg.warning, msg.tempLuaFile)
+		debugLog("TUI resolvedPlaybackMsg: err=%v, warning=%s, tempLuaFile=%s, tempChaptersFile=%s", msg.err, msg.warning, msg.tempLuaFile, msg.tempChaptersFile)
 		if msg.err != nil {
 			m.state = stateError
 			m.err = msg.err
@@ -524,6 +527,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		m.state = statePlaybackActive
 		m.tempLuaFile = msg.tempLuaFile
+		m.tempChaptersFile = msg.tempChaptersFile
 
 		stdout, err := msg.cmd.StdoutPipe()
 		if err != nil {
@@ -543,8 +547,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.err = err
 			return m, nil
 		}
-
-		go monitorAndInjectChapters(m.selectedShow.MALID, m.selectedEp, parseJikanDuration(m.selectedShow.Duration))
 
 		m.telemetryLogs = []string{}
 		m.telemetryViewport.SetContent("")
@@ -588,6 +590,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.tempLuaFile != "" {
 			_ = os.Remove(m.tempLuaFile)
 			m.tempLuaFile = ""
+		}
+		if m.tempChaptersFile != "" {
+			_ = os.Remove(m.tempChaptersFile)
+			m.tempChaptersFile = ""
 		}
 
 		if msg.err == nil {
@@ -1097,6 +1103,7 @@ func doPreparePlayback(selectedShow AnimeShow, epNo, mode, quality string, downl
 	return func() tea.Msg {
 		var cmd *exec.Cmd
 		var tempLua string
+		var tempChapters string
 		var err error
 
 		if download {
@@ -1123,32 +1130,32 @@ func doPreparePlayback(selectedShow AnimeShow, epNo, mode, quality string, downl
 					return resolvedPlaybackMsg{err: fmt.Errorf("failed to resolve dual streams: sub (%v), dub (%v)", errSub, errDub)}
 				}
 				debugLog("doPreparePlayback: sub failed (%v), falling back to dub-only", errSub)
-				cmd, tempLua, err = playSingleCmd(dubStream, selectedShow.Name, epNo, selectedShow.MALID, selectedShow.Duration)
+				cmd, tempLua, tempChapters, err = playSingleCmd(dubStream, selectedShow.Name, epNo, selectedShow.MALID, selectedShow.Duration)
 			} else if errDub != nil {
 				debugLog("doPreparePlayback: dub failed (%v), falling back to sub-only", errDub)
-				cmd, tempLua, err = playSingleCmd(subStream, selectedShow.Name, epNo, selectedShow.MALID, selectedShow.Duration)
+				cmd, tempLua, tempChapters, err = playSingleCmd(subStream, selectedShow.Name, epNo, selectedShow.MALID, selectedShow.Duration)
 				if err == nil {
-					return resolvedPlaybackMsg{cmd: cmd, tempLuaFile: tempLua, warning: fmt.Sprintf("⚠ Dub unavailable (%v) — playing sub only", errDub)}
+					return resolvedPlaybackMsg{cmd: cmd, tempLuaFile: tempLua, tempChaptersFile: tempChapters, warning: fmt.Sprintf("⚠ Dub unavailable (%v) — playing sub only", errDub)}
 				}
 			} else {
 				debugLog("doPreparePlayback: both streams resolved, launching dual-audio")
-				cmd, tempLua, err = playDualCmd(subStream, dubStream, selectedShow.Name, epNo, selectedShow.MALID, selectedShow.Duration)
+				cmd, tempLua, tempChapters, err = playDualCmd(subStream, dubStream, selectedShow.Name, epNo, selectedShow.MALID, selectedShow.Duration)
 			}
 		} else if mode == "dub" {
 			dubStream, errDub := resolveStreamURL(selectedShow.ID, "dub", epNo, quality)
 			if errDub != nil {
 				return resolvedPlaybackMsg{err: errDub}
 			}
-			cmd, tempLua, err = playSingleCmd(dubStream, selectedShow.Name, epNo, selectedShow.MALID, selectedShow.Duration)
+			cmd, tempLua, tempChapters, err = playSingleCmd(dubStream, selectedShow.Name, epNo, selectedShow.MALID, selectedShow.Duration)
 		} else {
 			subStream, errSub := resolveStreamURL(selectedShow.ID, "sub", epNo, quality)
 			if errSub != nil {
 				return resolvedPlaybackMsg{err: errSub}
 			}
-			cmd, tempLua, err = playSingleCmd(subStream, selectedShow.Name, epNo, selectedShow.MALID, selectedShow.Duration)
+			cmd, tempLua, tempChapters, err = playSingleCmd(subStream, selectedShow.Name, epNo, selectedShow.MALID, selectedShow.Duration)
 		}
 
-		return resolvedPlaybackMsg{cmd: cmd, tempLuaFile: tempLua, err: err}
+		return resolvedPlaybackMsg{cmd: cmd, tempLuaFile: tempLua, tempChaptersFile: tempChapters, err: err}
 	}
 }
 
@@ -1427,19 +1434,7 @@ func (m model) renderShowDetailsPanel(show AnimeShow, coverArtANSI string, width
 			Border(lipgloss.NormalBorder()).
 			BorderForeground(lipgloss.Color("#3b4261")).
 			Padding(0)
-		if strings.HasPrefix(coverArtANSI, "\x1b") {
-			emptySpaces := ""
-			for i := 0; i < imgHeight; i++ {
-				emptySpaces += strings.Repeat(" ", imgWidth)
-				if i < imgHeight-1 {
-					emptySpaces += "\n"
-				}
-			}
-			leftPanel = frameStyle.Render(emptySpaces)
-			leftPanel = "\x1b[s\x1b[1C\x1b[1B" + coverArtANSI + "\x1b[u" + leftPanel
-		} else {
-			leftPanel = frameStyle.Render(coverArtANSI)
-		}
+		leftPanel = frameStyle.Render(coverArtANSI)
 	} else {
 		placeholderStyle := lipgloss.NewStyle().
 			Width(imgWidth).
@@ -1599,19 +1594,7 @@ func (m model) renderEpisodeDetailsPanel(width, height int) string {
 			Border(lipgloss.NormalBorder()).
 			BorderForeground(lipgloss.Color("#3b4261")).
 			Padding(0)
-		if strings.HasPrefix(coverArtANSI, "\x1b") {
-			emptySpaces := ""
-			for i := 0; i < imgHeight; i++ {
-				emptySpaces += strings.Repeat(" ", imgWidth)
-				if i < imgHeight-1 {
-					emptySpaces += "\n"
-				}
-			}
-			leftPanel = frameStyle.Render(emptySpaces)
-			leftPanel = "\x1b[s\x1b[1C\x1b[1B" + coverArtANSI + "\x1b[u" + leftPanel
-		} else {
-			leftPanel = frameStyle.Render(coverArtANSI)
-		}
+		leftPanel = frameStyle.Render(coverArtANSI)
 	} else {
 		placeholderStyle := lipgloss.NewStyle().
 			Width(imgWidth).
@@ -1716,23 +1699,20 @@ func (m model) renderEpisodeDetailsPanel(width, height int) string {
 }
 
 func cleanHTML(input string) string {
-	r := strings.NewReplacer("<br>", "\n", "<br/>", "\n", "<br />", "\n")
-	s := r.Replace(input)
-	re := regexp.MustCompile("<[^>]*>")
-	s = re.ReplaceAllString(s, "")
-	s = strings.ReplaceAll(s, "&quot;", "\"")
-	s = strings.ReplaceAll(s, "&amp;", "&")
-	s = strings.ReplaceAll(s, "&lt;", "<")
-	s = strings.ReplaceAll(s, "&gt;", ">")
-	s = strings.ReplaceAll(s, "&apos;", "'")
-	s = strings.ReplaceAll(s, "&#039;", "'")
-	s = strings.ReplaceAll(s, "&rsquo;", "'")
-	s = strings.ReplaceAll(s, "&lsquo;", "'")
-	s = strings.ReplaceAll(s, "&ldquo;", "\"")
-	s = strings.ReplaceAll(s, "&rdquo;", "\"")
-	s = strings.ReplaceAll(s, "&ndash;", "–")
-	s = strings.ReplaceAll(s, "&mdash;", "—")
-	s = strings.ReplaceAll(s, "&hellip;", "…")
+	s := html.UnescapeString(input)
+	reBr := regexp.MustCompile(`(?i)<br\s*/?>`)
+	s = reBr.ReplaceAllString(s, "\n")
+	reTags := regexp.MustCompile(`<[^>]*>`)
+	s = reTags.ReplaceAllString(s, "")
+	
+	// Normalize typographic punctuation to standard ASCII
+	s = strings.ReplaceAll(s, "’", "'")
+	s = strings.ReplaceAll(s, "‘", "'")
+	s = strings.ReplaceAll(s, "“", "\"")
+	s = strings.ReplaceAll(s, "”", "\"")
+	s = strings.ReplaceAll(s, "–", "-")
+	s = strings.ReplaceAll(s, "—", "-")
+	s = strings.ReplaceAll(s, "…", "...")
 	return strings.TrimSpace(s)
 }
 

@@ -36,9 +36,17 @@ local function save_positions(positions)
     end
 end
 
+local last_time = nil
+
+mp.observe_property("time-pos", "number", function(_, val)
+    if val then
+        last_time = val
+    end
+end)
+
 local function update_position()
     if not mal_id or mal_id == "" or mal_id == "0" then return end
-    local time = mp.get_property_pos and mp.get_property_number("time-pos") or mp.get_property_number("time-pos")
+    local time = last_time or mp.get_property_number("time-pos")
     local duration = mp.get_property_number("duration") or jikan_duration or 1440.0
     if time and duration and duration > 0 then
         local percent = time / duration

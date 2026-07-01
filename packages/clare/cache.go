@@ -185,19 +185,15 @@ func renderImageANSI(imgPath string, width, height int) string {
 		return ""
 	}
 	widthStr := fmt.Sprintf("%dx%d", width, height)
+	debugLog("renderImageANSI: rendering image %s to dimensions %s with symbols", imgPath, widthStr)
 
-	cmd := exec.Command("chafa", "-f", "sixels", "-s", widthStr, imgPath)
+	cmd := exec.Command("chafa", "-f", "symbols", "-s", widthStr, "--symbols", "block", "--colors", "256", imgPath)
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	err := cmd.Run()
 	if err != nil {
-		// Fallback to symbols format if sixels fails
-		cmd = exec.Command("chafa", "-f", "symbols", "-s", widthStr, "--symbols", "block", "--colors", "256", imgPath)
-		out.Reset()
-		cmd.Stdout = &out
-		if cmd.Run() != nil {
-			return ""
-		}
+		debugLog("renderImageANSI error running chafa: %v", err)
+		return ""
 	}
 	return out.String()
 }

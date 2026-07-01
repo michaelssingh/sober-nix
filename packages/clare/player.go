@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"os"
 	"os/exec"
@@ -131,7 +130,7 @@ func parseJikanDuration(d string) float64 {
 	return 1440.0 // Default 24 mins
 }
 
-func getMpvCmd(streamURL string, title string, epNo string, malID string, durationStr string, extraArgs []string) (*exec.Cmd, string, error) {
+func getMpvCmd(streamURL string, title string, epNo string, malID string, durationStr string, extraArgs []string) (*exec.Cmd, string, string, error) {
 	durationSeconds := parseJikanDuration(durationStr)
 	epVal := parseEpisodeNumber(epNo)
 
@@ -144,23 +143,99 @@ local jikan_duration = %f
 
 	tmpFile, err := os.CreateTemp("", "clare-save-position-*.lua")
 	if err != nil {
-		return nil, "", err
+		return nil, "", "", err
 	}
 	if _, err := tmpFile.WriteString(luaContent); err != nil {
 		tmpFile.Close()
 		os.Remove(tmpFile.Name())
-		return nil, "", err
+		return nil, "", "", err
 	}
 	tmpFile.Close()
 
 	args := []string{
-		"--really-quiet",
 		"--tls-verify=no",
 		"--force-media-title=" + title + " - Episode " + epNo,
 		"--script=" + tmpFile.Name(),
 		"--http-header-fields=Referer: " + AllAnimeReferer + ",User-Agent: " + UserAgent,
 		"--input-ipc-server=/tmp/clare-mpv.sock",
 		"--osc=yes",
+	}
+
+	// Fetch AniSkip times synchronously and generate FFmpeg metadata chapters file
+	tempChaptersFile := ""
+	if malID != "" && malID != "0" {
+		debugLog("getMpvCmd: fetching AniSkip skip times for malID=%s, epNo=%s", malID, epNo)
+		times := fetchAniSkipTimes(malID, epNo, durationSeconds)
+		if len(times) > 0 {
+			var ffmetadata strings.Builder
+			ffmetadata.WriteString(";FFMETADATA1\n")
+
+			opStart := -1.0
+			opEnd := -1.0
+			edStart := -1.0
+			edEnd := -1.0
+			for _, t := range times {
+				if t.SkipType == "op" || t.SkipType == "mixed-op" {
+					opStart = t.Interval.StartTime
+					opEnd = t.Interval.EndTime
+				} else if t.SkipType == "ed" || t.SkipType == "mixed-ed" {
+					edStart = t.Interval.StartTime
+					edEnd = t.Interval.EndTime
+				}
+			}
+
+			type chap struct {
+				title string
+				start int64
+				end   int64
+			}
+			var chaps []chap
+
+			if opStart > 0 {
+				chaps = append(chaps, chap{title: "Prologue", start: 0, end: int64(opStart * 1000)})
+				chaps = append(chaps, chap{title: "Opening", start: int64(opStart * 1000), end: int64(opEnd * 1000)})
+				chaps = append(chaps, chap{title: "Episode Start", start: int64(opEnd * 1000), end: int64(durationSeconds * 1000)})
+			} else if opStart == 0 {
+				chaps = append(chaps, chap{title: "Opening", start: 0, end: int64(opEnd * 1000)})
+				chaps = append(chaps, chap{title: "Episode Start", start: int64(opEnd * 1000), end: int64(durationSeconds * 1000)})
+			} else {
+				chaps = append(chaps, chap{title: "Episode Start", start: 0, end: int64(durationSeconds * 1000)})
+			}
+
+			if edStart > 0 {
+				if len(chaps) > 0 {
+					chaps[len(chaps)-1].end = int64(edStart * 1000)
+				}
+				chaps = append(chaps, chap{title: "Ending", start: int64(edStart * 1000), end: int64(edEnd * 1000)})
+				if edEnd < durationSeconds {
+					chaps = append(chaps, chap{title: "Outro", start: int64(edEnd * 1000), end: int64(durationSeconds * 1000)})
+				}
+			}
+
+			for _, c := range chaps {
+				ffmetadata.WriteString("[CHAPTER]\n")
+				ffmetadata.WriteString("TIMEBASE=1/1000\n")
+				fmt.Fprintf(&ffmetadata, "START=%d\n", c.start)
+				fmt.Fprintf(&ffmetadata, "END=%d\n", c.end)
+				fmt.Fprintf(&ffmetadata, "title=%s\n\n", c.title)
+			}
+
+			cf, err := os.CreateTemp("", "clare-chapters-*.txt")
+			if err == nil {
+				_, _ = cf.WriteString(ffmetadata.String())
+				cf.Close()
+				tempChaptersFile = cf.Name()
+				debugLog("getMpvCmd: created chapters file %s with payload:\n%s", tempChaptersFile, ffmetadata.String())
+			} else {
+				debugLog("getMpvCmd: error creating temp chapters file: %v", err)
+			}
+		} else {
+			debugLog("getMpvCmd: AniSkip returned no skip times for malID=%s, epNo=%s", malID, epNo)
+		}
+	}
+
+	if tempChaptersFile != "" {
+		args = append(args, "--chapters-file="+tempChaptersFile)
 	}
 
 	// Retrieve resume position from positions.json and append --start if present
@@ -176,20 +251,21 @@ local jikan_duration = %f
 	}
 	if startSeconds > 0 {
 		args = append(args, fmt.Sprintf("--start=%f", startSeconds))
+		debugLog("getMpvCmd: resuming episode %s at position %f seconds", epNo, startSeconds)
 	}
 
 	args = append(args, extraArgs...)
 	args = append(args, streamURL)
 
 	cmd := exec.Command("mpv", args...)
-	return cmd, tmpFile.Name(), nil
+	return cmd, tmpFile.Name(), tempChaptersFile, nil
 }
 
-func playSingleCmd(streamURL, title, epNo, malID, durationStr string) (*exec.Cmd, string, error) {
+func playSingleCmd(streamURL, title, epNo, malID, durationStr string) (*exec.Cmd, string, string, error) {
 	return getMpvCmd(streamURL, title, epNo, malID, durationStr, nil)
 }
 
-func playDualCmd(subStream, dubStream string, title, epNo, malID, durationStr string) (*exec.Cmd, string, error) {
+func playDualCmd(subStream, dubStream string, title, epNo, malID, durationStr string) (*exec.Cmd, string, string, error) {
 	subTracks := countAudioStreams(subStream)
 	if subTracks <= 0 {
 		debugLog("playDualCmd: subTracks is %d, falling back to 1", subTracks)
@@ -224,71 +300,4 @@ func downloadCmd(streamURL, title, epNo string) *exec.Cmd {
 		)
 	}
 	return cmd
-}
-
-func monitorAndInjectChapters(malID, epNo string, duration float64) {
-	if malID == "" || malID == "0" {
-		return
-	}
-	skipTimes := fetchAniSkipTimes(malID, epNo, duration)
-	if len(skipTimes) == 0 {
-		return
-	}
-
-	var chapters []map[string]any
-	opStart := -1.0
-	opEnd := -1.0
-	edStart := -1.0
-	edEnd := -1.0
-
-	for _, t := range skipTimes {
-		if t.SkipType == "op" || t.SkipType == "mixed-op" {
-			opStart = t.Interval.StartTime
-			opEnd = t.Interval.EndTime
-		} else if t.SkipType == "ed" || t.SkipType == "mixed-ed" {
-			edStart = t.Interval.StartTime
-			edEnd = t.Interval.EndTime
-		}
-	}
-
-	if opStart > 0 {
-		chapters = append(chapters, map[string]any{"title": "Prologue", "time": 0.0})
-		chapters = append(chapters, map[string]any{"title": "Opening", "time": opStart})
-		chapters = append(chapters, map[string]any{"title": "Episode Start", "time": opEnd})
-	} else if opStart == 0 {
-		chapters = append(chapters, map[string]any{"title": "Opening", "time": 0.0})
-		chapters = append(chapters, map[string]any{"title": "Episode Start", "time": opEnd})
-	} else {
-		chapters = append(chapters, map[string]any{"title": "Episode Start", "time": 0.0})
-	}
-
-	if edStart > 0 {
-		chapters = append(chapters, map[string]any{"title": "Ending", "time": edStart})
-		if edEnd < duration {
-			chapters = append(chapters, map[string]any{"title": "Outro", "time": edEnd})
-		}
-	}
-
-	socketPath := "/tmp/clare-mpv.sock"
-	for i := 0; i < 30; i++ {
-		conn, err := net.Dial("unix", socketPath)
-		if err == nil {
-			defer conn.Close()
-			payload := map[string]any{
-				"command": []any{
-					"set_property",
-					"chapter-list",
-					chapters,
-				},
-			}
-			data, err := json.Marshal(payload)
-			if err == nil {
-				conn.Write(append(data, '\n'))
-				debugLog("monitorAndInjectChapters: successfully injected chapters payload: %s", string(data))
-			}
-			return
-		}
-		time.Sleep(200 * time.Millisecond)
-	}
-	debugLog("monitorAndInjectChapters: failed to connect to mpv IPC socket after 6 seconds")
 }
