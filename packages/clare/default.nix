@@ -1,8 +1,15 @@
-{ lib, buildGoModule, makeWrapper, ffmpeg, yt-dlp, mpv }:
+{
+  lib,
+  buildGoModule,
+  makeWrapper,
+  ffmpeg,
+  yt-dlp,
+  mpv,
+}:
 
 buildGoModule {
   pname = "clare";
-  version = "0.1.16";
+  version = "0.1.17";
 
   src = ./.;
 
@@ -12,6 +19,12 @@ buildGoModule {
 
   postInstall = ''
     wrapProgram $out/bin/clare \
-      --suffix PATH : ${lib.makeBinPath [ ffmpeg yt-dlp mpv ]}
+      --suffix PATH : ${
+        lib.makeBinPath [
+          ffmpeg
+          yt-dlp
+          mpv
+        ]
+      }
   '';
 }
