@@ -43,6 +43,8 @@ if [ ! -d "$REPO_DIR/.git" ]; then
     git clone https://github.com/michaelssingh/sober-nix.git "$REPO_DIR"
 else
     ok "Repository already cloned at $REPO_DIR"
+    step "Updating repository..."
+    git -C "$REPO_DIR" pull
 fi
 
 # 3. Setup SOPS age keys
