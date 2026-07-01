@@ -120,8 +120,10 @@ sandbox = false
 max-jobs = 8
 cores = 0
 experimental-features = nix-command flakes
+substituters = https://cache.nixos.org https://sober-nix.cachix.org
+trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= sober-nix.cachix.org-1:5txyMvuBOEoGah9zLW5SHrdLD92/h7eMiSv3VkErSG4=
 EOF
-ok "Nix local options configured (sandbox=true, max-jobs=8, cores=0)"
+ok "Nix local options configured (sandbox=false, max-jobs=8, cores=0, cachix=enabled)"
 
 # 5. Apply Home Manager configuration
 step "Applying Home Manager configuration (#sprite)..."
