@@ -49,7 +49,18 @@ if [ ! -f "$HOME/.config/sops/age/keys.txt" ]; then
 fi
 ok "SOPS Age Key ready"
 
-# 4. Apply Home Manager configuration
+# 4. Configure Nix local options for build optimization and sandboxing
+step "Configuring Nix local options..."
+mkdir -p "$HOME/.config/nix"
+cat <<EOF > "$HOME/.config/nix/nix.conf"
+sandbox = true
+max-jobs = 8
+cores = 0
+experimental-features = nix-command flakes
+EOF
+ok "Nix local options configured (sandbox=true, max-jobs=8, cores=0)"
+
+# 5. Apply Home Manager configuration
 step "Applying Home Manager configuration (#sprite)..."
 cd "$REPO_DIR"
 

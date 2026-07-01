@@ -82,6 +82,7 @@ in
 
   # --- Declarative Nix configuration for the daemon ---
   home.file.".nix.conf_source".text = ''
+    sandbox = true
     build-users-group = nixbld
     trusted-users = root sprite
     experimental-features = nix-command flakes
