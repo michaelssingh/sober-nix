@@ -118,7 +118,7 @@ mkdir -p "$HOME/.config/nix"
 cat <<EOF > "$HOME/.config/nix/nix.conf"
 sandbox = false
 max-jobs = 8
-cores = 0
+cores = 1
 experimental-features = nix-command flakes
 substituters = https://cache.nixos.org https://sober-nix.cachix.org
 trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= sober-nix.cachix.org-1:5txyMvuBOEoGah9zLW5SHrdLD92/h7eMiSv3VkErSG4=
