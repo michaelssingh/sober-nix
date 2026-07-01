@@ -22,6 +22,9 @@
         "text/html" =
           "${pkgs.bubblewrap}/bin/bwrap --unshare-net --dev-bind / / ${pkgs.w3m}/bin/w3m -T text/html -O UTF-8 -o display_link_number=1 -dump | colorize";
       };
+      triggers = {
+        new-email = "exec notify-send \"New email from %n\" \"%s\"";
+      };
     };
   };
 }
