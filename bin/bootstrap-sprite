@@ -29,6 +29,7 @@ if ! command -v nix >/dev/null 2>&1; then
     elif [ -f "/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh" ]; then
         source "/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh"
     fi
+    export PATH="$HOME/.nix-profile/bin:/nix/var/nix/profiles/default/bin:$PATH"
 else
     ok "Nix is already installed: $(nix --version)"
 fi
