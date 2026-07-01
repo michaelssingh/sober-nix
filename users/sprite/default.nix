@@ -12,7 +12,10 @@ in
 {
   imports = [
     inputs.sops-nix.homeManagerModules.sops
-    ../michael/minimal.nix
+    ../../modules/home/core/ssh.nix
+    ../../modules/home/core/cli.nix
+    ../../modules/home/core/shell.nix
+    ../../modules/home/core/tmux.nix
     ../../modules/home/core/sober.nix
   ];
 
