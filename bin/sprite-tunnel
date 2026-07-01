@@ -18,7 +18,7 @@ SOCKS_PORT=1080
 AGENT_PORT=9000
 SSH_PORT=2222
 
-SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ExitOnForwardFailure=yes -o ServerAliveInterval=30"
+SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ExitOnForwardFailure=yes -o ServerAliveInterval=30 -o ConnectTimeout=10"
 
 PID_DIR="$HOME/.cache/sprite-tunnel"
 mkdir -p "$PID_DIR"
@@ -50,6 +50,12 @@ stop_all() {
     stop_process "sprite proxy"    "$PROXY_PID_FILE"
     stop_process "socat (agent)"   "$SOCAT_PID_FILE"
     stop_process "SOCKS5 proxy"    "$SOCKS_PID_FILE"
+
+    # Robust fallback: pkill orphaned tunnel processes matching ports and names
+    pkill -f "ssh.*-p $SSH_PORT" 2>/dev/null || true
+    pkill -f "sprite proxy -s $SPRITE_NAME" 2>/dev/null || true
+    pkill -f "socat TCP-LISTEN:$AGENT_PORT" 2>/dev/null || true
+    pkill -f "python3.*socks5-proxy.py $SOCKS_PORT" 2>/dev/null || true
 }
 
 start_tunnel() {

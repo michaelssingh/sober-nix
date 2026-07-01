@@ -14,8 +14,8 @@ VM_HOST="sprite@127.0.0.1"
 VM_PORT="2222"
 FLAKE_DIR="sober-nix" # Directory on the VM
 
-# Configure SSH options to bypass host key prompts
-SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+# Configure SSH options to bypass host key prompts and fail fast on timeouts
+SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=10"
 export NIX_SSHOPTS="$SSH_OPTS"
 
 echo "${BOLD}${CYAN}==> 1. Pulling latest changes on otus...${RESET}"
