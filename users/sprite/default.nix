@@ -110,7 +110,7 @@ in
   };
 
   # --- Sprite Services Setup Activation Hook ---
-  home.activation.configure-sprite-environment = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+  home.activation.configure-sprite-environment = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
             # Export /usr/bin to PATH so that sprite-env can invoke 'curl' and 'jq'
             export PATH="$PATH:/usr/bin"
 
@@ -180,7 +180,7 @@ in
             if ! /.sprite/bin/sprite-env services list | grep -q "nix-daemon"; then
               $DRY_RUN_CMD /.sprite/bin/sprite-env services create nix-daemon \
                 --cmd /usr/bin/sudo \
-                --args "/nix/var/nix/profiles/default/bin/nix-daemon" \
+                --args "/home/sprite/.nix-profile/bin/nix-daemon" \
                 --no-stream
             fi
             $DRY_RUN_CMD /.sprite/bin/sprite-env services start nix-daemon || true
