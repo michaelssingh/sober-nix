@@ -13,9 +13,6 @@ in
   imports = [
     inputs.sops-nix.homeManagerModules.sops
     ../../modules/home/core/ssh.nix
-    ../../modules/home/core/cli.nix
-    ../../modules/home/core/shell.nix
-    ../../modules/home/core/tmux.nix
     ../../modules/home/core/sober.nix
   ];
 
@@ -47,11 +44,14 @@ in
     ripgrep
     fd
     jq
+    socat
     antigravity
     sprite
     cachix
     sops
   ];
+
+  programs.fish.enable = true;
 
   # Declarative antigravity CLI Authentication
   sops.secrets.antigravity_oauth_token = {
