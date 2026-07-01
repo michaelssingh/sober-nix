@@ -58,7 +58,7 @@ func saveJikanCache(malID string, data map[string]JikanEpInfo) error {
 		return nil
 	}
 	path := getJikanCachePath(malID)
-	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}
 	f, err := os.Create(path)
@@ -113,7 +113,7 @@ func saveShowCache(showID string, show AnimeShow, episodes []string) error {
 		return nil
 	}
 	path := getShowCachePath(showID)
-	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}
 	f, err := os.Create(path)
@@ -152,7 +152,7 @@ func downloadThumbnail(showID, urlStr string) (string, error) {
 		return path, nil
 	}
 
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return "", err
 	}
 
@@ -185,12 +185,15 @@ func renderImageANSI(imgPath string, width, height int) string {
 		return ""
 	}
 	widthStr := fmt.Sprintf("%dx%d", width, height)
-	cmd := exec.Command("chafa", "-s", widthStr, "--symbols", "block", "--colors", "256", imgPath)
+
+	// Added "-f", "symbols" to force character symbol mosaics instead of Kitty/Sixel graphics
+	cmd := exec.Command("chafa", "-f", "symbols", "-s", widthStr, "--symbols", "block", "--colors", "256", imgPath)
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	err := cmd.Run()
 	if err != nil {
-		cmd = exec.Command("chafa", "-s", widthStr, imgPath)
+		// Fallback command also updated to force symbols format
+		cmd = exec.Command("chafa", "-f", "symbols", "-s", widthStr, imgPath)
 		out.Reset()
 		cmd.Stdout = &out
 		if cmd.Run() != nil {

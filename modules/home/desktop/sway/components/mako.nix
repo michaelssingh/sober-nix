@@ -24,7 +24,7 @@ in
       layer = "overlay";
       on-notify = "exec ${pkgs.pipewire}/bin/pw-play ${./tri-tone.mp3}";
 
-      "app-name=System Deploy" = {
+      "app-name=\"System Deploy\"" = {
         width = 450; # Wide enough for paths/hashes
         height = 400; # High ceiling that shrinks to fit the log size
         default-timeout = 0; # Keeps it on screen until dismissed
