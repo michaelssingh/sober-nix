@@ -1,11 +1,57 @@
 #!/usr/bin/env bash
 # bin/bootstrap-sprite — Bootstrapper for a new sprite.dev VM.
-# Runs on the remote VM as the `sprite` user.
-# Sets up: Nix → Repo Clone → SOPS Age Key → Home Manager (sprite configuration)
+# Can be run locally on the host, or remotely on the VM.
+# Orchestrates: Destroy VM → Create VM → Push Keys → Run Remote Installer
+
+# If we are running locally on the host, run the orchestration wrapper
+if [ "${1:-}" != "--remote" ]; then
+    GREEN='\033[0;32m'; CYAN='\033[0;36m'; RED='\033[0;31m'; RESET='\033[0m'
+    
+    echo -e "${CYAN}==> 1. Checking sprite environment for active 'agy' instance...${RESET}"
+    if sprite list | grep -q "agy"; then
+        echo -e "${CYAN}==> 2. Destroying existing 'agy' sprite (silent bypass)...${RESET}"
+        # Pipe 'y' to bypass the confirmation prompt
+        echo "y" | sprite destroy agy >/dev/null
+    fi
+    
+    echo -e "${CYAN}==> 3. Creating fresh 'agy' sprite instance...${RESET}"
+    # Run the create command in the background, check if successful, and terminate the console session once created
+    sprite create agy >/dev/null &
+    CREATE_PID=$!
+    
+    # Wait for the sprite to be created by monitoring 'sprite list'
+    for i in {1..30}; do
+        if sprite list | grep -q "agy"; then
+            break
+        fi
+        sleep 1
+    done
+    kill $CREATE_PID 2>/dev/null || true
+    
+    # Check if sprite was successfully created
+    if ! sprite list | grep -q "agy"; then
+        echo -e "${RED}Error: Failed to create 'agy' sprite.${RESET}" >&2
+        exit 1
+    fi
+    
+    echo -e "${CYAN}==> 4. Setting active sprite for current directory...${RESET}"
+    sprite use agy >/dev/null
+    
+    # Read the local age key if it exists
+    SOPS_KEY=""
+    if [ -f "$HOME/.config/sops/age/keys.txt" ]; then
+        SOPS_KEY=$(cat "$HOME/.config/sops/age/keys.txt")
+    fi
+    
+    echo -e "${CYAN}==> 5. Transferring age keys and starting bootstrap on remote VM...${RESET}"
+    # Pipe the script itself to bash on the remote VM, passing the SOPS key in the environment
+    cat "$0" | sprite exec -- env SOPS_AGE_KEY="$SOPS_KEY" bash -s -- --remote
+    
+    exit $?
+fi
 
 set -euo pipefail
 export USER=sprite
-
 
 GREEN='\033[0;32m'; CYAN='\033[0;36m'; RESET='\033[0m'
 step() { echo -e "\n${CYAN}▶ $*${RESET}"; }
