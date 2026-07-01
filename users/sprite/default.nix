@@ -176,7 +176,10 @@ in
             } /etc/nix/nix.conf
             $DRY_RUN_CMD /usr/bin/sudo chmod 644 /etc/nix/nix.conf
 
-            # 2. Register nix-daemon as a Sprite service if not present
+            # 2. Register nix-daemon as a Sprite service if not present, or recreate if legacy path is found
+            if /.sprite/bin/sprite-env services list | grep -q "nix-daemon" && ! /.sprite/bin/sprite-env services list | grep -q ".nix-profile/bin/nix-daemon"; then
+              $DRY_RUN_CMD /.sprite/bin/sprite-env services delete nix-daemon
+            fi
             if ! /.sprite/bin/sprite-env services list | grep -q "nix-daemon"; then
               $DRY_RUN_CMD /.sprite/bin/sprite-env services create nix-daemon \
                 --cmd /usr/bin/sudo \
