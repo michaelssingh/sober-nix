@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -184,3 +185,77 @@ func savePositions(data PositionsData) error {
 	encoder.SetIndent("", "  ")
 	return encoder.Encode(data)
 }
+
+func getSearchHistoryPath() string {
+	dir := os.Getenv("CLARE_STATE_DIR")
+	if dir == "" {
+		stateHome := os.Getenv("XDG_STATE_HOME")
+		if stateHome == "" {
+			home, _ := os.UserHomeDir()
+			stateHome = filepath.Join(home, ".local", "state")
+		}
+		dir = filepath.Join(stateHome, "clare")
+	}
+	return filepath.Join(dir, "search_history.json")
+}
+
+func loadSearchHistory() ([]string, error) {
+	path := getSearchHistoryPath()
+	f, err := os.Open(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return []string{}, nil
+		}
+		return nil, err
+	}
+	defer f.Close()
+
+	var history []string
+	if err := json.NewDecoder(f).Decode(&history); err != nil {
+		return nil, err
+	}
+	return history, nil
+}
+
+func saveSearchHistory(history []string) error {
+	path := getSearchHistoryPath()
+	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+		return err
+	}
+	f, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	encoder := json.NewEncoder(f)
+	encoder.SetIndent("", "  ")
+	return encoder.Encode(history)
+}
+
+func recordSearch(query string) error {
+	query = strings.TrimSpace(query)
+	if query == "" {
+		return nil
+	}
+
+	history, err := loadSearchHistory()
+	if err != nil {
+		history = []string{}
+	}
+
+	var filtered []string
+	for _, q := range history {
+		if q != query {
+			filtered = append(filtered, q)
+		}
+	}
+
+	history = append([]string{query}, filtered...)
+	if len(history) > 20 {
+		history = history[:20]
+	}
+
+	return saveSearchHistory(history)
+}
+

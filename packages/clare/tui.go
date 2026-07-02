@@ -114,15 +114,39 @@ func (h historyItem) Description() string {
 		parts = append(parts, fmt.Sprintf("Last: Ep %s", h.lastEp))
 	}
 	if h.progressPct >= 0 && h.totalEps > 0 {
-		filled := int(h.progressPct * 8)
-		if filled > 8 {
-			filled = 8
-		}
-		bar := strings.Repeat("▓", filled) + strings.Repeat("░", 8-filled)
+		bar := renderSmoothProgressBar(h.progressPct, 8)
 		parts = append(parts, fmt.Sprintf("[%s] %d%%", bar, int(h.progressPct*100)))
 	}
 	parts = append(parts, ago)
 	return strings.Join(parts, "  ·  ")
+}
+
+func renderSmoothProgressBar(pct float64, width int) string {
+	if pct < 0 {
+		return ""
+	}
+	if pct > 1.0 {
+		pct = 1.0
+	}
+
+	blocks := []string{" ", "▏", "▎", "▍", "▌", "▋", "▊", "▉", "█"}
+	fullBlocksCount := int(pct * float64(width))
+	remainder := pct*float64(width) - float64(fullBlocksCount)
+	remainderIndex := int(remainder * 8)
+
+	var bar strings.Builder
+	for i := 0; i < fullBlocksCount; i++ {
+		bar.WriteString("█")
+	}
+	if fullBlocksCount < width {
+		bar.WriteString(blocks[remainderIndex])
+		for i := fullBlocksCount + 1; i < width; i++ {
+			bar.WriteString(" ")
+		}
+	}
+	
+	barStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#7dcfff")) // Tokyonight ice blue
+	return barStyle.Render(bar.String())
 }
 
 func (h historyItem) FilterValue() string { return h.showName }
@@ -279,6 +303,8 @@ type model struct {
 	activeCmd           *exec.Cmd
 	clareLogChan        chan string
 	showCompleted       bool // whether to include completed shows in history list
+	searchHistory       []string
+	searchHistoryIndex  int
 }
 
 func createMinimalList(title string) list.Model {
@@ -386,10 +412,21 @@ func initialModel(initialSearch, mode, quality string, download bool) model {
 		m.loadingMsg = fmt.Sprintf("Searching for %q...", initialSearch)
 	} else if len(m.historyItems) == 0 {
 		m.state = stateSearchInput
+		m.searchHistory, _ = loadSearchHistory()
+		m.searchHistoryIndex = -1
 	}
 
 	return m
 }
+
+func (m *model) enterSearchState() {
+	m.state = stateSearchInput
+	m.searchInput.Reset()
+	m.searchInput.Focus()
+	m.searchHistory, _ = loadSearchHistory()
+	m.searchHistoryIndex = -1
+}
+
 
 func (m *model) refreshHistory() {
 	rawHist, err := loadHistory()
@@ -967,9 +1004,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		case "2":
 			if m.state != stateSearchInput {
-				m.state = stateSearchInput
-				m.searchInput.Reset()
-				m.searchInput.Focus()
+				m.enterSearchState()
 				return m, nil
 			}
 		case "3":
@@ -980,9 +1015,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "tab":
 			if m.state != stateSearchInput {
 				if m.state == stateHistory {
-					m.state = stateSearchInput
-					m.searchInput.Reset()
-					m.searchInput.Focus()
+					m.enterSearchState()
 				} else if m.state == stateSearchInput || m.state == stateSearchRunning || m.state == stateShowSelect {
 					m.state = stateLogs
 				} else {
@@ -1026,9 +1059,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				return m, nil
 			case "s", "/":
-				m.state = stateSearchInput
-				m.searchInput.Reset()
-				m.searchInput.Focus()
+				m.enterSearchState()
 				return m, nil
 			case "left", "h":
 				m.detailsScrollOffset--
@@ -1081,9 +1112,27 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case stateSearchInput:
 			switch msg.String() {
+			case "up":
+				if len(m.searchHistory) > 0 && m.searchHistoryIndex < len(m.searchHistory)-1 {
+					m.searchHistoryIndex++
+					m.searchInput.SetValue(m.searchHistory[m.searchHistoryIndex])
+					m.searchInput.SetCursor(len(m.searchHistory[m.searchHistoryIndex]))
+				}
+				return m, nil
+			case "down":
+				if m.searchHistoryIndex > 0 {
+					m.searchHistoryIndex--
+					m.searchInput.SetValue(m.searchHistory[m.searchHistoryIndex])
+					m.searchInput.SetCursor(len(m.searchHistory[m.searchHistoryIndex]))
+				} else if m.searchHistoryIndex == 0 {
+					m.searchHistoryIndex = -1
+					m.searchInput.SetValue("")
+				}
+				return m, nil
 			case "enter":
 				query := strings.TrimSpace(m.searchInput.Value())
 				if query != "" {
+					_ = recordSearch(query)
 					m.state = stateSearchRunning
 					m.loadingMsg = fmt.Sprintf("Searching for %q...", query)
 					return m, doSearch(query, "sub")
@@ -1094,6 +1143,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				} else {
 					return m, tea.Quit
 				}
+			default:
+				m.searchHistoryIndex = -1
 			}
 			var cmd tea.Cmd
 			m.searchInput, cmd = m.searchInput.Update(msg)
@@ -1366,8 +1417,21 @@ func (m model) View() string {
 
 	case stateSearchInput:
 		s.WriteString(accentColorStyle.Render("Search Anime:") + "\n\n")
-		s.WriteString(m.searchInput.View())
-		s.WriteString("\n\n" + helpStyle("enter: search | esc: cancel"))
+		s.WriteString(m.searchInput.View() + "\n\n")
+
+		if len(m.searchHistory) > 0 {
+			s.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("#565f89")).Bold(true).Render("Recent Searches:") + "\n")
+			for i, q := range m.searchHistory {
+				if i == m.searchHistoryIndex {
+					s.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("#7aa2f7")).Render(fmt.Sprintf("  ❯ %s", q)) + "\n")
+				} else {
+					s.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("#9ece6a")).Render(fmt.Sprintf("    %s", q)) + "\n")
+				}
+			}
+			s.WriteString("\n")
+		}
+
+		s.WriteString(helpStyle("enter: search | up/down: browse history | esc: cancel"))
 
 	case stateSearchRunning:
 		s.WriteString(fmt.Sprintf("%s %s\n", m.spinner.View(), m.loadingMsg))

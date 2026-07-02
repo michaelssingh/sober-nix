@@ -873,4 +873,86 @@ func TestPlayerResumePosition(t *testing.T) {
 	}
 }
 
+func TestSearchHistory(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "clare-search-history-test-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	origStateDir := os.Getenv("CLARE_STATE_DIR")
+	os.Setenv("CLARE_STATE_DIR", tmpDir)
+	defer os.Setenv("CLARE_STATE_DIR", origStateDir)
+
+	// Save search history
+	err = recordSearch("Frieren")
+	if err != nil {
+		t.Fatalf("recordSearch failed: %v", err)
+	}
+	err = recordSearch("One Piece")
+	if err != nil {
+		t.Fatalf("recordSearch failed: %v", err)
+	}
+	err = recordSearch("Frieren") // should move to front
+	if err != nil {
+		t.Fatalf("recordSearch failed: %v", err)
+	}
+
+	hist, err := loadSearchHistory()
+	if err != nil {
+		t.Fatalf("loadSearchHistory failed: %v", err)
+	}
+
+	if len(hist) != 2 {
+		t.Fatalf("expected 2 unique queries, got %d", len(hist))
+	}
+	if hist[0] != "Frieren" || hist[1] != "One Piece" {
+		t.Errorf("unexpected history order: %v", hist)
+	}
+
+	// Test TUI integration
+	m := initialModel("", "sub", "best", false)
+	m.enterSearchState()
+
+	if len(m.searchHistory) != 2 || m.searchHistory[0] != "Frieren" {
+		t.Errorf("Expected searchHistory on model to be populated, got %v", m.searchHistory)
+	}
+
+	// Pressing UP key should set input to first history item: "Frieren"
+	msg := tea.KeyMsg{Type: tea.KeyUp}
+	updated, _ := m.Update(msg)
+	mUpdated := updated.(model)
+
+	if mUpdated.searchInput.Value() != "Frieren" {
+		t.Errorf("Expected searchInput value to be 'Frieren', got %q", mUpdated.searchInput.Value())
+	}
+	if mUpdated.searchHistoryIndex != 0 {
+		t.Errorf("Expected searchHistoryIndex to be 0, got %d", mUpdated.searchHistoryIndex)
+	}
+
+	// Pressing UP again should set input to second history item: "One Piece"
+	updated, _ = mUpdated.Update(msg)
+	mUpdated = updated.(model)
+
+	if mUpdated.searchInput.Value() != "One Piece" {
+		t.Errorf("Expected searchInput value to be 'One Piece', got %q", mUpdated.searchInput.Value())
+	}
+	if mUpdated.searchHistoryIndex != 1 {
+		t.Errorf("Expected searchHistoryIndex to be 1, got %d", mUpdated.searchHistoryIndex)
+	}
+
+	// Pressing DOWN should go back to "Frieren"
+	msg = tea.KeyMsg{Type: tea.KeyDown}
+	updated, _ = mUpdated.Update(msg)
+	mUpdated = updated.(model)
+
+	if mUpdated.searchInput.Value() != "Frieren" {
+		t.Errorf("Expected searchInput value to be 'Frieren' after DOWN key, got %q", mUpdated.searchInput.Value())
+	}
+	if mUpdated.searchHistoryIndex != 0 {
+		t.Errorf("Expected searchHistoryIndex to be 0, got %d", mUpdated.searchHistoryIndex)
+	}
+}
+
+
 
