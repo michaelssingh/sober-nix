@@ -670,10 +670,35 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		// Global keys
 		switch msg.String() {
-		case "ctrl+c", "q":
+		case "ctrl+c":
+			return m, tea.Quit
+		case "q":
 			// Don't quit with 'q' if we are typing in text input
 			if m.state != stateSearchInput {
 				return m, tea.Quit
+			}
+		case "1":
+			if m.state != stateSearchInput && m.state != stateEpisodeSelect && m.state != statePlaybackActive {
+				m.state = stateHistory
+				return m, nil
+			}
+		case "2":
+			if m.state != stateSearchInput && m.state != stateEpisodeSelect && m.state != statePlaybackActive {
+				m.state = stateSearchInput
+				m.searchInput.Reset()
+				m.searchInput.Focus()
+				return m, nil
+			}
+		case "tab":
+			if m.state != stateSearchInput && m.state != stateEpisodeSelect && m.state != statePlaybackActive {
+				if m.state == stateHistory {
+					m.state = stateSearchInput
+					m.searchInput.Reset()
+					m.searchInput.Focus()
+				} else {
+					m.state = stateHistory
+				}
+				return m, nil
 			}
 		}
 
@@ -934,9 +959,41 @@ func (m model) View() string {
 
 	// Top Banner
 	s.WriteString(titleStyle.Render(" CLARE "))
-	s.WriteString("\n")
+	s.WriteString("\n\n")
 
-	listHeight := m.height - 6
+	// Navigation Tabs
+	activeTabStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("#7aa2f7")).
+		Border(lipgloss.NormalBorder(), false, false, true, false).
+		BorderForeground(lipgloss.Color("#7aa2f7")).
+		Padding(0, 2)
+
+	inactiveTabStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#565f89")).
+		Border(lipgloss.NormalBorder(), false, false, true, false).
+		BorderForeground(lipgloss.Color("#3b4261")).
+		Padding(0, 2)
+
+	var tabs []string
+	showTabs := false
+	if m.state == stateHistory {
+		tabs = append(tabs, activeTabStyle.Render("Continue Watching [1]"))
+		tabs = append(tabs, inactiveTabStyle.Render("Search [2]"))
+		showTabs = true
+	} else if m.state == stateSearchInput || m.state == stateSearchRunning || m.state == stateShowSelect {
+		tabs = append(tabs, inactiveTabStyle.Render("Continue Watching [1]"))
+		tabs = append(tabs, activeTabStyle.Render("Search [2]"))
+		showTabs = true
+	}
+
+	listOffset := 6
+	if showTabs {
+		s.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, tabs...) + "\n\n")
+		listOffset = 9
+	}
+
+	listHeight := m.height - listOffset
 	if listHeight < 5 {
 		listHeight = 5
 	}
@@ -1412,42 +1469,9 @@ func (m model) renderShowDetailsPanel(show AnimeShow, coverArtANSI string, width
 	if desc == "" {
 		desc = "No synopsis available."
 	}
-
-	// Layout size calculations:
-	// We split horizontally: Left is cover art, Right is metadata/synopsis
-	imgWidth := 16
-	imgHeight := 11
 	
-	var leftPanel string
-	if coverArtANSI == "Loading..." {
-		placeholderStyle := lipgloss.NewStyle().
-			Width(imgWidth).
-			Height(imgHeight).
-			Border(lipgloss.RoundedBorder()).
-			BorderForeground(lipgloss.Color("#3b4261")).
-			Align(lipgloss.Center, lipgloss.Center).
-			Foreground(lipgloss.Color("#565f89")).
-			Background(lipgloss.Color("#1a1b26"))
-		leftPanel = placeholderStyle.Render("Loading\nArt...")
-	} else if coverArtANSI != "" {
-		frameStyle := lipgloss.NewStyle().
-			Border(lipgloss.NormalBorder()).
-			BorderForeground(lipgloss.Color("#3b4261")).
-			Padding(0)
-		leftPanel = frameStyle.Render(coverArtANSI)
-	} else {
-		placeholderStyle := lipgloss.NewStyle().
-			Width(imgWidth).
-			Height(imgHeight).
-			Border(lipgloss.RoundedBorder()).
-			BorderForeground(lipgloss.Color("#3b4261")).
-			Align(lipgloss.Center, lipgloss.Center).
-			Foreground(lipgloss.Color("#565f89")).
-			Background(lipgloss.Color("#1a1b26"))
-		leftPanel = placeholderStyle.Render("No Cover\nArt")
-	}
-
-	rightColWidth := width - imgWidth - 8
+	// Layout size calculations:
+	rightColWidth := width - 6
 	if rightColWidth < 15 {
 		rightColWidth = 15
 	}
@@ -1505,13 +1529,10 @@ func (m model) renderShowDetailsPanel(show AnimeShow, coverArtANSI string, width
 		truncatedDesc,
 	)
 
-	// Combine left and right panels side-by-side
-	bodyContent := lipgloss.JoinHorizontal(lipgloss.Top, leftPanel, "  ", rightPanelContent)
-
 	panelContent := fmt.Sprintf(
 		"%s\n%s",
 		headerStyle.Render("◆ SHOW DETAILS ◆"),
-		bodyContent,
+		rightPanelContent,
 	)
 
 	s.WriteString(borderStyle.Render(panelContent))
@@ -1573,41 +1594,8 @@ func (m model) renderEpisodeDetailsPanel(width, height int) string {
 		classification = lipgloss.NewStyle().Foreground(lipgloss.Color("#565f89")).Render("Loading...")
 	}
 
-	// Layout size calculations:
-	imgWidth := 16
-	imgHeight := 11
-	
-	coverArtANSI := m.coverArtCache[m.selectedShow.ID]
-	var leftPanel string
-	if coverArtANSI == "Loading..." {
-		placeholderStyle := lipgloss.NewStyle().
-			Width(imgWidth).
-			Height(imgHeight).
-			Border(lipgloss.RoundedBorder()).
-			BorderForeground(lipgloss.Color("#3b4261")).
-			Align(lipgloss.Center, lipgloss.Center).
-			Foreground(lipgloss.Color("#565f89")).
-			Background(lipgloss.Color("#1a1b26"))
-		leftPanel = placeholderStyle.Render("Loading\nArt...")
-	} else if coverArtANSI != "" {
-		frameStyle := lipgloss.NewStyle().
-			Border(lipgloss.NormalBorder()).
-			BorderForeground(lipgloss.Color("#3b4261")).
-			Padding(0)
-		leftPanel = frameStyle.Render(coverArtANSI)
-	} else {
-		placeholderStyle := lipgloss.NewStyle().
-			Width(imgWidth).
-			Height(imgHeight).
-			Border(lipgloss.RoundedBorder()).
-			BorderForeground(lipgloss.Color("#3b4261")).
-			Align(lipgloss.Center, lipgloss.Center).
-			Foreground(lipgloss.Color("#565f89")).
-			Background(lipgloss.Color("#1a1b26"))
-		leftPanel = placeholderStyle.Render("No Cover\nArt")
-	}
-
-	rightColWidth := width - imgWidth - 8
+		// Layout size calculations:
+	rightColWidth := width - 6
 	if rightColWidth < 15 {
 		rightColWidth = 15
 	}
@@ -1686,12 +1674,10 @@ func (m model) renderEpisodeDetailsPanel(width, height int) string {
 		wrappedSynopsis,
 	)
 
-	bodyContent := lipgloss.JoinHorizontal(lipgloss.Top, leftPanel, "  ", rightPanelContent)
-
 	panelContent := fmt.Sprintf(
 		"%s\n%s",
 		headerStyle.Render("◆ EPISODE DETAILS ◆"),
-		bodyContent,
+		rightPanelContent,
 	)
 
 	s.WriteString(borderStyle.Render(panelContent))
