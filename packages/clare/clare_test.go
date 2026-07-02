@@ -3,7 +3,9 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+	"time"
 )
 
 func TestCleanHTML(t *testing.T) {
@@ -229,5 +231,106 @@ func TestChaptersFileGeneration(t *testing.T) {
 	}
 	if edStart <= opEnd {
 		t.Error("ED should start after OP ends")
+	}
+}
+
+func TestLogStreamingAndFormatting(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "clare-test-logs-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	origStateDir := os.Getenv("CLARE_STATE_DIR")
+	os.Setenv("CLARE_STATE_DIR", tmpDir)
+	defer os.Setenv("CLARE_STATE_DIR", origStateDir)
+
+	logChan := make(chan string, 10)
+
+	logFile := filepath.Join(tmpDir, "debug.log")
+	f, err := os.OpenFile(logFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+	if err != nil {
+		t.Fatalf("failed to open log file: %v", err)
+	}
+	_, _ = f.WriteString("[00:00:00] Initial setup log\n")
+	_ = f.Close()
+
+	go tailLogFile(logChan)
+
+	time.Sleep(600 * time.Millisecond)
+
+	f, err = os.OpenFile(logFile, os.O_WRONLY|os.O_APPEND, 0644)
+	if err != nil {
+		t.Fatalf("failed to open log file for appending: %v", err)
+	}
+	
+	testMsg := "HTTP Request: GET https://api.jikan.moe/v4/anime/889"
+	_, _ = f.WriteString("[12:34:56] " + testMsg + "\n")
+	_ = f.Close()
+
+	select {
+	case line := <-logChan:
+		t.Logf("Read tailed log line: %q", line)
+		if !strings.HasPrefix(line, "[12:34:56]") {
+			t.Errorf("Expected line to start with timestamp '[12:34:56]', got %q", line)
+		}
+		if !strings.Contains(line, testMsg) {
+			t.Errorf("Expected line to contain test message %q, got %q", testMsg, line)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("Timeout waiting for tailed log line from logChan")
+	}
+
+	mpvLogChan := make(chan string, 10)
+	go func() {
+		mpvLogChan <- "[MPV] AV: 00:01:23 / 00:23:28"
+	}()
+
+	select {
+	case mpvLine := <-mpvLogChan:
+		t.Logf("Read MPV log line: %q", mpvLine)
+		if !strings.HasPrefix(mpvLine, "[MPV] ") {
+			t.Errorf("Expected MPV log line to start with '[MPV] ', got %q", mpvLine)
+		}
+	case <-time.After(1 * time.Second):
+		t.Fatal("Timeout waiting for MPV log line")
+	}
+}
+
+func TestModelLoggingIntegration(t *testing.T) {
+	m := initialModel("", "sub", "best", false)
+	m.telemetryViewport.Width = 80
+	m.telemetryViewport.Height = 20
+
+	if len(m.telemetryLogs) != 0 {
+		t.Errorf("Expected empty telemetryLogs, got %d lines", len(m.telemetryLogs))
+	}
+
+	msg1 := clareLogMsg("[12:34:56] HTTP Request: GET https://api.jikan.moe")
+	resModel, cmd := m.Update(msg1)
+	m = resModel.(model)
+
+	if len(m.telemetryLogs) != 1 || m.telemetryLogs[0] != string(msg1) {
+		t.Errorf("Expected telemetryLogs to contain msg1, got %v", m.telemetryLogs)
+	}
+	if !strings.Contains(m.telemetryViewport.View(), string(msg1)) {
+		t.Errorf("Expected viewport view to contain msg1, got %q", m.telemetryViewport.View())
+	}
+	if cmd == nil {
+		t.Error("Expected next readClareLogsCmd to be returned/scheduled")
+	}
+
+	msg2 := MpvLogMsg("[MPV] AV: 00:01:23 / 00:23:28")
+	resModel, cmd = m.Update(msg2)
+	m = resModel.(model)
+
+	if len(m.telemetryLogs) != 2 || m.telemetryLogs[1] != string(msg2) {
+		t.Errorf("Expected telemetryLogs to contain msg2 at index 1, got %v", m.telemetryLogs)
+	}
+	if !strings.Contains(m.telemetryViewport.View(), string(msg2)) {
+		t.Errorf("Expected viewport view to contain msg2, got %q", m.telemetryViewport.View())
+	}
+	if cmd == nil {
+		t.Error("Expected next readLogsCmd to be returned/scheduled")
 	}
 }

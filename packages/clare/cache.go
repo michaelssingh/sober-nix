@@ -156,7 +156,7 @@ func downloadThumbnail(showID, urlStr string) (string, error) {
 		return "", err
 	}
 
-	client := &http.Client{Timeout: 10 * time.Second}
+	client := newLoggingHttpClient(10 * time.Second)
 	resp, err := client.Get(urlStr)
 	if err != nil {
 		return "", err

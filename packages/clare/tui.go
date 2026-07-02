@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
@@ -33,6 +34,7 @@ const (
 	statePlaybackPreparing
 	statePlaybackActive
 	stateError
+	stateLogs
 )
 
 // Styles for premium aesthetic
@@ -217,6 +219,8 @@ type model struct {
 	showTelemetry       bool
 	mpvLogChan          chan string
 	aniSkipReady        map[string]bool
+	activeCmd           *exec.Cmd
+	clareLogChan        chan string
 }
 
 func createMinimalList(title string) list.Model {
@@ -284,9 +288,11 @@ func initialModel(initialSearch, mode, quality string, download bool) model {
 		telemetryViewport:  viewport.New(0, 0),
 		showTelemetry:      true, // Enabled by default
 		aniSkipReady:       make(map[string]bool),
+		clareLogChan:       make(chan string, 1000),
 	}
 
 	m.refreshHistory()
+	go tailLogFile(m.clareLogChan)
 
 	if initialSearch != "" {
 		m.state = stateSearchRunning
@@ -319,6 +325,7 @@ func (m *model) refreshHistory() {
 func (m model) Init() tea.Cmd {
 	var cmds []tea.Cmd
 	cmds = append(cmds, m.spinner.Tick)
+	cmds = append(cmds, readClareLogsCmd(m.clareLogChan))
 	if m.initialSearch != "" {
 		cmds = append(cmds, doSearch(m.initialSearch, "sub"))
 	} else if m.state == stateHistory {
@@ -366,6 +373,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.historyList.SetSize(leftWidth, listHeight)
 		m.showList.SetSize(leftWidth, listHeight)
 		m.episodeList.SetSize(leftWidth, listHeight)
+		m.telemetryViewport.Width = m.width - 4
+		m.telemetryViewport.Height = m.height - 9
 		return m, nil
 
 	case spinner.TickMsg:
@@ -525,7 +534,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.loadingMsg = msg.warning
 		}
 
-		m.state = statePlaybackActive
+		if m.activeCmd != nil {
+			debugLog("resolvedPlaybackMsg: stopping existing playback process")
+			_ = m.activeCmd.Process.Kill()
+			_ = m.activeCmd.Wait()
+		}
+		m.activeCmd = msg.cmd
+
+		m.state = stateEpisodeSelect
 		m.tempLuaFile = msg.tempLuaFile
 		m.tempChaptersFile = msg.tempChaptersFile
 
@@ -548,21 +564,20 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 
-		m.telemetryLogs = []string{}
-		m.telemetryViewport.SetContent("")
+		debugLog("--- Playback Started: %s (Ep %s) ---", m.selectedShow.Name, m.selectedEp)
 		m.mpvLogChan = make(chan string, 200)
 
 		go func() {
 			scanner := bufio.NewScanner(stdout)
 			for scanner.Scan() {
-				m.mpvLogChan <- scanner.Text()
+				m.mpvLogChan <- "[MPV] " + scanner.Text()
 			}
 		}()
 
 		go func() {
 			scanner := bufio.NewScanner(stderr)
 			for scanner.Scan() {
-				m.mpvLogChan <- scanner.Text()
+				m.mpvLogChan <- "[MPV] " + scanner.Text()
 			}
 		}()
 
@@ -574,12 +589,22 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case MpvLogMsg:
 		line := string(msg)
 		m.telemetryLogs = append(m.telemetryLogs, line)
-		if len(m.telemetryLogs) > 50 {
-			m.telemetryLogs = m.telemetryLogs[len(m.telemetryLogs)-50:]
+		if len(m.telemetryLogs) > 1000 {
+			m.telemetryLogs = m.telemetryLogs[len(m.telemetryLogs)-1000:]
 		}
 		m.telemetryViewport.SetContent(strings.Join(m.telemetryLogs, "\n"))
 		m.telemetryViewport.GotoBottom()
 		return m, readLogsCmd(m.mpvLogChan)
+
+	case clareLogMsg:
+		line := string(msg)
+		m.telemetryLogs = append(m.telemetryLogs, line)
+		if len(m.telemetryLogs) > 1000 {
+			m.telemetryLogs = m.telemetryLogs[len(m.telemetryLogs)-1000:]
+		}
+		m.telemetryViewport.SetContent(strings.Join(m.telemetryLogs, "\n"))
+		m.telemetryViewport.GotoBottom()
+		return m, readClareLogsCmd(m.clareLogChan)
 
 	case aniSkipCheckedMsg:
 		m.aniSkipReady[msg.epNo] = msg.ready
@@ -678,23 +703,30 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, tea.Quit
 			}
 		case "1":
-			if m.state != stateSearchInput && m.state != stateEpisodeSelect && m.state != statePlaybackActive {
+			if m.state != stateSearchInput {
 				m.state = stateHistory
 				return m, nil
 			}
 		case "2":
-			if m.state != stateSearchInput && m.state != stateEpisodeSelect && m.state != statePlaybackActive {
+			if m.state != stateSearchInput {
 				m.state = stateSearchInput
 				m.searchInput.Reset()
 				m.searchInput.Focus()
 				return m, nil
 			}
+		case "3":
+			if m.state != stateSearchInput {
+				m.state = stateLogs
+				return m, nil
+			}
 		case "tab":
-			if m.state != stateSearchInput && m.state != stateEpisodeSelect && m.state != statePlaybackActive {
+			if m.state != stateSearchInput {
 				if m.state == stateHistory {
 					m.state = stateSearchInput
 					m.searchInput.Reset()
 					m.searchInput.Focus()
+				} else if m.state == stateSearchInput || m.state == stateSearchRunning || m.state == stateShowSelect {
+					m.state = stateLogs
 				} else {
 					m.state = stateHistory
 				}
@@ -934,11 +966,17 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Batch(cmds...)
 
 		case statePlaybackActive:
+			return m, nil
+
+		case stateLogs:
 			switch msg.String() {
-			case "tab", "h":
-				m.showTelemetry = !m.showTelemetry
+			case "esc":
+				m.state = stateHistory
 				return m, nil
 			}
+			var cmd tea.Cmd
+			m.telemetryViewport, cmd = m.telemetryViewport.Update(msg)
+			return m, cmd
 
 		case stateError:
 			switch msg.String() {
@@ -980,10 +1018,17 @@ func (m model) View() string {
 	if m.state == stateHistory {
 		tabs = append(tabs, activeTabStyle.Render("Continue Watching [1]"))
 		tabs = append(tabs, inactiveTabStyle.Render("Search [2]"))
+		tabs = append(tabs, inactiveTabStyle.Render("Logs [3]"))
 		showTabs = true
 	} else if m.state == stateSearchInput || m.state == stateSearchRunning || m.state == stateShowSelect {
 		tabs = append(tabs, inactiveTabStyle.Render("Continue Watching [1]"))
 		tabs = append(tabs, activeTabStyle.Render("Search [2]"))
+		tabs = append(tabs, inactiveTabStyle.Render("Logs [3]"))
+		showTabs = true
+	} else if m.state == stateLogs {
+		tabs = append(tabs, inactiveTabStyle.Render("Continue Watching [1]"))
+		tabs = append(tabs, inactiveTabStyle.Render("Search [2]"))
+		tabs = append(tabs, activeTabStyle.Render("Logs [3]"))
 		showTabs = true
 	}
 
@@ -1107,29 +1152,14 @@ func (m model) View() string {
 	case statePlaybackActive:
 		s.WriteString(cyanColorStyle.Render("Playback active in mpv. Controlling stream...\n"))
 
+	case stateLogs:
+		s.WriteString(m.telemetryViewport.View())
+		s.WriteString("\n\n" + helpStyle("1: history | 2: search | q: quit"))
+
 	case stateError:
 		s.WriteString(errorStyle.Render("Error encountered:") + "\n\n")
 		s.WriteString(fmt.Sprintf("  %v\n\n", m.err))
 		s.WriteString(helpStyle("press enter or esc to return to search"))
-	}
-
-	if m.showTelemetry && (m.state == statePlaybackActive || m.state == stateEpisodeSelect) {
-		m.telemetryViewport.Width = m.width - 6
-		m.telemetryViewport.Height = 10
-
-		border := lipgloss.NewStyle().
-			Border(lipgloss.RoundedBorder()).
-			BorderForeground(lipgloss.Color("#f7768e")).
-			Padding(0, 1).
-			Width(m.width - 4).
-			Height(12)
-
-		telemetryContent := fmt.Sprintf(
-			"%s\n%s",
-			lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#f7768e")).Render("◆ MPV TELEMETRY LOGS (press 'tab' or 'h' to collapse) ◆"),
-			m.telemetryViewport.View(),
-		)
-		s.WriteString("\n\n" + border.Render(telemetryContent))
 	}
 
 	return s.String()
@@ -1233,6 +1263,53 @@ func readLogsCmd(logChan chan string) tea.Cmd {
 	}
 }
 
+func readClareLogsCmd(logChan chan string) tea.Cmd {
+	return func() tea.Msg {
+		line, ok := <-logChan
+		if !ok {
+			return nil
+		}
+		return clareLogMsg(line)
+	}
+}
+
+func tailLogFile(logChan chan string) {
+	time.Sleep(500 * time.Millisecond)
+	dir := os.Getenv("CLARE_STATE_DIR")
+	if dir == "" {
+		stateHome := os.Getenv("XDG_STATE_HOME")
+		if stateHome == "" {
+			home, _ := os.UserHomeDir()
+			stateHome = filepath.Join(home, ".local", "state")
+		}
+		dir = filepath.Join(stateHome, "clare")
+	}
+	logFile := filepath.Join(dir, "debug.log")
+
+	// Ensure the dir exists and we can touch the file
+	_ = os.MkdirAll(dir, 0755)
+	f, err := os.OpenFile(logFile, os.O_CREATE|os.O_RDONLY, 0644)
+	if err != nil {
+		return
+	}
+	defer f.Close()
+
+	_, _ = f.Seek(0, io.SeekEnd)
+	reader := bufio.NewReader(f)
+
+	for {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			if err == io.EOF {
+				time.Sleep(100 * time.Millisecond)
+				continue
+			}
+			break
+		}
+		logChan <- strings.TrimSuffix(line, "\n")
+	}
+}
+
 func doCheckAniSkip(malID, epNo string) tea.Cmd {
 	return func() tea.Msg {
 		times := fetchAniSkipTimes(malID, epNo, 1440.0)
@@ -1245,7 +1322,7 @@ func doFetchJikanMetadata(malID string, page int) tea.Cmd {
 		if malID == "" || malID == "0" {
 			return jikanMetadataMsg{malID: malID, page: page, err: fmt.Errorf("no MAL ID")}
 		}
-		client := &http.Client{Timeout: 8 * time.Second}
+		client := newLoggingHttpClient(8 * time.Second)
 		url := fmt.Sprintf("https://api.jikan.moe/v4/anime/%s/episodes?page=%d", malID, page)
 		resp, err := client.Get(url)
 		if err != nil {

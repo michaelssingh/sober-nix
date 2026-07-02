@@ -208,11 +208,16 @@ func main() {
 
 	// Interactive TUI mode
 	p := tea.NewProgram(initialModel(query, mode, *qualityFlag, *downloadFlag), tea.WithAltScreen())
+	globalProgram = p
 	if _, err := p.Run(); err != nil {
 		fmt.Printf("Alas, there's been an error: %v", err)
 		os.Exit(1)
 	}
 }
+
+var globalProgram *tea.Program
+
+type clareLogMsg string
 
 func debugLog(format string, args ...any) {
 	if os.Getenv("CLARE_DEBUG") == "" {

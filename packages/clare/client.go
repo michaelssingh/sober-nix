@@ -477,7 +477,7 @@ func selectBestLink(links map[string]string, requested string) string {
 func doHTTPReqWithRetry(method, url string, payload []byte, headers map[string]string) ([]byte, error) {
 	var body []byte
 	var err error
-	client := &http.Client{Timeout: 10 * time.Second}
+	client := newLoggingHttpClient(10 * time.Second)
 
 	for attempt := 1; attempt <= 3; attempt++ {
 		var req *http.Request
@@ -519,4 +519,28 @@ func doHTTPReqWithRetry(method, url string, payload []byte, headers map[string]s
 		}
 	}
 	return nil, fmt.Errorf("after 3 attempts, request failed: %w", err)
+}
+
+type loggingRoundTripper struct {
+	next http.RoundTripper
+}
+
+func (l *loggingRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	debugLog("HTTP Request: %s %s", req.Method, req.URL.String())
+	resp, err := l.next.RoundTrip(req)
+	if err != nil {
+		debugLog("HTTP Error: %s %s -> %v", req.Method, req.URL.String(), err)
+		return nil, err
+	}
+	debugLog("HTTP Response: %s %s -> Status %d (Length: %d)", req.Method, req.URL.String(), resp.StatusCode, resp.ContentLength)
+	return resp, nil
+}
+
+func newLoggingHttpClient(timeout time.Duration) *http.Client {
+	return &http.Client{
+		Timeout: timeout,
+		Transport: &loggingRoundTripper{
+			next: http.DefaultTransport,
+		},
+	}
 }
