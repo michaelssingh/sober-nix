@@ -1251,8 +1251,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case stateEpisodeSelect:
 			switch msg.String() {
-			case "tab", "h":
+			case "tab":
 				m.showTelemetry = !m.showTelemetry
+				return m, nil
+			case "left", "h":
+				m.detailsScrollOffset--
+				return m, nil
+			case "right", "l":
+				m.detailsScrollOffset++
 				return m, nil
 			case "a":
 				m.autoplay = !m.autoplay
@@ -1337,6 +1343,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// Lazy load metadata page for currently selected episode if needed
 			if item := m.episodeList.SelectedItem(); item != nil {
 				if epItem, ok := item.(episodeItem); ok {
+					if epItem.epNo != m.selectedEp {
+						m.detailsScrollOffset = 0
+						m.selectedEp = epItem.epNo
+					}
 					var val int
 					fmt.Sscanf(epItem.epNo, "%d", &val)
 					if val > 0 {
@@ -2241,18 +2251,41 @@ func (m model) renderEpisodeDetailsPanel(width, height int) string {
 
 	synBodyStyle := lipgloss.NewStyle().Width(rightColWidth).Foreground(lipgloss.Color("#a9b1d6"))
 	synLines := strings.Split(synBodyStyle.Render(synopsis), "\n")
-	if len(synLines) > synMaxHeight {
-		synLines = synLines[:synMaxHeight-1]
-		synLines = append(synLines, "... (truncated)")
+	maxScroll := len(synLines) - synMaxHeight
+	if maxScroll < 0 {
+		maxScroll = 0
 	}
-	wrappedSynopsis := strings.Join(synLines, "\n")
+	if m.detailsScrollOffset > maxScroll {
+		m.detailsScrollOffset = maxScroll
+	}
+	if m.detailsScrollOffset < 0 {
+		m.detailsScrollOffset = 0
+	}
+
+	visibleLines := synLines
+	if len(synLines) > synMaxHeight {
+		start := m.detailsScrollOffset
+		end := start + synMaxHeight
+		if end > len(synLines) {
+			end = len(synLines)
+		}
+		visibleLines = synLines[start:end]
+	}
+	wrappedSynopsis := strings.Join(visibleLines, "\n")
+
+	synopsisHeader := "◆ EPISODE SYNOPSIS ◆"
+	if maxScroll > 0 {
+		currLine := m.detailsScrollOffset + 1
+		maxLine := maxScroll + 1
+		synopsisHeader = fmt.Sprintf("◆ EPISODE SYNOPSIS (scroll: h/l) [%d/%d] ◆", currLine, maxLine)
+	}
 
 	rightPanelContent := fmt.Sprintf(
 		"%s\n%s\n\n%s\n\n%s\n%s",
 		lipgloss.NewStyle().Foreground(lipgloss.Color("#565f89")).Render(m.selectedShow.Name),
 		titleStyle.Render(title),
 		strings.Join(metaLines, "\n"),
-		headerStyle.Render("◆ EPISODE SYNOPSIS ◆"),
+		headerStyle.Render(synopsisHeader),
 		wrappedSynopsis,
 	)
 

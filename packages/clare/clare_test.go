@@ -1049,6 +1049,31 @@ func TestMpvIPCController(t *testing.T) {
 	}
 }
 
+func TestEpisodeDetailsScrolling(t *testing.T) {
+	m := initialModel("", "sub", "best", false)
+	m.state = stateEpisodeSelect
+	m.detailsScrollOffset = 5
+
+	// Left key should decrease scroll offset
+	msg := tea.KeyMsg{Type: tea.KeyLeft}
+	updated, _ := m.Update(msg)
+	mUpdated := updated.(model)
+
+	if mUpdated.detailsScrollOffset != 4 {
+		t.Errorf("expected detailsScrollOffset to be 4 after Left key, got %d", mUpdated.detailsScrollOffset)
+	}
+
+	// Right key should increase scroll offset
+	msg2 := tea.KeyMsg{Type: tea.KeyRight}
+	updated2, _ := mUpdated.Update(msg2)
+	mUpdated2 := updated2.(model)
+
+	if mUpdated2.detailsScrollOffset != 5 {
+		t.Errorf("expected detailsScrollOffset to be 5 after Right key, got %d", mUpdated2.detailsScrollOffset)
+	}
+}
+
+
 
 
 
