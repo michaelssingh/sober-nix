@@ -1,13 +1,20 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
+
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 func TestCleanHTML(t *testing.T) {
@@ -589,3 +596,209 @@ func TestSubDubIndicators(t *testing.T) {
 		t.Errorf("Expected Title to contain [SUB] and not DUB, got %q", item2.Title())
 	}
 }
+
+type mockTransport struct {
+	mockServerURL     string
+	originalTransport http.RoundTripper
+}
+
+func (m *mockTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	if strings.Contains(req.URL.Host, "api.allanime.day") || strings.Contains(req.URL.Host, "api.aniskip.com") {
+		mockURL, err := url.Parse(m.mockServerURL)
+		if err != nil {
+			return nil, err
+		}
+		req.URL.Scheme = mockURL.Scheme
+		req.URL.Host = mockURL.Host
+		req.Host = mockURL.Host
+	}
+	return m.originalTransport.RoundTrip(req)
+}
+
+func TestMockHTTP(t *testing.T) {
+	mockSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		if strings.Contains(r.URL.Path, "/v2/skip-times/") {
+			resp := map[string]interface{}{
+				"found": true,
+				"results": []map[string]interface{}{
+					{
+						"skipType": "op",
+						"interval": map[string]interface{}{
+							"startTime": 58.642,
+							"endTime":   148.642,
+						},
+					},
+					{
+						"skipType": "ed",
+						"interval": map[string]interface{}{
+							"startTime": 1349.903,
+							"endTime":   1474.0,
+						},
+					},
+				},
+			}
+			_ = json.NewEncoder(w).Encode(resp)
+			return
+		}
+
+		if r.Method == "POST" && strings.Contains(r.URL.Path, "/api") {
+			bodyBytes, _ := io.ReadAll(r.Body)
+			bodyStr := string(bodyBytes)
+
+			if strings.Contains(bodyStr, "query( $search") {
+				resp := map[string]interface{}{
+					"data": map[string]interface{}{
+						"shows": map[string]interface{}{
+							"edges": []map[string]interface{}{
+								{
+									"_id":         "frieren123",
+									"name":        "Sousou no Frieren",
+									"englishName": "Frieren: Beyond Journey's End",
+									"nativeName":  "葬送のフリーレン",
+									"thumbnail":   "https://example.com/frieren.jpg",
+									"description": "Frieren is an elf mage.",
+									"malId":       "52991",
+									"aniListId":   "154587",
+									"type":        "TV",
+									"score":       9.39,
+									"season": map[string]interface{}{
+										"quarter": "fall",
+										"year":    2023,
+									},
+									"availableEpisodes": map[string]interface{}{
+										"sub": 28.0,
+										"dub": 28.0,
+									},
+								},
+							},
+						},
+					},
+				}
+				_ = json.NewEncoder(w).Encode(resp)
+				return
+			}
+
+			if strings.Contains(bodyStr, "query ($showId") {
+				resp := map[string]interface{}{
+					"data": map[string]interface{}{
+						"show": map[string]interface{}{
+							"_id":         "frieren123",
+							"name":        "Sousou no Frieren",
+							"englishName": "Frieren: Beyond Journey's End",
+							"nativeName":  "葬送のフリーレン",
+							"thumbnail":   "https://example.com/frieren.jpg",
+							"description": "Frieren is an elf mage.",
+							"malId":       "52991",
+							"aniListId":   "154587",
+							"type":        "TV",
+							"score":       9.39,
+							"season": map[string]interface{}{
+								"quarter": "fall",
+								"year":    2023,
+							},
+							"availableEpisodes": map[string]interface{}{
+								"sub": 28.0,
+								"dub": 28.0,
+							},
+							"availableEpisodesDetail": map[string]interface{}{
+								"sub": []string{"1", "2", "3", "4"},
+								"dub": []string{"1", "2"},
+							},
+						},
+					},
+				}
+				_ = json.NewEncoder(w).Encode(resp)
+				return
+			}
+		}
+
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer mockSrv.Close()
+
+	origTransport := http.DefaultTransport
+	defer func() { http.DefaultTransport = origTransport }()
+
+	http.DefaultTransport = &mockTransport{
+		mockServerURL:     mockSrv.URL,
+		originalTransport: origTransport,
+	}
+
+	shows, err := searchAnime("Frieren", "sub")
+	if err != nil {
+		t.Fatalf("searchAnime failed: %v", err)
+	}
+	if len(shows) != 1 || shows[0].ID != "frieren123" {
+		t.Errorf("Expected show ID 'frieren123', got %+v", shows)
+	}
+
+	tmpDir, err := os.MkdirTemp("", "clare-test-cache-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	origStateDir := os.Getenv("CLARE_STATE_DIR")
+	os.Setenv("CLARE_STATE_DIR", tmpDir)
+	defer os.Setenv("CLARE_STATE_DIR", origStateDir)
+
+	show, eps, err := fetchEpisodeList("frieren123", "sub")
+	if err != nil {
+		t.Fatalf("fetchEpisodeList failed: %v", err)
+	}
+	if show.ID != "frieren123" || len(eps) != 4 || eps[3] != "4" {
+		t.Errorf("fetchEpisodeList returned unexpected values: show=%+v, eps=%v", show, eps)
+	}
+
+	skipTimes := fetchAniSkipTimes("52991", "1", 1440.0)
+	if len(skipTimes) != 2 || skipTimes[0].SkipType != "op" || skipTimes[1].SkipType != "ed" {
+		t.Errorf("fetchAniSkipTimes returned unexpected results: %+v", skipTimes)
+	}
+}
+
+func TestMockTUI(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "clare-tui-test-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	origStateDir := os.Getenv("CLARE_STATE_DIR")
+	os.Setenv("CLARE_STATE_DIR", tmpDir)
+	defer os.Setenv("CLARE_STATE_DIR", origStateDir)
+
+	// Save a dummy history item so the initial state is stateHistory
+	histEntry := HistoryEntry{
+		ShowID:    "dummyShowID",
+		ShowName:  "Dummy Show",
+		Episode:   "1",
+		Timestamp: time.Now().Unix(),
+	}
+	_ = saveHistory([]HistoryEntry{histEntry})
+
+	m := initialModel("", "sub", "best", false)
+
+	// Verify starting state
+	if m.state != stateHistory {
+		t.Errorf("Expected initial state to be stateHistory, got %d", m.state)
+	}
+
+	// Pressing "c" or "C" in stateHistory toggles m.showCompleted
+	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'c'}}
+	updated, _ := m.Update(msg)
+	mUpdated := updated.(model)
+	if !mUpdated.showCompleted {
+		t.Error("Expected showCompleted to be true after pressing 'c'")
+	}
+
+	// Pressing "s" or "/" switches state to stateSearchInput
+	msg = tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'s'}}
+	updated, _ = mUpdated.Update(msg)
+	mUpdated = updated.(model)
+	if mUpdated.state != stateSearchInput {
+		t.Errorf("Expected state to transition to stateSearchInput, got %d", mUpdated.state)
+	}
+}
+
