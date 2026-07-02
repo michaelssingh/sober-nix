@@ -1,11 +1,13 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	_ "embed"
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"os"
 	"os/exec"
@@ -312,3 +314,102 @@ func downloadCmd(streamURL, title, epNo string) *exec.Cmd {
 	}
 	return cmd
 }
+
+type MpvStatus struct {
+	PlaybackTime float64
+	Duration     float64
+	Paused       bool
+	Volume       float64
+}
+
+func sendMpvCommand(conn net.Conn, cmd []interface{}) ([]byte, error) {
+	payload := map[string]interface{}{
+		"command": cmd,
+	}
+	data, err := json.Marshal(payload)
+	if err != nil {
+		return nil, err
+	}
+	_, err = conn.Write(append(data, '\n'))
+	if err != nil {
+		return nil, err
+	}
+
+	reader := bufio.NewReader(conn)
+	line, err := reader.ReadBytes('\n')
+	if err != nil {
+		return nil, err
+	}
+	return line, nil
+}
+
+func queryFloatProperty(conn net.Conn, prop string) (float64, error) {
+	resp, err := sendMpvCommand(conn, []interface{}{"get_property", prop})
+	if err != nil {
+		return 0, err
+	}
+	var result struct {
+		Data float64 `json:"data"`
+	}
+	if err := json.Unmarshal(resp, &result); err != nil {
+		return 0, err
+	}
+	return result.Data, nil
+}
+
+func queryBoolProperty(conn net.Conn, prop string) (bool, error) {
+	resp, err := sendMpvCommand(conn, []interface{}{"get_property", prop})
+	if err != nil {
+		return false, err
+	}
+	var result struct {
+		Data bool `json:"data"`
+	}
+	if err := json.Unmarshal(resp, &result); err != nil {
+		return false, err
+	}
+	return result.Data, nil
+}
+
+func queryMpvStatus() (MpvStatus, error) {
+	conn, err := net.DialTimeout("unix", "/tmp/clare-mpv.sock", 100*time.Millisecond)
+	if err != nil {
+		return MpvStatus{}, err
+	}
+	defer conn.Close()
+
+	var status MpvStatus
+
+	playbackTime, err := queryFloatProperty(conn, "playback-time")
+	if err == nil {
+		status.PlaybackTime = playbackTime
+	}
+
+	duration, err := queryFloatProperty(conn, "duration")
+	if err == nil {
+		status.Duration = duration
+	}
+
+	paused, err := queryBoolProperty(conn, "pause")
+	if err == nil {
+		status.Paused = paused
+	}
+
+	volume, err := queryFloatProperty(conn, "volume")
+	if err == nil {
+		status.Volume = volume
+	}
+
+	return status, nil
+}
+
+func executeMpvAction(cmd []interface{}) error {
+	conn, err := net.DialTimeout("unix", "/tmp/clare-mpv.sock", 100*time.Millisecond)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+	_, err = sendMpvCommand(conn, cmd)
+	return err
+}
+

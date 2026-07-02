@@ -247,6 +247,11 @@ type allStreamsResultMsg struct {
 	err     error
 }
 
+type tickMpvStatusMsg struct {
+	status MpvStatus
+	err    error
+}
+
 type sourceItem struct {
 	stream ResolvedStream
 }
@@ -328,6 +333,8 @@ type model struct {
 	searchHistoryIndex  int
 	sourceList          list.Model
 	resolvedStreams     []ResolvedStream
+	mpvStatus           MpvStatus
+	playbackActive      bool
 }
 
 func createMinimalList(title string) list.Model {
@@ -833,9 +840,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.activeCmd = msg.cmd
 
-		m.state = stateEpisodeSelect
+		m.state = statePlaybackActive
 		m.tempLuaFile = msg.tempLuaFile
 		m.tempChaptersFile = msg.tempChaptersFile
+		m.playbackActive = true
+		m.mpvStatus = MpvStatus{Paused: false, Volume: 100}
 
 		stdout, err := msg.cmd.StdoutPipe()
 		if err != nil {
@@ -874,7 +883,17 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		return m, tea.Batch(
 			waitForExitCmd(msg.cmd, msg.tempLuaFile, msg.tempChaptersFile),
+			tickMpvStatusCmd(),
 		)
+
+	case tickMpvStatusMsg:
+		if m.playbackActive && m.state == statePlaybackActive {
+			if msg.err == nil {
+				m.mpvStatus = msg.status
+			}
+			return m, tickMpvStatusCmd()
+		}
+		return m, nil
 
 	case clareLogMsg:
 		line := string(msg)
@@ -907,6 +926,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case playbackFinishedMsg:
 		debugLog("TUI playbackFinishedMsg: err=%v", msg.err)
+		m.playbackActive = false
 		if m.tempLuaFile != "" {
 			_ = os.Remove(m.tempLuaFile)
 			m.tempLuaFile = ""
@@ -1365,6 +1385,28 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, cmd
 
 		case statePlaybackActive:
+			switch msg.String() {
+			case " ":
+				_ = executeMpvAction([]interface{}{"cycle", "pause"})
+				return m, nil
+			case "left", "h":
+				_ = executeMpvAction([]interface{}{"seek", -10})
+				return m, nil
+			case "right", "l":
+				_ = executeMpvAction([]interface{}{"seek", 10})
+				return m, nil
+			case "up", "k":
+				_ = executeMpvAction([]interface{}{"add", "volume", 5})
+				return m, nil
+			case "down", "j":
+				_ = executeMpvAction([]interface{}{"add", "volume", -5})
+				return m, nil
+			case "esc", "q":
+				if m.activeCmd != nil && m.activeCmd.Process != nil {
+					_ = m.activeCmd.Process.Kill()
+				}
+				return m, nil
+			}
 			return m, nil
 
 		case stateLogs:
@@ -1566,7 +1608,26 @@ func (m model) View() string {
 		s.WriteString(fmt.Sprintf("%s %s\n", m.spinner.View(), m.loadingMsg))
 
 	case statePlaybackActive:
-		s.WriteString(cyanColorStyle.Render("Playback active in mpv. Controlling stream...\n"))
+		titleStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#bb9af7"))
+		statusStr := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#9ece6a")).Render("▶ PLAYING")
+		if m.mpvStatus.Paused {
+			statusStr = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#e0af68")).Render("⏸ PAUSED")
+		}
+
+		s.WriteString(titleStyle.Render(fmt.Sprintf("Playing: %s — Episode %s", m.selectedShow.Name, m.selectedEp)) + "\n\n")
+		s.WriteString(fmt.Sprintf("Status: %s\n\n", statusStr))
+
+		if m.mpvStatus.Duration > 0 {
+			pct := m.mpvStatus.PlaybackTime / m.mpvStatus.Duration
+			bar := renderSmoothProgressBar(pct, 30)
+			timeStr := fmt.Sprintf("%s / %s", formatTime(m.mpvStatus.PlaybackTime), formatTime(m.mpvStatus.Duration))
+			s.WriteString(fmt.Sprintf("[%s]  %s\n\n", bar, timeStr))
+		} else {
+			s.WriteString("Loading playback time...\n\n")
+		}
+
+		s.WriteString(fmt.Sprintf("Volume: %d%%\n\n", int(m.mpvStatus.Volume)))
+		s.WriteString(helpStyle("space: pause/resume  left/right: seek 10s  up/down: volume  esc/q: stop playback"))
 
 	case stateLogs:
 		s.WriteString(m.telemetryViewport.View())
@@ -1579,6 +1640,19 @@ func (m model) View() string {
 	}
 
 	return s.String()
+}
+
+func formatTime(seconds float64) string {
+	if seconds <= 0 {
+		return "00:00"
+	}
+	h := int(seconds) / 3600
+	m := (int(seconds) % 3600) / 60
+	s := int(seconds) % 60
+	if h > 0 {
+		return fmt.Sprintf("%02d:%02d:%02d", h, m, s)
+	}
+	return fmt.Sprintf("%02d:%02d", m, s)
 }
 
 func helpStyle(val string) string {
@@ -1898,6 +1972,13 @@ func parseEpisodeNumber(ep string) float64 {
 	var val float64
 	fmt.Sscanf(numStr.String(), "%f", &val)
 	return val
+}
+
+func tickMpvStatusCmd() tea.Cmd {
+	return tea.Tick(500*time.Millisecond, func(t time.Time) tea.Msg {
+		status, err := queryMpvStatus()
+		return tickMpvStatusMsg{status: status, err: err}
+	})
 }
 
 func doFetchAllStreams(showID, mode, epNo string) tea.Cmd {

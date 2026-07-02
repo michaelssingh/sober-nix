@@ -1,9 +1,11 @@
 package main
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -371,8 +373,8 @@ func TestMpvProcessLoggingIntegration(t *testing.T) {
 	resModel, _ := m.Update(msg)
 	m = resModel.(model)
 
-	if m.state != stateEpisodeSelect {
-		t.Errorf("Expected TUI state to remain stateEpisodeSelect, got %v", m.state)
+	if m.state != statePlaybackActive {
+		t.Errorf("Expected TUI state to remain statePlaybackActive, got %v", m.state)
 	}
 
 	if m.activeCmd != cmd {
@@ -991,6 +993,62 @@ func TestInteractiveSourceSelect(t *testing.T) {
 		t.Errorf("Expected cached URL to be seeded as 'http://example.com/wixmp-1080.mp4', got %q (found=%t)", cachedURL, ok)
 	}
 }
+
+func TestMpvIPCController(t *testing.T) {
+	socketPath := "/tmp/clare-mpv.sock"
+	_ = os.Remove(socketPath) // clean up any old one
+	listener, err := net.Listen("unix", socketPath)
+	if err != nil {
+		t.Fatalf("failed to listen on unix socket: %v", err)
+	}
+	defer func() {
+		listener.Close()
+		os.Remove(socketPath)
+	}()
+
+	go func() {
+		conn, err := listener.Accept()
+		if err != nil {
+			return
+		}
+		defer conn.Close()
+
+		scanner := bufio.NewScanner(conn)
+		for scanner.Scan() {
+			req := scanner.Text()
+			if strings.Contains(req, "playback-time") {
+				conn.Write([]byte(`{"data": 345.67}` + "\n"))
+			} else if strings.Contains(req, "duration") {
+				conn.Write([]byte(`{"data": 1200.0}` + "\n"))
+			} else if strings.Contains(req, "pause") {
+				conn.Write([]byte(`{"data": false}` + "\n"))
+			} else if strings.Contains(req, "volume") {
+				conn.Write([]byte(`{"data": 75.0}` + "\n"))
+			} else {
+				conn.Write([]byte(`{"data": null}` + "\n"))
+			}
+		}
+	}()
+
+	status, err := queryMpvStatus()
+	if err != nil {
+		t.Fatalf("queryMpvStatus failed: %v", err)
+	}
+
+	if status.PlaybackTime != 345.67 {
+		t.Errorf("expected PlaybackTime 345.67, got %f", status.PlaybackTime)
+	}
+	if status.Duration != 1200.0 {
+		t.Errorf("expected Duration 1200.0, got %f", status.Duration)
+	}
+	if status.Paused != false {
+		t.Errorf("expected Paused to be false, got %t", status.Paused)
+	}
+	if status.Volume != 75.0 {
+		t.Errorf("expected Volume 75.0, got %f", status.Volume)
+	}
+}
+
 
 
 
