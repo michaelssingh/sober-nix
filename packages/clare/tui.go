@@ -308,8 +308,28 @@ func (m *model) refreshHistory() {
 	rawHist, err := loadHistory()
 	if err == nil {
 		uniq := getUniqueHistory(rawHist)
+		positions, _ := loadPositions()
 		var items []list.Item
 		for _, u := range uniq {
+			// Check if show is completed
+			malID := ""
+			show, _, found := loadShowCache(u.ShowID)
+			if found {
+				malID = show.MALID
+			}
+			if malID != "" && positions != nil {
+				if showState, ok := positions[malID]; ok {
+					totalEps := show.EpCount()
+					if totalEps > 0 {
+						lastEp := parseEpisodeNumber(u.Episode)
+						if int(lastEp) >= totalEps || len(showState.CompletedEpisodes) >= totalEps {
+							debugLog("refreshHistory: hiding completed show %s (%d/%d eps)", u.ShowName, int(lastEp), totalEps)
+							continue
+						}
+					}
+				}
+			}
+
 			items = append(items, historyItem{
 				showID:    u.ShowID,
 				showName:  u.ShowName,
@@ -481,6 +501,17 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.episodeList.Select(selectIndex)
 
+		if selectIndex < len(m.episodeItems) {
+			if epItem, ok := m.episodeItems[selectIndex].(episodeItem); ok {
+				prefetchEpisodeStream(m.selectedShow.ID, m.mode, epItem.epNo, m.quality)
+			}
+			if selectIndex+1 < len(m.episodeItems) {
+				if nextEpItem, ok := m.episodeItems[selectIndex+1].(episodeItem); ok {
+					prefetchEpisodeStream(m.selectedShow.ID, m.mode, nextEpItem.epNo, m.quality)
+				}
+			}
+		}
+
 		// If autoplay was triggered, fetch next stream immediately
 		if m.triggerAutoplay {
 			m.triggerAutoplay = false
@@ -592,6 +623,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case clareLogMsg:
 		line := string(msg)
+		if strings.Contains(line, "TUI KeyMsg:") {
+			return m, readClareLogsCmd(m.clareLogChan)
+		}
 		wasAtBottom := m.telemetryViewport.AtBottom()
 		
 		isMpvProgress := func(l string) bool {
@@ -678,6 +712,31 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		_ = saveJikanCache(msg.malID, cacheData)
 		m.refreshEpisodeListItems()
+		return m, nil
+
+	case tea.MouseMsg:
+		switch m.state {
+		case stateSearchInput:
+			var cmd tea.Cmd
+			m.searchInput, cmd = m.searchInput.Update(msg)
+			return m, cmd
+		case stateShowSelect:
+			var cmd tea.Cmd
+			m.showList, cmd = m.showList.Update(msg)
+			return m, cmd
+		case stateEpisodeSelect:
+			var cmd tea.Cmd
+			m.episodeList, cmd = m.episodeList.Update(msg)
+			return m, cmd
+		case stateHistory:
+			var cmd tea.Cmd
+			m.historyList, cmd = m.historyList.Update(msg)
+			return m, cmd
+		case stateLogs:
+			var cmd tea.Cmd
+			m.telemetryViewport, cmd = m.telemetryViewport.Update(msg)
+			return m, cmd
+		}
 		return m, nil
 
 	case tea.KeyMsg:
@@ -966,6 +1025,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					if _, checked := m.aniSkipReady[epItem.epNo]; !checked && m.selectedShow.MALID != "" {
 						m.aniSkipReady[epItem.epNo] = false
 						cmds = append(cmds, doCheckAniSkip(m.selectedShow.MALID, epItem.epNo))
+					}
+					prefetchEpisodeStream(m.selectedShow.ID, m.mode, epItem.epNo, m.quality)
+					idx := m.episodeList.Index()
+					if idx+1 < len(m.episodeItems) {
+						if nextEpItem, ok := m.episodeItems[idx+1].(episodeItem); ok {
+							prefetchEpisodeStream(m.selectedShow.ID, m.mode, nextEpItem.epNo, m.quality)
+						}
 					}
 				}
 			}
@@ -1478,18 +1544,7 @@ func doFetchShowDetails(showID string) tea.Cmd {
 }
 
 func doFetchCoverArt(showID, urlStr string, width, height int) tea.Cmd {
-	return func() tea.Msg {
-		if urlStr == "" {
-			return CoverArtLoadedMsg{ShowID: showID, Ansi: ""}
-		}
-		imgPath, err := downloadThumbnail(showID, urlStr)
-		if err != nil {
-			debugLog("doFetchCoverArt download failed: %v", err)
-			return CoverArtLoadedMsg{ShowID: showID, Ansi: ""}
-		}
-		ansi := renderImageANSI(imgPath, width, height)
-		return CoverArtLoadedMsg{ShowID: showID, Ansi: ansi}
-	}
+	return nil
 }
 
 func (m model) renderShowDetailsPanel(show AnimeShow, coverArtANSI string, width, height int) string {

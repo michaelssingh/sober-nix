@@ -13,6 +13,7 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -415,7 +416,61 @@ func fetchEpisodeList(showID, mode string) (AnimeShow, []string, error) {
 	return result.Data.Show.AnimeShow, episodes, nil
 }
 
+var (
+	streamCache        = make(map[string]string)
+	streamCacheMu      sync.RWMutex
+	activePrefetches   = make(map[string]bool)
+	activePrefetchesMu sync.Mutex
+)
+
+func prefetchEpisodeStream(showID, mode, epNo, quality string) {
+	if showID == "" || epNo == "" {
+		return
+	}
+	cacheKey := fmt.Sprintf("%s-%s-%s-%s", showID, mode, epNo, quality)
+
+	streamCacheMu.RLock()
+	_, cached := streamCache[cacheKey]
+	streamCacheMu.RUnlock()
+	if cached {
+		return
+	}
+
+	activePrefetchesMu.Lock()
+	if activePrefetches[cacheKey] {
+		activePrefetchesMu.Unlock()
+		return
+	}
+	activePrefetches[cacheKey] = true
+	activePrefetchesMu.Unlock()
+
+	go func() {
+		defer func() {
+			activePrefetchesMu.Lock()
+			delete(activePrefetches, cacheKey)
+			activePrefetchesMu.Unlock()
+		}()
+
+		debugLog("prefetchEpisodeStream: starting background prefetch for %s", cacheKey)
+		if mode == "dual" {
+			_, _ = resolveStreamURL(showID, "sub", epNo, quality)
+			_, _ = resolveStreamURL(showID, "dub", epNo, quality)
+		} else {
+			_, _ = resolveStreamURL(showID, mode, epNo, quality)
+		}
+	}()
+}
+
 func resolveStreamURL(showID, mode, episodeNo, quality string) (string, error) {
+	cacheKey := fmt.Sprintf("%s-%s-%s-%s", showID, mode, episodeNo, quality)
+	streamCacheMu.RLock()
+	if val, ok := streamCache[cacheKey]; ok {
+		streamCacheMu.RUnlock()
+		debugLog("resolveStreamURL: cache hit for %s", cacheKey)
+		return val, nil
+	}
+	streamCacheMu.RUnlock()
+
 	sources, err := fetchEpisodeSources(showID, mode, episodeNo)
 	if err != nil {
 		return "", err
@@ -428,6 +483,9 @@ func resolveStreamURL(showID, mode, episodeNo, quality string) (string, error) {
 				if err == nil {
 					best := selectBestLink(links, quality)
 					if best != "" {
+						streamCacheMu.Lock()
+						streamCache[cacheKey] = best
+						streamCacheMu.Unlock()
 						return best, nil
 					}
 				}
@@ -440,6 +498,9 @@ func resolveStreamURL(showID, mode, episodeNo, quality string) (string, error) {
 		if err == nil {
 			best := selectBestLink(links, quality)
 			if best != "" {
+				streamCacheMu.Lock()
+				streamCache[cacheKey] = best
+				streamCacheMu.Unlock()
 				return best, nil
 			}
 		}

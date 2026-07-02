@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -391,4 +392,33 @@ func TestMpvProcessLoggingIntegration(t *testing.T) {
 
 	_ = cmd.Process.Kill()
 	_ = cmd.Wait()
+}
+
+func TestStreamCacheAndPrefetch(t *testing.T) {
+	showID := "testShow123"
+	mode := "sub"
+	epNo := "5"
+	quality := "1080p"
+	expectedURL := "https://example.com/stream.m3u8"
+
+	cacheKey := fmt.Sprintf("%s-%s-%s-%s", showID, mode, epNo, quality)
+	
+	streamCacheMu.Lock()
+	streamCache[cacheKey] = expectedURL
+	streamCacheMu.Unlock()
+
+	resolved, err := resolveStreamURL(showID, mode, epNo, quality)
+	if err != nil {
+		t.Fatalf("resolveStreamURL returned error: %v", err)
+	}
+	if resolved != expectedURL {
+		t.Errorf("Expected resolved URL to be %q, got %q", expectedURL, resolved)
+	}
+
+	streamCacheMu.Lock()
+	delete(streamCache, cacheKey)
+	streamCacheMu.Unlock()
+
+	prefetchEpisodeStream("", "", "", "")
+	prefetchEpisodeStream(showID, mode, epNo, quality)
 }

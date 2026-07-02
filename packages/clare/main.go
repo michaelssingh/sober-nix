@@ -207,7 +207,11 @@ func main() {
 	}
 
 	// Interactive TUI mode
-	p := tea.NewProgram(initialModel(query, mode, *qualityFlag, *downloadFlag), tea.WithAltScreen())
+	p := tea.NewProgram(
+		initialModel(query, mode, *qualityFlag, *downloadFlag),
+		tea.WithAltScreen(),
+		tea.WithMouseCellMotion(),
+	)
 	globalProgram = p
 	if _, err := p.Run(); err != nil {
 		fmt.Printf("Alas, there's been an error: %v", err)
