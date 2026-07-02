@@ -655,6 +655,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.historyList.SetSize(leftWidth, listHeight)
 		m.showList.SetSize(leftWidth, listHeight)
 		m.episodeList.SetSize(leftWidth, listHeight)
+		m.sourceList.SetSize(leftWidth, listHeight)
 		m.telemetryViewport.Width = m.width - 4
 		m.telemetryViewport.Height = m.height - 9
 		return m, nil
@@ -1443,16 +1444,16 @@ func (m model) View() string {
 	// Navigation Tabs
 	activeTabStyle := lipgloss.NewStyle().
 		Bold(true).
-		Foreground(lipgloss.Color("#7aa2f7")).
-		Border(lipgloss.NormalBorder(), false, false, true, false).
-		BorderForeground(lipgloss.Color("#7aa2f7")).
-		Padding(0, 2)
+		Foreground(lipgloss.Color("#1f2335")).
+		Background(lipgloss.Color("#7aa2f7")).
+		Padding(0, 2).
+		MarginRight(1)
 
 	inactiveTabStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#565f89")).
-		Border(lipgloss.NormalBorder(), false, false, true, false).
-		BorderForeground(lipgloss.Color("#3b4261")).
-		Padding(0, 2)
+		Foreground(lipgloss.Color("#a9b1d6")).
+		Background(lipgloss.Color("#24283b")).
+		Padding(0, 2).
+		MarginRight(1)
 
 	var tabs []string
 	showTabs := false
@@ -2215,10 +2216,7 @@ func (m model) renderEpisodeDetailsPanel(width, height int) string {
 					pct := pos / total
 					if pct > 1.0 { pct = 1.0 }
 					if pct < 0.0 { pct = 0.0 }
-					filled := int(pct * 10)
-					empty := 10 - filled
-					barStr := strings.Repeat("█", filled) + strings.Repeat("░", empty)
-					progressBar = fmt.Sprintf("[%s] %d%% watched", barStr, int(pct*100))
+					progressBar = fmt.Sprintf("[%s] %d%% watched", renderSmoothProgressBar(pct, 12), int(pct*100))
 				}
 			}
 		}
