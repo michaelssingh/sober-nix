@@ -134,11 +134,14 @@ func TestPositionsFile(t *testing.T) {
 }
 
 func TestAniSkipAPI(t *testing.T) {
+	if os.Getenv("NIX_BUILD_TOP") != "" {
+		t.Skip("Skipping live network test inside Nix build sandbox")
+	}
+
 	// Enable debug logging for this test
 	os.Setenv("CLARE_DEBUG", "1")
 	defer os.Unsetenv("CLARE_DEBUG")
 
-	// FMAB (MAL ID 5114) episode 1 should have skip times
 	results := fetchAniSkipTimes("5114", "1", 1440.0)
 	if len(results) == 0 {
 		t.Fatal("fetchAniSkipTimes returned no results for FMAB ep 1 (MAL ID 5114) - API may be down or broken")
@@ -182,6 +185,10 @@ func TestAniSkipAPI(t *testing.T) {
 }
 
 func TestChaptersFileGeneration(t *testing.T) {
+	if os.Getenv("NIX_BUILD_TOP") != "" {
+		t.Skip("Skipping live network test inside Nix build sandbox")
+	}
+
 	os.Setenv("CLARE_DEBUG", "1")
 	defer os.Unsetenv("CLARE_DEBUG")
 
