@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -1072,6 +1073,86 @@ func TestEpisodeDetailsScrolling(t *testing.T) {
 		t.Errorf("expected detailsScrollOffset to be 5 after Right key, got %d", mUpdated2.detailsScrollOffset)
 	}
 }
+
+type syncMockTransport struct {
+	mockServerURL string
+	origTransport http.RoundTripper
+}
+
+func (s *syncMockTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	req.Header.Set("X-Original-Host", req.URL.Host)
+	u, _ := url.Parse(s.mockServerURL)
+	req.URL.Scheme = u.Scheme
+	req.URL.Host = u.Host
+	req.Host = u.Host
+	return s.origTransport.RoundTrip(req)
+}
+
+func TestSyncProgressMock(t *testing.T) {
+	var anilistCalled, malCalled bool
+	var anilistProgress, malProgress int
+
+	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		origHost := r.Header.Get("X-Original-Host")
+		if strings.Contains(origHost, "anilist.co") {
+			anilistCalled = true
+			var body map[string]interface{}
+			_ = json.NewDecoder(r.Body).Decode(&body)
+
+			if strings.Contains(fmt.Sprintf("%v", body["query"]), "Media") && !strings.Contains(fmt.Sprintf("%v", body["query"]), "SaveMediaListEntry") {
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(`{"data":{"Media":{"id":9988}}}`))
+			} else if strings.Contains(fmt.Sprintf("%v", body["query"]), "SaveMediaListEntry") {
+				vars := body["variables"].(map[string]interface{})
+				anilistProgress = int(vars["progress"].(float64))
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(`{"data":{"SaveMediaListEntry":{"id":123,"progress":12}}}`))
+			}
+		} else if strings.Contains(origHost, "myanimelist.net") {
+			malCalled = true
+			r.ParseForm()
+			val, _ := strconv.Atoi(r.FormValue("num_watched_episodes"))
+			malProgress = val
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{}`))
+		}
+	}))
+	defer mockServer.Close()
+
+	origTransport := http.DefaultTransport
+	defer func() { http.DefaultTransport = origTransport }()
+
+	http.DefaultTransport = &syncMockTransport{
+		mockServerURL: mockServer.URL,
+		origTransport: origTransport,
+	}
+
+	os.Setenv("ANILIST_TOKEN", "mock-anilist-token")
+	os.Setenv("MAL_TOKEN", "mock-mal-token")
+	defer func() {
+		os.Unsetenv("ANILIST_TOKEN")
+		os.Unsetenv("MAL_TOKEN")
+	}()
+
+	SyncProgress("12345", "12")
+
+	time.Sleep(200 * time.Millisecond)
+
+	if !anilistCalled {
+		t.Error("Expected AniList API to be called")
+	}
+	if anilistProgress != 12 {
+		t.Errorf("Expected AniList progress to be 12, got %d", anilistProgress)
+	}
+
+	if !malCalled {
+		t.Error("Expected MAL API to be called")
+	}
+	if malProgress != 12 {
+		t.Errorf("Expected MAL progress to be 12, got %d", malProgress)
+	}
+}
+
 
 
 

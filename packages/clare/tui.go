@@ -943,6 +943,27 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.autoplay {
 				m.triggerAutoplay = true
 			}
+
+			// Trigger background sync to AniList/MAL
+			go func(malID string, epNo string) {
+				time.Sleep(1 * time.Second)
+				positions, err := loadPositions()
+				if err == nil && malID != "" {
+					if showState, ok := positions[malID]; ok {
+						reqEp := parseEpisodeNumber(epNo)
+						isCompleted := false
+						for _, completedEp := range showState.CompletedEpisodes {
+							if completedEp == reqEp {
+								isCompleted = true
+								break
+							}
+						}
+						if isCompleted {
+							SyncProgress(malID, epNo)
+						}
+					}
+				}
+			}(m.selectedShow.MALID, m.selectedEp)
 		}
 
 		m.state = stateSearchRunning
