@@ -132,3 +132,95 @@ func TestPositionsFile(t *testing.T) {
 		t.Errorf("CompletedEpisodes values incorrect, got %v", showState.CompletedEpisodes)
 	}
 }
+
+func TestAniSkipAPI(t *testing.T) {
+	// Enable debug logging for this test
+	os.Setenv("CLARE_DEBUG", "1")
+	defer os.Unsetenv("CLARE_DEBUG")
+
+	// FMAB (MAL ID 5114) episode 1 should have skip times
+	results := fetchAniSkipTimes("5114", "1", 1440.0)
+	if len(results) == 0 {
+		t.Fatal("fetchAniSkipTimes returned no results for FMAB ep 1 (MAL ID 5114) - API may be down or broken")
+	}
+
+	foundOp := false
+	foundEd := false
+	for _, r := range results {
+		t.Logf("AniSkip result: type=%s, start=%.3f, end=%.3f", r.SkipType, r.Interval.StartTime, r.Interval.EndTime)
+		if r.SkipType == "op" {
+			foundOp = true
+			if r.Interval.StartTime < 0 || r.Interval.EndTime <= r.Interval.StartTime {
+				t.Errorf("Invalid OP interval: start=%.3f, end=%.3f", r.Interval.StartTime, r.Interval.EndTime)
+			}
+		}
+		if r.SkipType == "ed" {
+			foundEd = true
+			if r.Interval.StartTime < 0 || r.Interval.EndTime <= r.Interval.StartTime {
+				t.Errorf("Invalid ED interval: start=%.3f, end=%.3f", r.Interval.StartTime, r.Interval.EndTime)
+			}
+		}
+	}
+
+	if !foundOp {
+		t.Error("Expected to find OP skip time for FMAB ep 1")
+	}
+	if !foundEd {
+		t.Error("Expected to find ED skip time for FMAB ep 1")
+	}
+
+	// Edge cases: invalid inputs should return nil
+	if results := fetchAniSkipTimes("", "1", 1440.0); results != nil {
+		t.Error("Expected nil for empty malID")
+	}
+	if results := fetchAniSkipTimes("0", "1", 1440.0); results != nil {
+		t.Error("Expected nil for malID '0'")
+	}
+	if results := fetchAniSkipTimes("5114", "", 1440.0); results != nil {
+		t.Error("Expected nil for empty epNo")
+	}
+}
+
+func TestChaptersFileGeneration(t *testing.T) {
+	os.Setenv("CLARE_DEBUG", "1")
+	defer os.Unsetenv("CLARE_DEBUG")
+
+	// Simulate what getMpvCmd does with AniSkip results
+	results := fetchAniSkipTimes("5114", "1", 1440.0)
+	if len(results) == 0 {
+		t.Skip("Skipping chapters test - no AniSkip data available")
+	}
+
+	opStart := -1.0
+	opEnd := -1.0
+	edStart := -1.0
+	edEnd := -1.0
+	for _, r := range results {
+		if r.SkipType == "op" {
+			opStart = r.Interval.StartTime
+			opEnd = r.Interval.EndTime
+		} else if r.SkipType == "ed" {
+			edStart = r.Interval.StartTime
+			edEnd = r.Interval.EndTime
+		}
+	}
+
+	t.Logf("OP: start=%.3f, end=%.3f", opStart, opEnd)
+	t.Logf("ED: start=%.3f, end=%.3f", edStart, edEnd)
+
+	if opStart < 0 {
+		t.Error("Expected OP start time >= 0")
+	}
+	if edStart < 0 {
+		t.Error("Expected ED start time >= 0")
+	}
+	if opEnd <= opStart {
+		t.Error("OP end should be > OP start")
+	}
+	if edEnd <= edStart {
+		t.Error("ED end should be > ED start")
+	}
+	if edStart <= opEnd {
+		t.Error("ED should start after OP ends")
+	}
+}

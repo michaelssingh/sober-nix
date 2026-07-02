@@ -76,28 +76,39 @@ func fetchAniSkipTimes(malID string, epNo string, durationSeconds float64) []Ani
 	}
 
 	client := &http.Client{Timeout: 4 * time.Second}
-	url := fmt.Sprintf("https://api.aniskip.com/v1/skip-times/%s/%s?types[]=op&types[]=ed&types[]=recap&types[]=mixed-op&types[]=mixed-ed&episodeLength=%f", malID, cleanEp, durationSeconds)
+	url := fmt.Sprintf("https://api.aniskip.com/v1/skip-times/%s/%s?types[]=op&types[]=ed&episodeLength=%f", malID, cleanEp, durationSeconds)
+	debugLog("fetchAniSkipTimes: requesting %s", url)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
+		debugLog("fetchAniSkipTimes: error creating request: %v", err)
 		return nil
 	}
 	req.Header.Set("User-Agent", UserAgent)
 	resp, err := client.Do(req)
 	if err != nil {
+		debugLog("fetchAniSkipTimes: HTTP error: %v", err)
 		return nil
 	}
 	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		debugLog("fetchAniSkipTimes: error reading body: %v", err)
+		return nil
+	}
+	debugLog("fetchAniSkipTimes: status=%d, body=%s", resp.StatusCode, string(body))
 	if resp.StatusCode != http.StatusOK {
 		return nil
 	}
 	var result AniSkipResponse
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil
-	}
 	if err := json.Unmarshal(body, &result); err != nil {
+		debugLog("fetchAniSkipTimes: JSON unmarshal error: %v", err)
 		return nil
 	}
+	if !result.Found {
+		debugLog("fetchAniSkipTimes: API returned found=false")
+		return nil
+	}
+	debugLog("fetchAniSkipTimes: found %d skip times", len(result.Results))
 	return result.Results
 }
 
