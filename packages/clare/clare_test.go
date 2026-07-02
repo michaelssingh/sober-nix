@@ -321,7 +321,7 @@ func TestModelLoggingIntegration(t *testing.T) {
 		t.Error("Expected next readClareLogsCmd to be returned/scheduled")
 	}
 
-	msg2 := MpvLogMsg("[MPV] AV: 00:01:23 / 00:23:28")
+	msg2 := clareLogMsg("[12:34:57] [MPV] AV: 00:01:23 / 00:23:28")
 	resModel, cmd = m.Update(msg2)
 	m = resModel.(model)
 
@@ -332,12 +332,25 @@ func TestModelLoggingIntegration(t *testing.T) {
 		t.Errorf("Expected viewport view to contain msg2, got %q", m.telemetryViewport.View())
 	}
 	if cmd == nil {
-		t.Error("Expected next readLogsCmd to be returned/scheduled")
+		t.Error("Expected next readClareLogsCmd to be returned/scheduled")
 	}
 }
 
 func TestMpvProcessLoggingIntegration(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "clare-test-mpv-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	origStateDir := os.Getenv("CLARE_STATE_DIR")
+	os.Setenv("CLARE_STATE_DIR", tmpDir)
+	defer os.Setenv("CLARE_STATE_DIR", origStateDir)
+
 	m := initialModel("", "sub", "best", false)
+
+	// Sleep to ensure tailLogFile has finished its startup delay and seeked to EOF
+	time.Sleep(600 * time.Millisecond)
 
 	cmd := exec.Command("bash", "-c", `echo "AV: 00:01:00 / 00:23:00"; sleep 0.2; echo "AV: 00:02:00 / 00:23:00"`)
 
@@ -358,20 +371,22 @@ func TestMpvProcessLoggingIntegration(t *testing.T) {
 		t.Errorf("Expected activeCmd to be cmd, got %v", m.activeCmd)
 	}
 
-	if m.mpvLogChan == nil {
-		t.Fatal("Expected mpvLogChan to be initialized")
+	if m.clareLogChan == nil {
+		t.Fatal("Expected clareLogChan to be initialized")
 	}
 
-	time.Sleep(500 * time.Millisecond)
-
-	select {
-	case line := <-m.mpvLogChan:
-		t.Logf("Read MPV piped log line: %q", line)
-		if !strings.HasPrefix(line, "[MPV] ") {
-			t.Errorf("Expected log line to be prefixed with '[MPV] ', got %q", line)
+	foundMpvLog := false
+	timeout := time.After(3 * time.Second)
+	for !foundMpvLog {
+		select {
+		case line := <-m.clareLogChan:
+			t.Logf("Read clare log line: %q", line)
+			if strings.Contains(line, "[MPV] ") {
+				foundMpvLog = true
+			}
+		case <-timeout:
+			t.Fatal("Timeout waiting for MPV log output in clareLogChan")
 		}
-	case <-time.After(1 * time.Second):
-		t.Fatal("Timeout waiting for piped log output in mpvLogChan")
 	}
 
 	_ = cmd.Process.Kill()

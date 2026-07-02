@@ -220,9 +220,6 @@ var globalProgram *tea.Program
 type clareLogMsg string
 
 func debugLog(format string, args ...any) {
-	if os.Getenv("CLARE_DEBUG") == "" {
-		return
-	}
 	dir := os.Getenv("CLARE_STATE_DIR")
 	if dir == "" {
 		stateHome := os.Getenv("XDG_STATE_HOME")

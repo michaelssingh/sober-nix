@@ -164,7 +164,6 @@ type CoverArtLoadedMsg struct {
 	Ansi   string
 }
 
-type MpvLogMsg string
 
 type aniSkipCheckedMsg struct {
 	epNo  string
@@ -180,7 +179,9 @@ type resolvedPlaybackMsg struct {
 }
 
 type playbackFinishedMsg struct {
-	err error
+	err              error
+	tempLuaFile      string
+	tempChaptersFile string
 }
 
 // Bubble Tea Model
@@ -217,7 +218,6 @@ type model struct {
 	telemetryLogs       []string
 	telemetryViewport   viewport.Model
 	showTelemetry       bool
-	mpvLogChan          chan string
 	aniSkipReady        map[string]bool
 	activeCmd           *exec.Cmd
 	clareLogChan        chan string
@@ -538,6 +538,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			debugLog("resolvedPlaybackMsg: stopping existing playback process")
 			_ = m.activeCmd.Process.Kill()
 			_ = m.activeCmd.Wait()
+			if m.tempLuaFile != "" {
+				_ = os.Remove(m.tempLuaFile)
+			}
+			if m.tempChaptersFile != "" {
+				_ = os.Remove(m.tempChaptersFile)
+			}
 		}
 		m.activeCmd = msg.cmd
 
@@ -565,45 +571,45 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		debugLog("--- Playback Started: %s (Ep %s) ---", m.selectedShow.Name, m.selectedEp)
-		m.mpvLogChan = make(chan string, 200)
 
 		go func() {
 			scanner := bufio.NewScanner(stdout)
 			for scanner.Scan() {
-				m.mpvLogChan <- "[MPV] " + scanner.Text()
+				debugLog("[MPV] %s", scanner.Text())
 			}
 		}()
 
 		go func() {
 			scanner := bufio.NewScanner(stderr)
 			for scanner.Scan() {
-				m.mpvLogChan <- "[MPV] " + scanner.Text()
+				debugLog("[MPV] %s", scanner.Text())
 			}
 		}()
 
 		return m, tea.Batch(
-			waitForExitCmd(msg.cmd),
-			readLogsCmd(m.mpvLogChan),
+			waitForExitCmd(msg.cmd, msg.tempLuaFile, msg.tempChaptersFile),
 		)
-
-	case MpvLogMsg:
-		line := string(msg)
-		m.telemetryLogs = append(m.telemetryLogs, line)
-		if len(m.telemetryLogs) > 1000 {
-			m.telemetryLogs = m.telemetryLogs[len(m.telemetryLogs)-1000:]
-		}
-		m.telemetryViewport.SetContent(strings.Join(m.telemetryLogs, "\n"))
-		m.telemetryViewport.GotoBottom()
-		return m, readLogsCmd(m.mpvLogChan)
 
 	case clareLogMsg:
 		line := string(msg)
-		m.telemetryLogs = append(m.telemetryLogs, line)
-		if len(m.telemetryLogs) > 1000 {
-			m.telemetryLogs = m.telemetryLogs[len(m.telemetryLogs)-1000:]
+		wasAtBottom := m.telemetryViewport.AtBottom()
+		
+		isMpvProgress := func(l string) bool {
+			return strings.Contains(l, "[MPV] AV:")
+		}
+
+		if len(m.telemetryLogs) > 0 && isMpvProgress(line) && isMpvProgress(m.telemetryLogs[len(m.telemetryLogs)-1]) {
+			m.telemetryLogs[len(m.telemetryLogs)-1] = line
+		} else {
+			m.telemetryLogs = append(m.telemetryLogs, line)
+			if len(m.telemetryLogs) > 1000 {
+				m.telemetryLogs = m.telemetryLogs[len(m.telemetryLogs)-1000:]
+			}
 		}
 		m.telemetryViewport.SetContent(strings.Join(m.telemetryLogs, "\n"))
-		m.telemetryViewport.GotoBottom()
+		if wasAtBottom {
+			m.telemetryViewport.GotoBottom()
+		}
 		return m, readClareLogsCmd(m.clareLogChan)
 
 	case aniSkipCheckedMsg:
@@ -1246,20 +1252,14 @@ func doPreparePlayback(selectedShow AnimeShow, epNo, mode, quality string, downl
 	}
 }
 
-func waitForExitCmd(cmd *exec.Cmd) tea.Cmd {
+func waitForExitCmd(cmd *exec.Cmd, tempLuaFile, tempChaptersFile string) tea.Cmd {
 	return func() tea.Msg {
 		err := cmd.Wait()
-		return playbackFinishedMsg{err}
-	}
-}
-
-func readLogsCmd(logChan chan string) tea.Cmd {
-	return func() tea.Msg {
-		line, ok := <-logChan
-		if !ok {
-			return nil
+		return playbackFinishedMsg{
+			err:              err,
+			tempLuaFile:      tempLuaFile,
+			tempChaptersFile: tempChaptersFile,
 		}
-		return MpvLogMsg(line)
 	}
 }
 
