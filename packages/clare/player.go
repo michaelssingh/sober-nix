@@ -45,13 +45,13 @@ func countAudioStreams(streamURL string) int {
 }
 
 type AniSkipInterval struct {
-	StartTime float64 `json:"start_time"`
-	EndTime   float64 `json:"end_time"`
+	StartTime float64 `json:"startTime"`
+	EndTime   float64 `json:"endTime"`
 }
 
 type AniSkipResult struct {
 	Interval AniSkipInterval `json:"interval"`
-	SkipType string          `json:"skip_type"`
+	SkipType string          `json:"skipType"`
 }
 
 type AniSkipResponse struct {
@@ -76,7 +76,7 @@ func fetchAniSkipTimes(malID string, epNo string, durationSeconds float64) []Ani
 	}
 
 	client := &http.Client{Timeout: 4 * time.Second}
-	url := fmt.Sprintf("https://api.aniskip.com/v1/skip-times/%s/%s?types[]=op&types[]=ed&episodeLength=%f", malID, cleanEp, durationSeconds)
+	url := fmt.Sprintf("https://api.aniskip.com/v2/skip-times/%s/%s?types[]=op&types[]=ed&types[]=mixed-op&types[]=mixed-ed&types[]=recap&episodeLength=0", malID, cleanEp)
 	debugLog("fetchAniSkipTimes: requesting %s", url)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
