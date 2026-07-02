@@ -422,3 +422,77 @@ func TestStreamCacheAndPrefetch(t *testing.T) {
 	prefetchEpisodeStream("", "", "", "")
 	prefetchEpisodeStream(showID, mode, epNo, quality)
 }
+
+func TestCompletedShowsFiltering(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "clare-test-completed-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	origStateDir := os.Getenv("CLARE_STATE_DIR")
+	os.Setenv("CLARE_STATE_DIR", tmpDir)
+	defer os.Setenv("CLARE_STATE_DIR", origStateDir)
+
+	showID := "completedShow123"
+	malID := "9999"
+	showName := "Completed Show"
+
+	show := AnimeShow{
+		ID:        showID,
+		Name:      showName,
+		MALID:     malID,
+		AvailableEpisodes: map[string]any{
+			"sub": float64(12),
+		},
+	}
+	err = saveShowCache(showID, show, []string{"1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"})
+	if err != nil {
+		t.Fatalf("failed to save show cache: %v", err)
+	}
+
+	histEntry := HistoryEntry{
+		ShowID:    showID,
+		ShowName:  showName,
+		Episode:   "12",
+		Timestamp: time.Now().Unix(),
+	}
+	err = saveHistory([]HistoryEntry{histEntry})
+	if err != nil {
+		t.Fatalf("failed to save history: %v", err)
+	}
+
+	posData := PositionsData{
+		malID: ShowState{
+			CompletedEpisodes: []float64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12},
+		},
+	}
+	err = savePositions(posData)
+	if err != nil {
+		t.Fatalf("failed to save positions: %v", err)
+	}
+
+	m := initialModel("", "sub", "best", false)
+	if len(m.historyItems) != 0 {
+		t.Errorf("Expected historyItems to be empty (filtered completed show), got %d items", len(m.historyItems))
+	}
+
+	histEntry.Episode = "6"
+	err = saveHistory([]HistoryEntry{histEntry})
+	if err != nil {
+		t.Fatalf("failed to save history: %v", err)
+	}
+
+	posData[malID] = ShowState{
+		CompletedEpisodes: []float64{1, 2, 3, 4, 5, 6},
+	}
+	err = savePositions(posData)
+	if err != nil {
+		t.Fatalf("failed to save positions: %v", err)
+	}
+
+	m.refreshHistory()
+	if len(m.historyItems) != 1 {
+		t.Errorf("Expected historyItems to have 1 item (incomplete show), got %d items", len(m.historyItems))
+	}
+}
