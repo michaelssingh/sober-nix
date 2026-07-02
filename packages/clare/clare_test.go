@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -333,4 +334,46 @@ func TestModelLoggingIntegration(t *testing.T) {
 	if cmd == nil {
 		t.Error("Expected next readLogsCmd to be returned/scheduled")
 	}
+}
+
+func TestMpvProcessLoggingIntegration(t *testing.T) {
+	m := initialModel("", "sub", "best", false)
+
+	cmd := exec.Command("bash", "-c", `echo "AV: 00:01:00 / 00:23:00"; sleep 0.2; echo "AV: 00:02:00 / 00:23:00"`)
+
+	msg := resolvedPlaybackMsg{
+		cmd:              cmd,
+		tempLuaFile:      "dummy.lua",
+		tempChaptersFile: "dummy.txt",
+	}
+
+	resModel, _ := m.Update(msg)
+	m = resModel.(model)
+
+	if m.state != stateEpisodeSelect {
+		t.Errorf("Expected TUI state to remain stateEpisodeSelect, got %v", m.state)
+	}
+
+	if m.activeCmd != cmd {
+		t.Errorf("Expected activeCmd to be cmd, got %v", m.activeCmd)
+	}
+
+	if m.mpvLogChan == nil {
+		t.Fatal("Expected mpvLogChan to be initialized")
+	}
+
+	time.Sleep(500 * time.Millisecond)
+
+	select {
+	case line := <-m.mpvLogChan:
+		t.Logf("Read MPV piped log line: %q", line)
+		if !strings.HasPrefix(line, "[MPV] ") {
+			t.Errorf("Expected log line to be prefixed with '[MPV] ', got %q", line)
+		}
+	case <-time.After(1 * time.Second):
+		t.Fatal("Timeout waiting for piped log output in mpvLogChan")
+	}
+
+	_ = cmd.Process.Kill()
+	_ = cmd.Wait()
 }
