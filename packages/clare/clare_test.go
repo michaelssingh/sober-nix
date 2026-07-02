@@ -802,3 +802,75 @@ func TestMockTUI(t *testing.T) {
 	}
 }
 
+func TestPlayerResumePosition(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "clare-resume-test-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	origStateDir := os.Getenv("CLARE_STATE_DIR")
+	os.Setenv("CLARE_STATE_DIR", tmpDir)
+	defer os.Setenv("CLARE_STATE_DIR", origStateDir)
+
+	// Save positions data with resume state
+	posData := PositionsData{
+		"12345": ShowState{
+			ResumeState: &ResumeState{
+				Episode:         3.0,
+				PositionSeconds: 450.5,
+				TotalSeconds:    1440.0,
+			},
+		},
+	}
+	err = savePositions(posData)
+	if err != nil {
+		t.Fatalf("failed to save positions: %v", err)
+	}
+
+	// Case 1: Match episode number - should append --start=450.500000
+	cmd, tempLua, tempChaps, err := getMpvCmd("http://example.com/stream.m3u8", "Test Show", "3", "12345", "24 min", nil)
+	if err != nil {
+		t.Fatalf("getMpvCmd failed: %v", err)
+	}
+	if tempLua != "" {
+		defer os.Remove(tempLua)
+	}
+	if tempChaps != "" {
+		defer os.Remove(tempChaps)
+	}
+
+	hasStartArg := false
+	expectedArg := "--start=450.500000"
+	for _, arg := range cmd.Args {
+		if strings.Contains(arg, "--start=") {
+			hasStartArg = true
+			if arg != expectedArg {
+				t.Errorf("Expected start argument to be %q, got %q", expectedArg, arg)
+			}
+		}
+	}
+	if !hasStartArg {
+		t.Error("Expected to find '--start=' argument, but none was found")
+	}
+
+	// Case 2: Episode mismatch - should NOT append --start
+	cmd2, tempLua2, tempChaps2, err := getMpvCmd("http://example.com/stream.m3u8", "Test Show", "4", "12345", "24 min", nil)
+	if err != nil {
+		t.Fatalf("getMpvCmd failed on second call: %v", err)
+	}
+	if tempLua2 != "" {
+		defer os.Remove(tempLua2)
+	}
+	if tempChaps2 != "" {
+		defer os.Remove(tempChaps2)
+	}
+
+	for _, arg := range cmd2.Args {
+		if strings.Contains(arg, "--start=") {
+			t.Errorf("Did not expect '--start' argument for mismatched episode, got %q", arg)
+		}
+	}
+}
+
+
