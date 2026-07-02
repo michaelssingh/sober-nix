@@ -31,6 +31,7 @@ const (
 	stateSearchRunning
 	stateShowSelect
 	stateEpisodeSelect
+	stateSourceSelect
 	statePlaybackPreparing
 	statePlaybackActive
 	stateError
@@ -240,6 +241,26 @@ type showDetailsResultMsg struct {
 	err    error
 }
 
+type allStreamsResultMsg struct {
+	epNo    string
+	streams []ResolvedStream
+	err     error
+}
+
+type sourceItem struct {
+	stream ResolvedStream
+}
+
+func (s sourceItem) Title() string {
+	return fmt.Sprintf("%s (%s)", s.stream.SourceName, s.stream.Quality)
+}
+func (s sourceItem) Description() string {
+	return s.stream.URL
+}
+func (s sourceItem) FilterValue() string {
+	return s.stream.SourceName
+}
+
 type CoverArtLoadedMsg struct {
 	ShowID string
 	Ansi   string
@@ -305,6 +326,8 @@ type model struct {
 	showCompleted       bool // whether to include completed shows in history list
 	searchHistory       []string
 	searchHistoryIndex  int
+	sourceList          list.Model
+	resolvedStreams     []ResolvedStream
 }
 
 func createMinimalList(title string) list.Model {
@@ -381,6 +404,7 @@ func initialModel(initialSearch, mode, quality string, download bool) model {
 	hList := createHistoryList()
 	sList := createMinimalList("Search Results")
 	eList := createMinimalList("Select Episode")
+	soList := createMinimalList("Select Source & Resolution")
 
 	m := model{
 		state:              stateHistory,
@@ -389,6 +413,7 @@ func initialModel(initialSearch, mode, quality string, download bool) model {
 		spinner:            s,
 		showList:           sList,
 		episodeList:        eList,
+		sourceList:         soList,
 		mode:               mode,
 		quality:            quality,
 		download:           download,
@@ -903,6 +928,22 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.loadingMsg = "Refreshing episode list..."
 		return m, doFetchEpisodes(m.selectedShow.ID, "sub")
 
+	case allStreamsResultMsg:
+		if msg.err != nil {
+			m.state = stateError
+			m.err = msg.err
+			return m, nil
+		}
+		m.resolvedStreams = msg.streams
+		var items []list.Item
+		for _, s := range msg.streams {
+			items = append(items, sourceItem{stream: s})
+		}
+		m.sourceList.SetItems(items)
+		m.sourceList.Title = fmt.Sprintf("Episode %s Sources", msg.epNo)
+		m.state = stateSourceSelect
+		return m, nil
+
 	case showDetailsResultMsg:
 		if msg.err == nil {
 			m.historyShowDetails[msg.showID] = msg.show
@@ -1202,9 +1243,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				selected, ok := m.episodeList.SelectedItem().(episodeItem)
 				if ok {
 					m.selectedEp = selected.epNo
-					m.state = statePlaybackPreparing
-					m.loadingMsg = fmt.Sprintf("Preparing playback for Episode %s...", selected.epNo)
-					return m, doPreparePlayback(m.selectedShow, selected.epNo, m.mode, m.quality, m.download)
+					m.state = stateSearchRunning
+					m.loadingMsg = fmt.Sprintf("Resolving stream sources for Episode %s...", selected.epNo)
+					return m, doFetchAllStreams(m.selectedShow.ID, m.mode, selected.epNo)
 				}
 			case "esc":
 				// If we came from history, go back to history. Else, show selection.
@@ -1298,6 +1339,30 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 			return m, tea.Batch(cmds...)
+
+		case stateSourceSelect:
+			switch msg.String() {
+			case "enter":
+				selected, ok := m.sourceList.SelectedItem().(sourceItem)
+				if ok {
+					m.state = statePlaybackPreparing
+					m.loadingMsg = fmt.Sprintf("Preparing playback from %s (%s)...", selected.stream.SourceName, selected.stream.Quality)
+
+					// Seed cache so resolveStreamURL uses this exact URL
+					cacheKey := fmt.Sprintf("%s-%s-%s-%s", m.selectedShow.ID, m.mode, m.selectedEp, m.quality)
+					streamCacheMu.Lock()
+					streamCache[cacheKey] = selected.stream.URL
+					streamCacheMu.Unlock()
+
+					return m, doPreparePlayback(m.selectedShow, m.selectedEp, m.mode, m.quality, m.download)
+				}
+			case "esc":
+				m.state = stateEpisodeSelect
+				return m, nil
+			}
+			var cmd tea.Cmd
+			m.sourceList, cmd = m.sourceList.Update(msg)
+			return m, cmd
 
 		case statePlaybackActive:
 			return m, nil
@@ -1492,6 +1557,10 @@ func (m model) View() string {
 		}
 		modeStr := strings.ToUpper(m.mode)
 		s.WriteString("\n\n" + helpStyle(fmt.Sprintf("enter: play | a: toggle autoplay (%s) | m: toggle mode (mode: %s) | esc: back | q: quit", autoplayStr, modeStr)))
+
+	case stateSourceSelect:
+		s.WriteString(m.sourceList.View())
+		s.WriteString("\n\n" + helpStyle("enter: play with selected source | esc: back | q: quit"))
 
 	case statePlaybackPreparing:
 		s.WriteString(fmt.Sprintf("%s %s\n", m.spinner.View(), m.loadingMsg))
@@ -1829,6 +1898,13 @@ func parseEpisodeNumber(ep string) float64 {
 	var val float64
 	fmt.Sscanf(numStr.String(), "%f", &val)
 	return val
+}
+
+func doFetchAllStreams(showID, mode, epNo string) tea.Cmd {
+	return func() tea.Msg {
+		streams, err := fetchAllResolvedStreams(showID, mode, epNo)
+		return allStreamsResultMsg{epNo: epNo, streams: streams, err: err}
+	}
 }
 
 func doFetchShowDetails(showID string) tea.Cmd {

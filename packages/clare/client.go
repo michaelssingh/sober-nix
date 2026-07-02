@@ -629,3 +629,37 @@ func newLoggingHttpClient(timeout time.Duration) *http.Client {
 		},
 	}
 }
+
+type ResolvedStream struct {
+	SourceName string
+	Quality    string
+	URL        string
+}
+
+func fetchAllResolvedStreams(showID, mode, episodeNo string) ([]ResolvedStream, error) {
+	sources, err := fetchEpisodeSources(showID, mode, episodeNo)
+	if err != nil {
+		return nil, err
+	}
+
+	var results []ResolvedStream
+	for _, src := range sources {
+		links, err := fetchProviderLinks(src.SourceURL)
+		if err == nil {
+			for qual, urlVal := range links {
+				results = append(results, ResolvedStream{
+					SourceName: src.SourceName,
+					Quality:    qual,
+					URL:        urlVal,
+				})
+			}
+		}
+	}
+
+	if len(results) == 0 {
+		return nil, fmt.Errorf("no streams resolved for episode %s (%s)", episodeNo, mode)
+	}
+
+	return results, nil
+}
+

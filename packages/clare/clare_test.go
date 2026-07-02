@@ -954,5 +954,44 @@ func TestSearchHistory(t *testing.T) {
 	}
 }
 
+func TestInteractiveSourceSelect(t *testing.T) {
+	m := initialModel("", "sub", "best", false)
+	m.selectedShow = AnimeShow{ID: "frieren123", Name: "Sousou no Frieren"}
+	m.selectedEp = "1"
+
+	streams := []ResolvedStream{
+		{SourceName: "Wixmp", Quality: "1080p", URL: "http://example.com/wixmp-1080.mp4"},
+		{SourceName: "Sharepoint", Quality: "720p", URL: "http://example.com/sharepoint-720.mp4"},
+	}
+	updated, _ := m.Update(allStreamsResultMsg{epNo: "1", streams: streams, err: nil})
+	mUpdated := updated.(model)
+
+	if mUpdated.state != stateSourceSelect {
+		t.Errorf("Expected state to be stateSourceSelect, got %d", mUpdated.state)
+	}
+
+	if len(mUpdated.sourceList.Items()) != 2 {
+		t.Errorf("Expected 2 sources in list, got %d", len(mUpdated.sourceList.Items()))
+	}
+
+	msg := tea.KeyMsg{Type: tea.KeyEnter}
+	updated2, _ := mUpdated.Update(msg)
+	mUpdated2 := updated2.(model)
+
+	if mUpdated2.state != statePlaybackPreparing {
+		t.Errorf("Expected state to transition to statePlaybackPreparing, got %d", mUpdated2.state)
+	}
+
+	cacheKey := fmt.Sprintf("%s-%s-%s-%s", mUpdated2.selectedShow.ID, mUpdated2.mode, mUpdated2.selectedEp, mUpdated2.quality)
+	streamCacheMu.RLock()
+	cachedURL, ok := streamCache[cacheKey]
+	streamCacheMu.RUnlock()
+
+	if !ok || cachedURL != "http://example.com/wixmp-1080.mp4" {
+		t.Errorf("Expected cached URL to be seeded as 'http://example.com/wixmp-1080.mp4', got %q (found=%t)", cachedURL, ok)
+	}
+}
+
+
 
 
