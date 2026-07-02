@@ -65,22 +65,66 @@ var (
 	selectedTitleStyle = lipgloss.NewStyle().
 				Bold(true).
 				Foreground(lipgloss.Color("#bb9af7")) // Tokyonight magenta
+
+	// Sub/Dub translation badges
+	subBadgeStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#9ece6a")) // Tokyonight green
+
+	dubBadgeStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#7dcfff")) // Tokyonight cyan/blue
+
+	subDubBadgeStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#bb9af7")) // Tokyonight magenta/purple
 )
 
 // List items definitions
 
 type historyItem struct {
-	showID    string
-	showName  string
-	lastEp    string
-	timestamp int64
+	showID      string
+	showName    string
+	lastEp      string
+	timestamp   int64
+	isCompleted bool
+	totalEps    int     // total episodes (from positions or cache), 0 = unknown
+	nextEp      string  // next episode to watch, empty if none/completed
+	progressPct float64 // 0.0-1.0 progress, -1 if unknown
 }
 
-func (h historyItem) Title() string       { return h.showName }
-func (h historyItem) Description() string {
-	t := time.Unix(h.timestamp, 0).Format("2006-01-02 15:04")
-	return fmt.Sprintf("Last watched: Ep %s | %s", h.lastEp, t)
+func (h historyItem) Title() string {
+	if h.isCompleted {
+		return "✓ " + h.showName
+	}
+	return h.showName
 }
+
+func (h historyItem) Description() string {
+	ago := humanAgo(h.timestamp)
+	if h.isCompleted {
+		if h.totalEps > 0 {
+			return fmt.Sprintf("Completed — %d episodes  ·  %s", h.totalEps, ago)
+		}
+		return fmt.Sprintf("Completed  ·  %s", ago)
+	}
+	var parts []string
+	if h.nextEp != "" && h.totalEps > 0 {
+		parts = append(parts, fmt.Sprintf("Next: Ep %s / %d", h.nextEp, h.totalEps))
+	} else if h.nextEp != "" {
+		parts = append(parts, fmt.Sprintf("Next: Ep %s", h.nextEp))
+	} else if h.lastEp != "" {
+		parts = append(parts, fmt.Sprintf("Last: Ep %s", h.lastEp))
+	}
+	if h.progressPct >= 0 && h.totalEps > 0 {
+		filled := int(h.progressPct * 8)
+		if filled > 8 {
+			filled = 8
+		}
+		bar := strings.Repeat("▓", filled) + strings.Repeat("░", 8-filled)
+		parts = append(parts, fmt.Sprintf("[%s] %d%%", bar, int(h.progressPct*100)))
+	}
+	parts = append(parts, ago)
+	return strings.Join(parts, "  ·  ")
+}
+
 func (h historyItem) FilterValue() string { return h.showName }
 
 type showItem struct {
@@ -105,23 +149,36 @@ func (s showItem) Description() string {
 func (s showItem) FilterValue() string { return s.show.Name }
 
 type episodeItem struct {
-	epNo   string
-	isNext bool
-	title  string
-	desc   string
+	epNo     string
+	isNext   bool
+	title    string
+	desc     string
+	subAvail bool
+	dubAvail bool
 }
 
 func (e episodeItem) Title() string {
+	base := ""
 	if e.title != "" {
-		if e.isNext {
-			return fmt.Sprintf("%s (Next Up)", e.title)
-		}
-		return e.title
+		base = e.title
+	} else {
+		base = fmt.Sprintf("Episode %s", e.epNo)
 	}
 	if e.isNext {
-		return fmt.Sprintf("Episode %s (Next Up)", e.epNo)
+		base = fmt.Sprintf("%s (Next Up)", base)
 	}
-	return fmt.Sprintf("Episode %s", e.epNo)
+
+	// Add sub/dub badges
+	var badge string
+	if e.subAvail && e.dubAvail {
+		badge = " " + subDubBadgeStyle.Render("[SUB+DUB]")
+	} else if e.subAvail {
+		badge = " " + subBadgeStyle.Render("[SUB]")
+	} else if e.dubAvail {
+		badge = " " + dubBadgeStyle.Render("[DUB]")
+	}
+
+	return base + badge
 }
 func (e episodeItem) Description() string { return e.desc }
 func (e episodeItem) FilterValue() string { return e.epNo }
@@ -221,6 +278,7 @@ type model struct {
 	aniSkipReady        map[string]bool
 	activeCmd           *exec.Cmd
 	clareLogChan        chan string
+	showCompleted       bool // whether to include completed shows in history list
 }
 
 func createMinimalList(title string) list.Model {
@@ -250,6 +308,35 @@ func createMinimalList(title string) list.Model {
 	return l
 }
 
+// createHistoryList creates the history list with a custom delegate that dims completed items.
+func createHistoryList() list.Model {
+	d := list.NewDefaultDelegate()
+	// Active (in-progress) items — vivid
+	d.Styles.SelectedTitle = d.Styles.SelectedTitle.
+		Foreground(lipgloss.Color("#bb9af7")).
+		BorderLeftForeground(lipgloss.Color("#bb9af7"))
+	d.Styles.SelectedDesc = d.Styles.SelectedDesc.
+		Foreground(lipgloss.Color("#565f89")).
+		BorderLeftForeground(lipgloss.Color("#bb9af7"))
+	d.Styles.NormalTitle = d.Styles.NormalTitle.
+		Foreground(lipgloss.Color("#c0caf5"))
+	d.Styles.NormalDesc = d.Styles.NormalDesc.
+		Foreground(lipgloss.Color("#565f89"))
+
+	l := list.New([]list.Item{}, d, 0, 0)
+	l.Title = "Continue Watching"
+	l.SetShowStatusBar(false)
+	l.SetShowHelp(false)
+	l.SetFilteringEnabled(true)
+	l.Styles.Title = lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("#7aa2f7")).
+		Background(lipgloss.Color("#1f2335")).
+		Padding(0, 1)
+
+	return l
+}
+
 func initialModel(initialSearch, mode, quality string, download bool) model {
 	// Setup spinner
 	s := spinner.New()
@@ -265,7 +352,7 @@ func initialModel(initialSearch, mode, quality string, download bool) model {
 	ti.PromptStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#7aa2f7"))
 	ti.TextStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#c0caf5"))
 
-	hList := createMinimalList("Continue Watching")
+	hList := createHistoryList()
 	sList := createMinimalList("Search Results")
 	eList := createMinimalList("Select Episode")
 
@@ -306,39 +393,145 @@ func initialModel(initialSearch, mode, quality string, download bool) model {
 
 func (m *model) refreshHistory() {
 	rawHist, err := loadHistory()
-	if err == nil {
-		uniq := getUniqueHistory(rawHist)
-		positions, _ := loadPositions()
-		var items []list.Item
-		for _, u := range uniq {
-			// Check if show is completed
-			malID := ""
-			show, _, found := loadShowCache(u.ShowID)
-			if found {
-				malID = show.MALID
-			}
-			if malID != "" && positions != nil {
-				if showState, ok := positions[malID]; ok {
-					totalEps := show.EpCount()
-					if totalEps > 0 {
-						lastEp := parseEpisodeNumber(u.Episode)
-						if int(lastEp) >= totalEps || len(showState.CompletedEpisodes) >= totalEps {
-							debugLog("refreshHistory: hiding completed show %s (%d/%d eps)", u.ShowName, int(lastEp), totalEps)
-							continue
+	if err != nil {
+		return
+	}
+	uniq := getUniqueHistory(rawHist)
+	positions, _ := loadPositions()
+
+	var allItems []list.Item
+	for _, u := range uniq {
+		item := historyItem{
+			showID:      u.ShowID,
+			showName:    u.ShowName,
+			lastEp:      u.Episode,
+			timestamp:   u.Timestamp,
+			progressPct: -1,
+		}
+
+		// Enrich from positions.json if available. We need the MALID — look it up
+		// from the show cache if available.
+		var malID string
+		if cached, _, found := loadShowCache(u.ShowID); found {
+			malID = cached.MALID
+			item.totalEps = cached.EpCount()
+		}
+
+		if positions != nil && malID != "" && malID != "0" {
+			if showState, ok := positions[malID]; ok {
+				// Determine if completed: no resume state and all tracked episodes == totalEps
+				completed := len(showState.CompletedEpisodes) > 0 &&
+					showState.ResumeState == nil &&
+					item.totalEps > 0 &&
+					len(showState.CompletedEpisodes) >= item.totalEps
+				item.isCompleted = completed
+
+				if !completed {
+					if showState.ResumeState != nil {
+						// In-progress episode
+						epStr := fmt.Sprintf("%.1f", showState.ResumeState.Episode)
+						if strings.HasSuffix(epStr, ".0") {
+							epStr = epStr[:len(epStr)-2]
+						}
+						item.nextEp = epStr
+						if showState.ResumeState.TotalSeconds > 0 {
+							item.progressPct = showState.ResumeState.PositionSeconds / showState.ResumeState.TotalSeconds
+							if item.progressPct > 1.0 {
+								item.progressPct = 1.0
+							}
+						}
+					} else if len(showState.CompletedEpisodes) > 0 {
+						// Finished an episode, next one up
+						maxEp := 0.0
+						for _, cEp := range showState.CompletedEpisodes {
+							if cEp > maxEp {
+								maxEp = cEp
+							}
+						}
+						if item.totalEps > 0 {
+							item.progressPct = maxEp / float64(item.totalEps)
+						}
+						nextVal := maxEp + 1
+						if int(nextVal) <= item.totalEps {
+							item.nextEp = fmt.Sprintf("%.0f", nextVal)
 						}
 					}
 				}
 			}
-
-			items = append(items, historyItem{
-				showID:    u.ShowID,
-				showName:  u.ShowName,
-				lastEp:    u.Episode,
-				timestamp: u.Timestamp,
-			})
+		} else {
+			// No positions data — fall back to history to set next ep heuristic
+			if u.Episode != "" && item.totalEps > 0 {
+				epVal := parseEpisodeNumber(u.Episode)
+				nextVal := epVal + 1
+				if int(nextVal) <= item.totalEps {
+					item.nextEp = fmt.Sprintf("%.0f", nextVal)
+					item.progressPct = epVal / float64(item.totalEps)
+				} else if int(epVal) >= item.totalEps {
+					item.isCompleted = true
+				}
+			}
 		}
-		m.historyItems = items
-		m.historyList.SetItems(items)
+
+		allItems = append(allItems, item)
+	}
+	m.historyItems = allItems
+	m.applyHistoryFilter()
+}
+
+// applyHistoryFilter updates the list model based on the showCompleted toggle.
+func (m *model) applyHistoryFilter() {
+	var filtered []list.Item
+	var completedCount, activeCount int
+	for _, it := range m.historyItems {
+		if h, ok := it.(historyItem); ok {
+			if h.isCompleted {
+				completedCount++
+				if m.showCompleted {
+					filtered = append(filtered, it)
+				}
+			} else {
+				activeCount++
+				filtered = append(filtered, it)
+			}
+		}
+	}
+	// Update list title with counts
+	if m.showCompleted {
+		m.historyList.Title = fmt.Sprintf("Watching (%d)  +  Completed (%d)", activeCount, completedCount)
+	} else if completedCount > 0 {
+		m.historyList.Title = fmt.Sprintf("Continue Watching (%d)  [c: show %d completed]", activeCount, completedCount)
+	} else {
+		m.historyList.Title = fmt.Sprintf("Continue Watching (%d)", activeCount)
+	}
+	m.historyList.SetItems(filtered)
+}
+
+func humanAgo(ts int64) string {
+	if ts == 0 {
+		return "unknown"
+	}
+	dur := time.Since(time.Unix(ts, 0))
+	switch {
+	case dur < time.Minute:
+		return "just now"
+	case dur < time.Hour:
+		return fmt.Sprintf("%dm ago", int(dur.Minutes()))
+	case dur < 24*time.Hour:
+		return fmt.Sprintf("%dh ago", int(dur.Hours()))
+	case dur < 7*24*time.Hour:
+		days := int(dur.Hours() / 24)
+		if days == 1 {
+			return "yesterday"
+		}
+		return fmt.Sprintf("%d days ago", days)
+	case dur < 30*24*time.Hour:
+		weeks := int(dur.Hours() / (24 * 7))
+		if weeks == 1 {
+			return "1 week ago"
+		}
+		return fmt.Sprintf("%d weeks ago", weeks)
+	default:
+		return time.Unix(ts, 0).Format("2006-01-02")
 	}
 }
 
@@ -814,6 +1007,24 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.loadingMsg = fmt.Sprintf("Fetching episodes for %s...", m.selectedShow.Name)
 					return m, doFetchEpisodes(selected.showID, "sub")
 				}
+			case "c", "C":
+				m.showCompleted = !m.showCompleted
+				m.applyHistoryFilter()
+				return m, nil
+			case "d", "D":
+				if selected, ok := m.historyList.SelectedItem().(historyItem); ok {
+					if rawHist, err := loadHistory(); err == nil {
+						var filtered []HistoryEntry
+						for _, h := range rawHist {
+							if h.ShowID != selected.showID {
+								filtered = append(filtered, h)
+							}
+						}
+						_ = saveHistory(filtered)
+					}
+					m.refreshHistory()
+				}
+				return m, nil
 			case "s", "/":
 				m.state = stateSearchInput
 				m.searchInput.Reset()
@@ -1151,7 +1362,7 @@ func (m model) View() string {
 		} else {
 			s.WriteString(m.historyList.View())
 		}
-		s.WriteString("\n\n" + helpStyle("s: search | enter: select show | q: quit"))
+		s.WriteString("\n\n" + helpStyle("s: search  enter: resume  c: toggle completed  d: remove  q: quit"))
 
 	case stateSearchInput:
 		s.WriteString(accentColorStyle.Render("Search Anime:") + "\n\n")
@@ -1482,6 +1693,9 @@ func (m *model) refreshEpisodeListItems() {
 		}
 	}
 
+	subCount := m.selectedShow.SubCount()
+	dubCount := m.selectedShow.DubCount()
+
 	var items []list.Item
 	for _, ep := range m.episodes {
 		isNext := ep == nextEp
@@ -1504,14 +1718,31 @@ func (m *model) refreshEpisodeListItems() {
 			title = fmt.Sprintf("Episode %s", ep)
 		}
 
+		epVal := parseEpisodeNumber(ep)
+		subAvail := subCount > 0 && int(epVal) <= subCount
+		dubAvail := dubCount > 0 && int(epVal) <= dubCount
+
 		items = append(items, episodeItem{
-			epNo:   ep,
-			isNext: isNext,
-			title:  title,
-			desc:   desc,
+			epNo:     ep,
+			isNext:   isNext,
+			title:    title,
+			desc:     desc,
+			subAvail: subAvail,
+			dubAvail: dubAvail,
 		})
 	}
 	m.episodeItems = items
+	
+	// Add sub/dub badge to the list title
+	var badge string
+	if subCount > 0 && dubCount > 0 {
+		badge = " [SUB+DUB]"
+	} else if subCount > 0 {
+		badge = " [SUB only]"
+	} else if dubCount > 0 {
+		badge = " [DUB only]"
+	}
+	m.episodeList.Title = fmt.Sprintf("Select Episode%s", badge)
 	m.episodeList.SetItems(items)
 }
 

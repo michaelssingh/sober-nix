@@ -86,6 +86,30 @@ func (s AnimeShow) EpCount() int {
 	return 0
 }
 
+func (s AnimeShow) SubCount() int {
+	if s.AvailableEpisodes == nil {
+		return 0
+	}
+	if episodes, ok := s.AvailableEpisodes.(map[string]any); ok {
+		if subEpisodes, ok := episodes["sub"].(float64); ok {
+			return int(subEpisodes)
+		}
+	}
+	return 0
+}
+
+func (s AnimeShow) DubCount() int {
+	if s.AvailableEpisodes == nil {
+		return 0
+	}
+	if episodes, ok := s.AvailableEpisodes.(map[string]any); ok {
+		if dubEpisodes, ok := episodes["dub"].(float64); ok {
+			return int(dubEpisodes)
+		}
+	}
+	return 0
+}
+
 type SourceInfo struct {
 	SourceName string
 	SourceURL  string

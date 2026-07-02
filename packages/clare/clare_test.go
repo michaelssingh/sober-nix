@@ -473,10 +473,21 @@ func TestCompletedShowsFiltering(t *testing.T) {
 	}
 
 	m := initialModel("", "sub", "best", false)
-	if len(m.historyItems) != 0 {
-		t.Errorf("Expected historyItems to be empty (filtered completed show), got %d items", len(m.historyItems))
+	if len(m.historyList.Items()) != 0 {
+		t.Errorf("Expected historyList displayed items to be empty (filtered completed show), got %d items", len(m.historyList.Items()))
+	}
+	if len(m.historyItems) != 1 {
+		t.Errorf("Expected historyItems to store 1 item in total, got %d", len(m.historyItems))
 	}
 
+	// Enable showCompleted and verify it appears
+	m.showCompleted = true
+	m.applyHistoryFilter()
+	if len(m.historyList.Items()) != 1 {
+		t.Errorf("Expected historyList to show completed show when showCompleted is true, got %d items", len(m.historyList.Items()))
+	}
+
+	// Now make it incomplete
 	histEntry.Episode = "6"
 	err = saveHistory([]HistoryEntry{histEntry})
 	if err != nil {
@@ -491,8 +502,90 @@ func TestCompletedShowsFiltering(t *testing.T) {
 		t.Fatalf("failed to save positions: %v", err)
 	}
 
+	m.showCompleted = false
 	m.refreshHistory()
-	if len(m.historyItems) != 1 {
-		t.Errorf("Expected historyItems to have 1 item (incomplete show), got %d items", len(m.historyItems))
+	if len(m.historyList.Items()) != 1 {
+		t.Errorf("Expected historyList to show 1 item (incomplete show), got %d items", len(m.historyList.Items()))
+	}
+}
+
+func TestLegacyPositionsParsing(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "clare-test-legacy-positions-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	origStateDir := os.Getenv("CLARE_STATE_DIR")
+	os.Setenv("CLARE_STATE_DIR", tmpDir)
+	defer os.Setenv("CLARE_STATE_DIR", origStateDir)
+
+	// Write mock positions file containing both a new-format ShowState object
+	// and legacy float64 number entries keyed by titles
+	filePath := filepath.Join(tmpDir, "positions.json")
+	rawJSON := `{
+		"5114": {
+			"resume_state": {
+				"episode": 3,
+				"position_seconds": 120,
+				"total_seconds": 1440
+			},
+			"completed_episodes": [1, 2]
+		},
+		"Fullmetal Alchemist: Brotherhood - Episode 39": 1341.465,
+		"Another Show - Episode 1": 42.0
+	}`
+	if err := os.WriteFile(filePath, []byte(rawJSON), 0644); err != nil {
+		t.Fatalf("failed to write positions.json: %v", err)
+	}
+
+	// Verify decoding succeeds without errors, and it purges legacy/empty entries
+	data, err := loadPositions()
+	if err != nil {
+		t.Fatalf("loadPositions failed on legacy format: %v", err)
+	}
+
+	if len(data) != 1 {
+		t.Errorf("Expected 1 valid format entry after cleanup, got %d entries: %v", len(data), data)
+	}
+
+	if _, ok := data["5114"]; !ok {
+		t.Error("Expected key '5114' to exist in parsed positions data")
+	}
+}
+
+func TestSubDubIndicators(t *testing.T) {
+	show := AnimeShow{
+		ID:   "test",
+		Name: "Test Show",
+		AvailableEpisodes: map[string]any{
+			"sub": float64(24),
+			"dub": float64(12),
+		},
+	}
+
+	if show.SubCount() != 24 {
+		t.Errorf("Expected SubCount() to be 24, got %d", show.SubCount())
+	}
+	if show.DubCount() != 12 {
+		t.Errorf("Expected DubCount() to be 12, got %d", show.DubCount())
+	}
+
+	item := episodeItem{
+		epNo:     "10",
+		subAvail: true,
+		dubAvail: true,
+	}
+	if !strings.Contains(item.Title(), "[SUB+DUB]") {
+		t.Errorf("Expected Title to contain [SUB+DUB], got %q", item.Title())
+	}
+
+	item2 := episodeItem{
+		epNo:     "15",
+		subAvail: true,
+		dubAvail: false,
+	}
+	if !strings.Contains(item2.Title(), "[SUB]") || strings.Contains(item2.Title(), "DUB") {
+		t.Errorf("Expected Title to contain [SUB] and not DUB, got %q", item2.Title())
 	}
 }

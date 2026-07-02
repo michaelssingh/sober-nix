@@ -105,6 +105,28 @@ type ShowState struct {
 	CompletedEpisodes []float64    `json:"completed_episodes"`
 }
 
+func (s *ShowState) UnmarshalJSON(b []byte) error {
+	if len(b) == 0 {
+		return nil
+	}
+	// If it's a JSON number (starts with a digit, minus sign, dot, etc.)
+	first := b[0]
+	if (first >= '0' && first <= '9') || first == '-' || first == '.' {
+		// Legacy numeric format (represented seconds watched keyed by title) - return empty ShowState
+		return nil
+	}
+
+	// Try standard object unmarshaling
+	type Alias ShowState
+	var aux Alias
+	if err := json.Unmarshal(b, &aux); err != nil {
+		// Handle gracefully rather than failing the whole file load
+		return nil
+	}
+	*s = ShowState(aux)
+	return nil
+}
+
 type PositionsData map[string]ShowState
 
 func getPositionsPath() string {
@@ -133,8 +155,17 @@ func loadPositions() (PositionsData, error) {
 
 	var data PositionsData
 	if err := json.NewDecoder(f).Decode(&data); err != nil {
-		return nil, err
+		// If decoding fails completely (e.g. syntax error or invalid top-level JSON), return empty map
+		return make(PositionsData), nil
 	}
+
+	// Auto-cleanup legacy keys / empty entries
+	for k, v := range data {
+		if v.ResumeState == nil && len(v.CompletedEpisodes) == 0 {
+			delete(data, k)
+		}
+	}
+
 	return data, nil
 }
 
