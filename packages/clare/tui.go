@@ -169,6 +169,18 @@ func (s showItem) Description() string {
 		parts = append(parts, fmt.Sprintf("Score: %.2f", s.show.Score))
 	}
 	parts = append(parts, fmt.Sprintf("%d episodes available", s.show.EpCount()))
+
+	// Add sub/dub badge
+	subCount := s.show.SubCount()
+	dubCount := s.show.DubCount()
+	if subCount > 0 && dubCount > 0 {
+		parts = append(parts, subDubBadgeStyle.Render("SUB+DUB"))
+	} else if subCount > 0 {
+		parts = append(parts, subBadgeStyle.Render("SUB"))
+	} else if dubCount > 0 {
+		parts = append(parts, dubBadgeStyle.Render("DUB"))
+	}
+
 	return strings.Join(parts, "  •  ")
 }
 func (s showItem) FilterValue() string { return s.show.Name }
@@ -488,11 +500,20 @@ func (m *model) refreshHistory() {
 
 		if positions != nil && malID != "" && malID != "0" {
 			if showState, ok := positions[malID]; ok {
-				// Determine if completed: no resume state and all tracked episodes == totalEps
-				completed := len(showState.CompletedEpisodes) > 0 &&
-					showState.ResumeState == nil &&
-					item.totalEps > 0 &&
-					len(showState.CompletedEpisodes) >= item.totalEps
+				// Determine if completed
+				maxCompleted := 0.0
+				for _, ep := range showState.CompletedEpisodes {
+					if ep > maxCompleted {
+						maxCompleted = ep
+					}
+				}
+				lastEpVal := parseEpisodeNumber(item.lastEp)
+				completed := false
+				if item.totalEps > 0 {
+					completed = (maxCompleted >= float64(item.totalEps)) ||
+						(lastEpVal >= float64(item.totalEps)) ||
+						(len(showState.CompletedEpisodes) >= item.totalEps)
+				}
 				item.isCompleted = completed
 
 				if !completed {
@@ -503,25 +524,37 @@ func (m *model) refreshHistory() {
 							epStr = epStr[:len(epStr)-2]
 						}
 						item.nextEp = epStr
-						if showState.ResumeState.TotalSeconds > 0 {
-							item.progressPct = showState.ResumeState.PositionSeconds / showState.ResumeState.TotalSeconds
-							if item.progressPct > 1.0 {
-								item.progressPct = 1.0
-							}
-						}
-					} else if len(showState.CompletedEpisodes) > 0 {
-						// Finished an episode, next one up
+						// Compute progress based on maxCompleted
 						maxEp := 0.0
 						for _, cEp := range showState.CompletedEpisodes {
 							if cEp > maxEp {
 								maxEp = cEp
 							}
 						}
+						currEpVal := parseEpisodeNumber(epStr)
+						if currEpVal > maxEp {
+							maxEp = currEpVal
+						}
 						if item.totalEps > 0 {
 							item.progressPct = maxEp / float64(item.totalEps)
 						}
-						nextVal := maxEp + 1
-						if int(nextVal) <= item.totalEps {
+					} else if u.Episode != "" {
+						// Finished an episode, next sequential one up
+						epVal := parseEpisodeNumber(u.Episode)
+						nextVal := epVal + 1
+						if item.totalEps > 0 {
+							if int(nextVal) <= item.totalEps {
+								item.nextEp = fmt.Sprintf("%.0f", nextVal)
+							}
+							// Progress bar percentage uses max completed episode
+							maxEp := 0.0
+							for _, cEp := range showState.CompletedEpisodes {
+								if cEp > maxEp {
+									maxEp = cEp
+								}
+							}
+							item.progressPct = maxEp / float64(item.totalEps)
+						} else {
 							item.nextEp = fmt.Sprintf("%.0f", nextVal)
 						}
 					}
@@ -574,6 +607,80 @@ func (m *model) applyHistoryFilter() {
 	}
 	m.historyList.SetItems(filtered)
 }
+
+func (m *model) toggleShowCompleted(showID string) {
+	if showID == "" {
+		return
+	}
+	var malID string
+	var totalEps int
+	if cached, _, found := loadShowCache(showID); found {
+		malID = cached.MALID
+		totalEps = cached.EpCount()
+	}
+	if malID == "" || malID == "0" {
+		debugLog("toggleShowCompleted: show %s has no valid MAL ID, cannot toggle", showID)
+		return
+	}
+
+	positions, err := loadPositions()
+	if err != nil {
+		positions = make(map[string]ShowState)
+	}
+
+	showState, ok := positions[malID]
+	if !ok {
+		showState = ShowState{
+			CompletedEpisodes: []float64{},
+		}
+	}
+
+	// Determine if completed
+	maxCompleted := 0.0
+	for _, ep := range showState.CompletedEpisodes {
+		if ep > maxCompleted {
+			maxCompleted = ep
+		}
+	}
+
+	isCompleted := false
+	if totalEps > 0 {
+		isCompleted = (maxCompleted >= float64(totalEps)) || (len(showState.CompletedEpisodes) >= totalEps)
+	} else if len(showState.CompletedEpisodes) > 0 {
+		isCompleted = true
+	}
+
+	if isCompleted {
+		// Currently completed: mark it as in-progress by clearing the max episode or everything from CompletedEpisodes
+		showState.CompletedEpisodes = []float64{}
+		showState.ResumeState = nil
+		debugLog("toggleShowCompleted: unmarking show %s (MAL %s) as completed", showID, malID)
+	} else {
+		// Mark it completed: clear ResumeState and add totalEps (or a high number like 999) to CompletedEpisodes
+		targetEp := 999.0
+		if totalEps > 0 {
+			targetEp = float64(totalEps)
+		}
+		// Ensure it's not already in list
+		found := false
+		for _, ep := range showState.CompletedEpisodes {
+			if ep == targetEp {
+				found = true
+				break
+			}
+		}
+		if !found {
+			showState.CompletedEpisodes = append(showState.CompletedEpisodes, targetEp)
+		}
+		showState.ResumeState = nil
+		debugLog("toggleShowCompleted: marking show %s (MAL %s) as completed", showID, malID)
+	}
+
+	positions[malID] = showState
+	_ = savePositions(positions)
+	m.refreshHistory()
+}
+
 
 func humanAgo(ts int64) string {
 	if ts == 0 {
@@ -841,7 +948,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.activeCmd = msg.cmd
 
-		m.state = statePlaybackActive
+		if m.selectedShow.ID != "" {
+			m.state = stateEpisodeSelect
+		} else {
+			m.state = stateHistory
+		}
 		m.tempLuaFile = msg.tempLuaFile
 		m.tempChaptersFile = msg.tempChaptersFile
 		m.playbackActive = true
@@ -888,7 +999,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		)
 
 	case tickMpvStatusMsg:
-		if m.playbackActive && m.state == statePlaybackActive {
+		if m.playbackActive {
 			if msg.err == nil {
 				m.mpvStatus = msg.status
 			}
@@ -1055,6 +1166,36 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		debugLog("TUI KeyMsg: key=%s, state=%d", msg.String(), m.state)
 
+		// Intercept global media controls if playback is active and user is not typing/filtering
+		isFiltering := (m.state == stateEpisodeSelect && m.episodeList.FilterState() == list.Filtering) ||
+			(m.state == stateShowSelect && m.showList.FilterState() == list.Filtering) ||
+			(m.state == stateHistory && m.historyList.FilterState() == list.Filtering)
+
+		if m.playbackActive && m.state != stateSearchInput && !isFiltering {
+			switch msg.String() {
+			case "p", " ":
+				_ = executeMpvAction([]interface{}{"cycle", "pause"})
+				return m, nil
+			case "[":
+				_ = executeMpvAction([]interface{}{"seek", -10})
+				return m, nil
+			case "]":
+				_ = executeMpvAction([]interface{}{"seek", 10})
+				return m, nil
+			case "-":
+				_ = executeMpvAction([]interface{}{"add", "volume", -5})
+				return m, nil
+			case "+", "=":
+				_ = executeMpvAction([]interface{}{"add", "volume", 5})
+				return m, nil
+			case "x":
+				if m.activeCmd != nil && m.activeCmd.Process != nil {
+					_ = m.activeCmd.Process.Kill()
+				}
+				return m, nil
+			}
+		}
+
 		// Let active filtering lists handle all keystrokes directly
 		if m.state == stateEpisodeSelect && m.episodeList.FilterState() == list.Filtering {
 			var cmd tea.Cmd
@@ -1126,6 +1267,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "c", "C":
 				m.showCompleted = !m.showCompleted
 				m.applyHistoryFilter()
+				return m, nil
+			case "w", "W":
+				if selected, ok := m.historyList.SelectedItem().(historyItem); ok {
+					m.toggleShowCompleted(selected.showID)
+				}
 				return m, nil
 			case "d", "D":
 				if selected, ok := m.historyList.SelectedItem().(historyItem); ok {
@@ -1416,30 +1562,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.sourceList, cmd = m.sourceList.Update(msg)
 			return m, cmd
 
-		case statePlaybackActive:
-			switch msg.String() {
-			case " ":
-				_ = executeMpvAction([]interface{}{"cycle", "pause"})
-				return m, nil
-			case "left", "h":
-				_ = executeMpvAction([]interface{}{"seek", -10})
-				return m, nil
-			case "right", "l":
-				_ = executeMpvAction([]interface{}{"seek", 10})
-				return m, nil
-			case "up", "k":
-				_ = executeMpvAction([]interface{}{"add", "volume", 5})
-				return m, nil
-			case "down", "j":
-				_ = executeMpvAction([]interface{}{"add", "volume", -5})
-				return m, nil
-			case "esc", "q":
-				if m.activeCmd != nil && m.activeCmd.Process != nil {
-					_ = m.activeCmd.Process.Kill()
-				}
-				return m, nil
-			}
-			return m, nil
 
 		case stateLogs:
 			switch msg.String() {
@@ -1509,6 +1631,9 @@ func (m model) View() string {
 	if showTabs {
 		s.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, tabs...) + "\n\n")
 		listOffset = 9
+	}
+	if m.playbackActive {
+		listOffset += 4
 	}
 
 	listHeight := m.height - listOffset
@@ -1669,6 +1794,39 @@ func (m model) View() string {
 		s.WriteString(errorStyle.Render("Error encountered:") + "\n\n")
 		s.WriteString(fmt.Sprintf("  %v\n\n", m.err))
 		s.WriteString(helpStyle("press enter or esc to return to search"))
+	}
+
+	if m.playbackActive {
+		titleStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#bb9af7"))
+		statusStr := "▶ PLAYING"
+		if m.mpvStatus.Paused {
+			statusStr = "⏸ PAUSED"
+		}
+		
+		var pb string
+		if m.mpvStatus.Duration > 0 {
+			pct := m.mpvStatus.PlaybackTime / m.mpvStatus.Duration
+			bar := renderSmoothProgressBar(pct, 20)
+			timeStr := fmt.Sprintf("%s/%s", formatTime(m.mpvStatus.PlaybackTime), formatTime(m.mpvStatus.Duration))
+			pb = fmt.Sprintf("[%s] %s", bar, timeStr)
+		} else {
+			pb = "Loading..."
+		}
+
+		playerBorder := lipgloss.NewStyle().
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("#bb9af7")).
+			Padding(0, 1).
+			Width(m.width - 2)
+
+		playerContent := fmt.Sprintf("%s %s  %s  Vol: %d%%\n%s", 
+			statusStr, 
+			titleStyle.Render(fmt.Sprintf("%s - Ep %s", m.selectedShow.Name, m.selectedEp)),
+			pb,
+			int(m.mpvStatus.Volume),
+			helpStyle("p: pause | [ / ]: seek 10s | - / +: vol | x: stop"),
+		)
+		s.WriteString("\n" + playerBorder.Render(playerContent))
 	}
 
 	return s.String()
@@ -1903,20 +2061,6 @@ func (m *model) refreshEpisodeListItems() {
 				if strings.HasSuffix(nextEp, ".0") {
 					nextEp = nextEp[:len(nextEp)-2]
 				}
-			} else if len(showState.CompletedEpisodes) > 0 {
-				maxEp := 0.0
-				for _, cEp := range showState.CompletedEpisodes {
-					if cEp > maxEp {
-						maxEp = cEp
-					}
-				}
-				for _, ep := range m.episodes {
-					val := parseEpisodeNumber(ep)
-					if val > maxEp {
-						nextEp = ep
-						break
-					}
-				}
 			}
 		}
 	}
@@ -1957,9 +2101,8 @@ func (m *model) refreshEpisodeListItems() {
 			title = fmt.Sprintf("Episode %s", ep)
 		}
 
-		epVal := parseEpisodeNumber(ep)
-		subAvail := subCount > 0 && int(epVal) <= subCount
-		dubAvail := dubCount > 0 && int(epVal) <= dubCount
+		subAvail := m.selectedShow.HasSub(ep)
+		dubAvail := m.selectedShow.HasDub(ep)
 
 		items = append(items, episodeItem{
 			epNo:     ep,

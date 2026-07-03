@@ -374,8 +374,8 @@ func TestMpvProcessLoggingIntegration(t *testing.T) {
 	resModel, _ := m.Update(msg)
 	m = resModel.(model)
 
-	if m.state != statePlaybackActive {
-		t.Errorf("Expected TUI state to remain statePlaybackActive, got %v", m.state)
+	if m.state != stateHistory {
+		t.Errorf("Expected TUI state to remain stateHistory, got %v", m.state)
 	}
 
 	if m.activeCmd != cmd {
@@ -1147,6 +1147,88 @@ func TestSyncProgressMock(t *testing.T) {
 
 	if !malCalled {
 		t.Error("Expected MAL API to be called")
+	}
+	if malProgress != 12 {
+		t.Errorf("Expected MAL progress to be 12, got %d", malProgress)
+	}
+}
+
+func TestSyncProgressFileMock(t *testing.T) {
+	var anilistCalled, malCalled bool
+	var anilistProgress, malProgress int
+
+	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		origHost := r.Header.Get("X-Original-Host")
+		if strings.Contains(origHost, "anilist.co") {
+			anilistCalled = true
+			var body map[string]interface{}
+			_ = json.NewDecoder(r.Body).Decode(&body)
+
+			if strings.Contains(fmt.Sprintf("%v", body["query"]), "Media") && !strings.Contains(fmt.Sprintf("%v", body["query"]), "SaveMediaListEntry") {
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(`{"data":{"Media":{"id":9988}}}`))
+			} else if strings.Contains(fmt.Sprintf("%v", body["query"]), "SaveMediaListEntry") {
+				vars := body["variables"].(map[string]interface{})
+				anilistProgress = int(vars["progress"].(float64))
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(`{"data":{"SaveMediaListEntry":{"id":123,"progress":12}}}`))
+			}
+		} else if strings.Contains(origHost, "myanimelist.net") {
+			malCalled = true
+			r.ParseForm()
+			val, _ := strconv.Atoi(r.FormValue("num_watched_episodes"))
+			malProgress = val
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{}`))
+		}
+	}))
+	defer mockServer.Close()
+
+	origTransport := http.DefaultTransport
+	defer func() { http.DefaultTransport = origTransport }()
+
+	http.DefaultTransport = &syncMockTransport{
+		mockServerURL: mockServer.URL,
+		origTransport: origTransport,
+	}
+
+	// Create temp token files
+	fAni, err := os.CreateTemp("", "mock-anilist-token")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(fAni.Name())
+	_, _ = fAni.WriteString("file-anilist-token\n")
+	fAni.Close()
+
+	fMal, err := os.CreateTemp("", "mock-mal-token")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(fMal.Name())
+	_, _ = fMal.WriteString("file-mal-token\r\n")
+	fMal.Close()
+
+	os.Setenv("ANILIST_TOKEN_FILE", fAni.Name())
+	os.Setenv("MAL_TOKEN_FILE", fMal.Name())
+	defer func() {
+		os.Unsetenv("ANILIST_TOKEN_FILE")
+		os.Unsetenv("MAL_TOKEN_FILE")
+	}()
+
+	SyncProgress("12345", "12")
+
+	time.Sleep(200 * time.Millisecond)
+
+	if !anilistCalled {
+		t.Error("Expected AniList API to be called via token file")
+	}
+	if anilistProgress != 12 {
+		t.Errorf("Expected AniList progress to be 12, got %d", anilistProgress)
+	}
+
+	if !malCalled {
+		t.Error("Expected MAL API to be called via token file")
 	}
 	if malProgress != 12 {
 		t.Errorf("Expected MAL progress to be 12, got %d", malProgress)

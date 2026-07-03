@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -29,7 +30,22 @@ func SyncProgress(malIDStr string, epNoStr string) {
 	epProgress := int(epNo)
 
 	anilistToken := os.Getenv("ANILIST_TOKEN")
+	if anilistToken == "" {
+		if path := os.Getenv("ANILIST_TOKEN_FILE"); path != "" {
+			if data, err := os.ReadFile(path); err == nil {
+				anilistToken = strings.TrimSpace(string(data))
+			}
+		}
+	}
+
 	malToken := os.Getenv("MAL_TOKEN")
+	if malToken == "" {
+		if path := os.Getenv("MAL_TOKEN_FILE"); path != "" {
+			if data, err := os.ReadFile(path); err == nil {
+				malToken = strings.TrimSpace(string(data))
+			}
+		}
+	}
 
 	if anilistToken == "" && malToken == "" {
 		debugLog("SyncProgress: no ANILIST_TOKEN or MAL_TOKEN env vars found. Skipping sync.")

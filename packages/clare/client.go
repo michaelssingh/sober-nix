@@ -56,25 +56,31 @@ var (
 )
 
 type AnimeShow struct {
-	ID                string `json:"_id"`
-	Name              string `json:"name"`
-	AvailableEpisodes any    `json:"availableEpisodes"`
-	EnglishName       string `json:"englishName"`
-	NativeName        string `json:"nativeName"`
-	Thumbnail         string `json:"thumbnail"`
-	Description       string `json:"description"`
-	MALID             string `json:"malId"`
-	AniListID         string `json:"aniListId"`
-	Type              string `json:"type"`
-	Score             float64 `json:"score"`
-	Season            struct {
+	ID                      string              `json:"_id"`
+	Name                    string              `json:"name"`
+	AvailableEpisodes       any                 `json:"availableEpisodes"`
+	AvailableEpisodesDetail map[string][]string `json:"availableEpisodesDetail"`
+	EnglishName             string              `json:"englishName"`
+	NativeName              string              `json:"nativeName"`
+	Thumbnail               string              `json:"thumbnail"`
+	Description             string              `json:"description"`
+	MALID                   string              `json:"malId"`
+	AniListID               string              `json:"aniListId"`
+	Type                    string              `json:"type"`
+	Score                   float64             `json:"score"`
+	Season                  struct {
 		Quarter string `json:"quarter"`
 		Year    int    `json:"year"`
 	} `json:"season"`
-	Duration          string `json:"duration"`
+	Duration                string              `json:"duration"`
 }
 
 func (s AnimeShow) EpCount() int {
+	if s.AvailableEpisodesDetail != nil {
+		if eps, ok := s.AvailableEpisodesDetail["sub"]; ok {
+			return len(eps)
+		}
+	}
 	if s.AvailableEpisodes == nil {
 		return 0
 	}
@@ -87,6 +93,11 @@ func (s AnimeShow) EpCount() int {
 }
 
 func (s AnimeShow) SubCount() int {
+	if s.AvailableEpisodesDetail != nil {
+		if eps, ok := s.AvailableEpisodesDetail["sub"]; ok {
+			return len(eps)
+		}
+	}
 	if s.AvailableEpisodes == nil {
 		return 0
 	}
@@ -99,6 +110,11 @@ func (s AnimeShow) SubCount() int {
 }
 
 func (s AnimeShow) DubCount() int {
+	if s.AvailableEpisodesDetail != nil {
+		if eps, ok := s.AvailableEpisodesDetail["dub"]; ok {
+			return len(eps)
+		}
+	}
 	if s.AvailableEpisodes == nil {
 		return 0
 	}
@@ -108,6 +124,38 @@ func (s AnimeShow) DubCount() int {
 		}
 	}
 	return 0
+}
+
+func (s AnimeShow) HasSub(ep string) bool {
+	if s.AvailableEpisodesDetail != nil {
+		if eps, ok := s.AvailableEpisodesDetail["sub"]; ok {
+			for _, e := range eps {
+				if e == ep {
+					return true
+				}
+			}
+			return false
+		}
+	}
+	epVal := parseEpisodeNumber(ep)
+	subCount := s.SubCount()
+	return subCount > 0 && epVal <= float64(subCount)
+}
+
+func (s AnimeShow) HasDub(ep string) bool {
+	if s.AvailableEpisodesDetail != nil {
+		if eps, ok := s.AvailableEpisodesDetail["dub"]; ok {
+			for _, e := range eps {
+				if e == ep {
+					return true
+				}
+			}
+			return false
+		}
+	}
+	epVal := parseEpisodeNumber(ep)
+	dubCount := s.DubCount()
+	return dubCount > 0 && epVal <= float64(dubCount)
 }
 
 type SourceInfo struct {
@@ -389,7 +437,7 @@ func fetchEpisodeList(showID, mode string) (AnimeShow, []string, error) {
 		return show, eps, nil
 	}
 
-	showGQL := `query ($showId: String!) { show( _id: $showId ) { _id name englishName nativeName thumbnail description malId aniListId type score season availableEpisodesDetail }}`
+	showGQL := `query ($showId: String!) { show( _id: $showId ) { _id name englishName nativeName thumbnail description malId aniListId type score season availableEpisodes availableEpisodesDetail }}`
 	payload := map[string]any{
 		"variables": map[string]any{
 			"showId": showID,
@@ -411,10 +459,7 @@ func fetchEpisodeList(showID, mode string) (AnimeShow, []string, error) {
 
 	var result struct {
 		Data struct {
-			Show struct {
-				AnimeShow
-				AvailableEpisodesDetail map[string][]string `json:"availableEpisodesDetail"`
-			} `json:"show"`
+			Show AnimeShow `json:"show"`
 		} `json:"data"`
 	}
 
@@ -436,8 +481,8 @@ func fetchEpisodeList(showID, mode string) (AnimeShow, []string, error) {
 		}
 	}
 
-	_ = saveShowCache(showID, result.Data.Show.AnimeShow, episodes)
-	return result.Data.Show.AnimeShow, episodes, nil
+	_ = saveShowCache(showID, result.Data.Show, episodes)
+	return result.Data.Show, episodes, nil
 }
 
 var (

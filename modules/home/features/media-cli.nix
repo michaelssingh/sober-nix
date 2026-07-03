@@ -1,6 +1,14 @@
-{ pkgs, ... }:
+{ pkgs, config, lib, ... }:
 
 {
+  sops.secrets.anilist_token = { };
+  sops.secrets.mal_token = { };
+
+  home.sessionVariables = {
+    ANILIST_TOKEN_FILE = config.sops.secrets.anilist_token.path;
+    MAL_TOKEN_FILE = config.sops.secrets.mal_token.path;
+  };
+
   home.packages = with pkgs; [
     (pkgs.writeShellApplication {
       name = "mpv-queue";
