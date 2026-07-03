@@ -15,6 +15,16 @@ buildGoModule {
 
   vendorHash = "sha256-yAmydoJZXlipqhZsjojoPA3uoI8BhaU4sPzs9OZ1+3w=";
 
+  overrideModAttrs = (_: {
+    preBuild = ''
+      export HOME=$(mktemp -d)
+    '';
+  });
+
+  preBuild = ''
+    export HOME=$(mktemp -d)
+  '';
+
   nativeBuildInputs = [ makeWrapper ];
 
   postInstall = ''
