@@ -11,6 +11,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"regexp"
 	"strings"
 	"sync"
@@ -18,19 +19,21 @@ import (
 )
 
 const (
-	AllAnimeReferer    = "https://allmanga.to"
+	AllAnimeReferer    = "https://mkissa.to/"
 	AllAnimeBase       = "allanime.day"
 	AllAnimeAPI        = "https://api.allanime.day/api"
 	UserAgent          = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/121.0"
 	allAnimeKeyPhrase  = "Xot36i3lK3:v1"
 	allAnimeQueryHash  = "d405d0edd690624b66baba3068e0edc3ac90f1597d898a1ec8db4e5c43c00fec"
-	allAnimeQueryOrigin = "https://youtu-chan.com"
+	allAnimeQueryOrigin = "https://mkissa.to"
 )
 
 var (
 	allAnimeKey = func() []byte {
-		h := sha256.Sum256([]byte(allAnimeKeyPhrase))
-		return h[:]
+		return []byte{
+			0x22, 0x19, 0x6f, 0xa6, 0xaf, 0xca, 0x95, 0x30, 0x9f, 0xda, 0xbe, 0x9a, 0x35, 0x34, 0xb8, 0x7c,
+			0xd2, 0x45, 0x4e, 0x50, 0xef, 0xea, 0xbf, 0xcb, 0xdb, 0xdf, 0xd3, 0xde, 0x67, 0x8b, 0x39, 0x82,
+		}
 	}()
 
 	hexSubstitutionTable = map[string]string{
@@ -210,20 +213,22 @@ func decodeToBeParsed(blob string) ([]SourceInfo, error) {
 	}
 
 	nonce := data[1:13]
-	ciphertext := data[13 : len(data)-16]
 
 	block, err := aes.NewCipher(allAnimeKey)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create AES cipher: %w", err)
 	}
 
-	iv := make([]byte, 16)
-	copy(iv[:12], nonce)
-	iv[15] = 0x02
+	aesGCM, err := cipher.NewGCM(block)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create GCM: %w", err)
+	}
 
-	stream := cipher.NewCTR(block, iv)
-	plaintext := make([]byte, len(ciphertext))
-	stream.XORKeyStream(plaintext, ciphertext)
+	ciphertextWithTag := data[13:]
+	plaintext, err := aesGCM.Open(nil, nonce, ciphertextWithTag, nil)
+	if err != nil {
+		return nil, fmt.Errorf("GCM decrypt failed: %w", err)
+	}
 
 	var result struct {
 		Data struct {
@@ -276,39 +281,58 @@ func decodeToBeParsed(blob string) ([]SourceInfo, error) {
 	return nil, fmt.Errorf("no source URLs decoded from tobeparsed plaintext")
 }
 
+func generateAAReq(qh string) (string, error) {
+	epoch := 4128
+	buildID := "11"
+	ts := (time.Now().Unix() / 300) * 300 * 1000
+
+	payload := fmt.Sprintf(`{"v":1,"ts":%d,"epoch":%d,"buildId":"%s","qh":"%s"}`, ts, epoch, buildID, qh)
+
+	ivSeed := fmt.Sprintf("%d:%s:%s:%d", epoch, buildID, qh, ts)
+	hash := sha256.Sum256([]byte(ivSeed))
+	iv := hash[:12]
+
+	block, err := aes.NewCipher(allAnimeKey)
+	if err != nil {
+		return "", err
+	}
+
+	aesGCM, err := cipher.NewGCM(block)
+	if err != nil {
+		return "", err
+	}
+
+	ciphertextWithTag := aesGCM.Seal(nil, iv, []byte(payload), nil)
+
+	result := make([]byte, 1+len(iv)+len(ciphertextWithTag))
+	result[0] = 1
+	copy(result[1:13], iv)
+	copy(result[13:], ciphertextWithTag)
+
+	return base64.StdEncoding.EncodeToString(result), nil
+}
+
 func fetchEpisodeSources(showID, mode, episodeNo string) ([]SourceInfo, error) {
 	queryVars := fmt.Sprintf(`{"showId":"%s","translationType":"%s","episodeString":"%s"}`, showID, mode, episodeNo)
-	queryExt := fmt.Sprintf(`{"persistedQuery":{"version":1,"sha256Hash":"%s"}}`, allAnimeQueryHash)
+	
+	aareq, err := generateAAReq(allAnimeQueryHash)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate aaReq: %w", err)
+	}
+
+	queryExt := fmt.Sprintf(`{"persistedQuery":{"version":1,"sha256Hash":"%s"},"aaReq":"%s"}`, allAnimeQueryHash, aareq)
 	reqURL := fmt.Sprintf("%s?variables=%s&extensions=%s", AllAnimeAPI, url.QueryEscape(queryVars), url.QueryEscape(queryExt))
 
 	headers := map[string]string{
 		"User-Agent": UserAgent,
 		"Referer":    AllAnimeReferer,
 		"Origin":     allAnimeQueryOrigin,
+		"x-build-id": "11",
 	}
 
 	body, err := doHTTPReqWithRetry("GET", reqURL, nil, headers)
-	if err != nil || len(body) == 0 || !strings.Contains(string(body), "tobeparsed") {
-		episodeEmbedGQL := `query ($showId: String!, $translationType: VaildTranslationTypeEnumType!, $episodeString: String!) { episode( showId: $showId translationType: $translationType episodeString: $episodeString ) { episodeString sourceUrls }}`
-		payload := map[string]any{
-			"variables": map[string]any{
-				"showId":          showID,
-				"translationType": mode,
-				"episodeString":   episodeNo,
-			},
-			"query": episodeEmbedGQL,
-		}
-		jsonPayload, _ := json.Marshal(payload)
-
-		postHeaders := map[string]string{
-			"Content-Type": "application/json",
-			"User-Agent":   UserAgent,
-			"Referer":      AllAnimeReferer,
-		}
-		body, err = doHTTPReqWithRetry("POST", AllAnimeAPI, jsonPayload, postHeaders)
-		if err != nil {
-			return nil, err
-		}
+	if err != nil {
+		return nil, err
 	}
 
 	re := regexp.MustCompile(`"tobeparsed"\s*:\s*"([^"]*)"`)
@@ -609,6 +633,11 @@ func doHTTPReqWithRetry(method, url string, payload []byte, headers map[string]s
 	var err error
 	client := newLoggingHttpClient(10 * time.Second)
 
+	cookieVal := os.Getenv("CLARE_COOKIE")
+	if cookieVal == "" {
+		cookieVal = os.Getenv("ALLANIME_COOKIE")
+	}
+
 	for attempt := 1; attempt <= 3; attempt++ {
 		var req *http.Request
 		if len(payload) > 0 {
@@ -622,6 +651,19 @@ func doHTTPReqWithRetry(method, url string, payload []byte, headers map[string]s
 
 		for k, v := range headers {
 			req.Header.Set(k, v)
+		}
+
+		if strings.Contains(url, "allanime") || strings.Contains(url, "allmanga") || strings.Contains(url, "mkissa") || strings.Contains(url, "youtube-anime") || strings.Contains(url, "allanimenews") {
+			req.Header.Set("x-build-id", "11")
+			if req.Header.Get("Origin") == "" {
+				req.Header.Set("Origin", "https://mkissa.to")
+			}
+			if req.Header.Get("Referer") == "" {
+				req.Header.Set("Referer", "https://mkissa.to/")
+			}
+			if cookieVal != "" {
+				req.Header.Set("Cookie", cookieVal)
+			}
 		}
 
 		var resp *http.Response
