@@ -11,6 +11,76 @@ import (
 	"time"
 )
 
+// SyncAllHistory silently syncs all completed episodes from positions.json
+// to AniList on startup, skipping entries already synced (tracked via LastSyncedEp).
+func SyncAllHistory() {
+	anilistToken := os.Getenv("ANILIST_TOKEN")
+	if anilistToken == "" {
+		if path := os.Getenv("ANILIST_TOKEN_FILE"); path != "" {
+			if data, err := os.ReadFile(path); err == nil {
+				anilistToken = strings.TrimSpace(string(data))
+			}
+		}
+	}
+	if anilistToken == "" {
+		return
+	}
+
+	positions, err := loadPositions()
+	if err != nil || len(positions) == 0 {
+		return
+	}
+
+	changed := false
+	for showID, state := range positions {
+		if len(state.CompletedEpisodes) == 0 {
+			continue
+		}
+
+		// Find the highest completed episode
+		var maxEp float64
+		for _, ep := range state.CompletedEpisodes {
+			if ep > maxEp {
+				maxEp = ep
+			}
+		}
+
+		// Skip if already synced up to this episode
+		if maxEp <= state.LastSyncedEp {
+			continue
+		}
+
+		// Look up the MAL ID from show cache
+		show, _, found := loadShowCache(showID)
+		if !found || show.MALID == "" || show.MALID == "0" {
+			continue
+		}
+
+		malID, err := strconv.Atoi(show.MALID)
+		if err != nil || malID == 0 {
+			continue
+		}
+
+		epProgress := int(maxEp)
+		if err := syncToAniList(anilistToken, malID, epProgress); err != nil {
+			debugLog("SyncAllHistory: AniList sync failed for %s (MAL %d): %v", show.Name, malID, err)
+			continue
+		}
+
+		debugLog("SyncAllHistory: synced %s (MAL %d) up to ep %d", show.Name, malID, epProgress)
+		state.LastSyncedEp = maxEp
+		positions[showID] = state
+		changed = true
+	}
+
+	if changed {
+		if err := savePositions(positions); err != nil {
+			debugLog("SyncAllHistory: failed to save positions after sync: %v", err)
+		}
+	}
+}
+
+
 // SyncProgress syncs the anime progress to AniList and/or MyAnimeList in the background.
 func SyncProgress(malIDStr string, epNoStr string) {
 	if malIDStr == "" || malIDStr == "0" {

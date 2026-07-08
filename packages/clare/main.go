@@ -207,6 +207,7 @@ func main() {
 	}
 
 	// Interactive TUI mode
+	go SyncAllHistory()
 	p := tea.NewProgram(
 		initialModel(query, mode, *qualityFlag, *downloadFlag),
 		tea.WithAltScreen(),

@@ -104,6 +104,7 @@ type ResumeState struct {
 type ShowState struct {
 	ResumeState       *ResumeState `json:"resume_state"`
 	CompletedEpisodes []float64    `json:"completed_episodes"`
+	LastSyncedEp      float64      `json:"last_synced_ep,omitempty"`
 }
 
 func (s *ShowState) UnmarshalJSON(b []byte) error {
