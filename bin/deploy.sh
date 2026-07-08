@@ -19,7 +19,13 @@ SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o Connect
 export NIX_SSHOPTS="$SSH_OPTS"
 
 echo "${BOLD}${CYAN}==> 1. Pulling latest changes on otus...${RESET}"
-git pull || echo "Warning: git pull failed (you may have uncommitted local changes on otus)."
+git_out=$(git pull 2>&1 || echo "Warning: git pull failed")
+echo "$git_out"
+
+if echo "$git_out" | grep -q "bin/deploy.sh"; then
+	echo "  [deploy] Script updated on disk. Re-executing..."
+	exec "$0" "$@"
+fi
 
 echo -e "\n${BOLD}${CYAN}==> 2. Triggering Nix build on remote VM ($VM_HOST:$VM_PORT) and pushing to Cachix...${RESET}"
 # Saves the raw built path to a temporary file on the worker, outputs it cleanly, and silences Cachix stdout
