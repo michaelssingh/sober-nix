@@ -732,12 +732,22 @@ func fetchAllResolvedStreams(showID, mode, episodeNo string) ([]ResolvedStream, 
 	var results []ResolvedStream
 	for _, src := range sources {
 		links, err := fetchProviderLinks(src.SourceURL)
-		if err == nil {
+		if err == nil && len(links) > 0 {
 			for qual, urlVal := range links {
 				results = append(results, ResolvedStream{
 					SourceName: src.SourceName,
 					Quality:    qual,
 					URL:        urlVal,
+				})
+			}
+		} else {
+			// Include the raw source URL (embed or direct) as a fallback option
+			rawURL := src.SourceURL
+			if rawURL != "" {
+				results = append(results, ResolvedStream{
+					SourceName: src.SourceName,
+					Quality:    "stream",
+					URL:        rawURL,
 				})
 			}
 		}
