@@ -486,6 +486,9 @@ func loadFileInMpv(streamURL, title, epNo, malID string, extraArgs []string) err
 		}
 	}
 
+	// Unpause MPV explicitly
+	_, _ = sendMpvCommand(conn, []interface{}{"set_property", "pause", false})
+
 	return nil
 }
 

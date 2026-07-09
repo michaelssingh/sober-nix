@@ -1042,53 +1042,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// If autoplay was triggered, fetch next stream immediately
 		if m.triggerAutoplay {
 			m.triggerAutoplay = false
-			currEpVal := parseEpisodeNumber(m.playingEp)
-			var nextEpNo string
-			foundNext := false
-			
-			totalEps := m.selectedShow.EpCount()
-			if totalEps == 0 {
-				totalEps = 1000
-			}
-			
-			if currEpVal > 0 && int(currEpVal) < totalEps {
-				nextEpVal := currEpVal + 1.0
-				if nextEpVal == float64(int(nextEpVal)) {
-					nextEpNo = fmt.Sprintf("%d", int(nextEpVal))
-				} else {
-					nextEpNo = fmt.Sprintf("%.1f", nextEpVal)
-				}
-				foundNext = true
-			}
-			
-			if foundNext && nextEpNo != "" && m.skipFillers {
-				// Cycle checking if next episode is a filler
-				for {
-					if info, ok := m.episodeDetails[nextEpNo]; ok && info.Filler {
-						debugLog("[INFO] Autoplay: Skipping filler episode %s", nextEpNo)
-						currVal := parseEpisodeNumber(nextEpNo)
-						nextVal := currVal + 1.0
-						if int(currVal) < totalEps {
-							if nextVal == float64(int(nextVal)) {
-								nextEpNo = fmt.Sprintf("%d", int(nextVal))
-							} else {
-								nextEpNo = fmt.Sprintf("%.1f", nextVal)
-							}
-						} else {
-							nextEpNo = ""
-							break
-						}
-					} else {
-						break
-					}
-				}
-			}
-
-			if foundNext && nextEpNo != "" {
-				m.selectedEp = nextEpNo
-				m.state = statePlaybackPreparing
-				m.loadingMsg = fmt.Sprintf("Autoplay: Preparing playback for Episode %s...", nextEpNo)
-				return m, doPreparePlayback(m.selectedShow, nextEpNo, m.mode, m.quality, m.download)
+			cmd := m.triggerAutoplayAction()
+			if cmd != nil {
+				return m, cmd
 			}
 		}
 
@@ -1256,6 +1212,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						// Save progress history for current episode
 						_ = recordWatch(m.selectedShow.ID, m.selectedShow.Name, m.selectedEp)
 						m.refreshHistory()
+
+						cmd := m.triggerAutoplayAction()
+						if cmd != nil {
+							return m, cmd
+						}
 					}
 				}
 			}
@@ -1322,7 +1283,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.refreshHistory()
 			go SyncAllHistory()
 			if m.autoplay {
-				m.triggerAutoplay = true
+				cmd := m.triggerAutoplayAction()
+				if cmd != nil {
+					return m, cmd
+				}
 			}
 
 			// Trigger background sync to AniList/MAL
@@ -1777,6 +1741,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			case "a":
 				m.autoplay = !m.autoplay
+				_ = saveConfig(m.getConfig())
 				return m, nil
 			case "m":
 				m.mode = nextMode(m.mode)
@@ -3222,4 +3187,95 @@ func formatLogLine(line string) string {
 		return lipgloss.NewStyle().Foreground(lipgloss.Color("#7dcfff")).Render(line)
 	}
 	return lipgloss.NewStyle().Foreground(lipgloss.Color("#c0caf5")).Render(line)
+}
+
+func (m *model) triggerAutoplayAction() tea.Cmd {
+	if len(m.episodes) == 0 {
+		debugLog("[INFO] Autoplay: episodes list not loaded. Fetching episodes first...")
+		m.state = stateSearchRunning
+		m.loadingMsg = "Autoplay: Fetching episode list..."
+		return doFetchEpisodes(m.selectedShow.ID, m.mode)
+	}
+
+	currIdx := -1
+	for i, ep := range m.episodes {
+		if ep == m.playingEp {
+			currIdx = i
+			break
+		}
+	}
+
+	var nextEpNo string
+	if currIdx >= 0 && currIdx+1 < len(m.episodes) {
+		nextEpNo = m.episodes[currIdx+1]
+	} else {
+		// Fallback: try parsing next number if current isn't in list or list is incomplete
+		currEpVal := parseEpisodeNumber(m.playingEp)
+		totalEps := m.selectedShow.EpCount()
+		if totalEps == 0 {
+			totalEps = 1000
+		}
+		if currEpVal > 0 && int(currEpVal) < totalEps {
+			nextEpVal := currEpVal + 1.0
+			if nextEpVal == float64(int(nextEpVal)) {
+				nextEpNo = fmt.Sprintf("%d", int(nextEpVal))
+			} else {
+				nextEpNo = fmt.Sprintf("%.1f", nextEpVal)
+			}
+		}
+	}
+
+	if nextEpNo == "" {
+		debugLog("[INFO] Autoplay: no next episode found.")
+		return nil
+	}
+
+	if m.skipFillers {
+		totalEps := m.selectedShow.EpCount()
+		if totalEps == 0 {
+			totalEps = 1000
+		}
+		// Cycle checking if next episode is a filler
+		for {
+			if info, ok := m.episodeDetails[nextEpNo]; ok && info.Filler {
+				debugLog("[INFO] Autoplay: Skipping filler episode %s", nextEpNo)
+				// Find index of nextEpNo
+				nextIdx := -1
+				for i, ep := range m.episodes {
+					if ep == nextEpNo {
+						nextIdx = i
+						break
+					}
+				}
+				if nextIdx >= 0 && nextIdx+1 < len(m.episodes) {
+					nextEpNo = m.episodes[nextIdx+1]
+				} else {
+					// Fallback increment
+					currVal := parseEpisodeNumber(nextEpNo)
+					nextVal := currVal + 1.0
+					if int(currVal) < totalEps {
+						if nextVal == float64(int(nextVal)) {
+							nextEpNo = fmt.Sprintf("%d", int(nextVal))
+						} else {
+							nextEpNo = fmt.Sprintf("%.1f", nextVal)
+						}
+					} else {
+						nextEpNo = ""
+						break
+					}
+				}
+			} else {
+				break
+			}
+		}
+	}
+
+	if nextEpNo != "" {
+		m.selectedEp = nextEpNo
+		m.state = statePlaybackPreparing
+		m.loadingMsg = fmt.Sprintf("Autoplay: Preparing playback for Episode %s...", nextEpNo)
+		return doPreparePlayback(m.selectedShow, nextEpNo, m.mode, m.quality, m.download)
+	}
+
+	return nil
 }
