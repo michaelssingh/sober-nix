@@ -833,7 +833,7 @@ func TestPlayerResumePosition(t *testing.T) {
 	}
 
 	// Case 1: Match episode number - should append --start=450.500000
-	cmd, tempLua, tempChaps, err := getMpvCmd("http://example.com/stream.m3u8", "Test Show", "3", "12345", "24 min", nil)
+	cmd, tempLua, tempChaps, _, _, err := getMpvCmd("http://example.com/stream.m3u8", "Test Show", "3", "12345", "24 min", nil)
 	if err != nil {
 		t.Fatalf("getMpvCmd failed: %v", err)
 	}
@@ -859,7 +859,7 @@ func TestPlayerResumePosition(t *testing.T) {
 	}
 
 	// Case 2: Episode mismatch - should NOT append --start
-	cmd2, tempLua2, tempChaps2, err := getMpvCmd("http://example.com/stream.m3u8", "Test Show", "4", "12345", "24 min", nil)
+	cmd2, tempLua2, tempChaps2, _, _, err := getMpvCmd("http://example.com/stream.m3u8", "Test Show", "4", "12345", "24 min", nil)
 	if err != nil {
 		t.Fatalf("getMpvCmd failed on second call: %v", err)
 	}

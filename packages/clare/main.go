@@ -125,7 +125,7 @@ func main() {
 					fmt.Printf("Error: failed to resolve DUB stream: %v\n", errDub)
 					os.Exit(1)
 				}
-				c, tmp, tmpChap, err := playSingleCmd(dubStream, selectedShow.Name, epNo, selectedShow.MALID, selectedShow.Duration)
+				c, tmp, tmpChap, _, _, err := playSingleCmd(dubStream, selectedShow.Name, epNo, selectedShow.MALID, selectedShow.Duration)
 				if err != nil {
 					fmt.Printf("Error preparing playback: %v\n", err)
 					os.Exit(1)
@@ -140,7 +140,7 @@ func main() {
 				}
 			} else if errDub != nil {
 				fmt.Printf("Warning: failed to resolve DUB stream: %v. Playing SUB only.\n", errDub)
-				c, tmp, tmpChap, err := playSingleCmd(subStream, selectedShow.Name, epNo, selectedShow.MALID, selectedShow.Duration)
+				c, tmp, tmpChap, _, _, err := playSingleCmd(subStream, selectedShow.Name, epNo, selectedShow.MALID, selectedShow.Duration)
 				if err != nil {
 					fmt.Printf("Error preparing playback: %v\n", err)
 					os.Exit(1)
@@ -155,7 +155,7 @@ func main() {
 				}
 			} else {
 				fmt.Println("Launching dual-audio playback (English dub + Japanese video)...")
-				c, tmp, tmpChap, err := playDualCmd(subStream, dubStream, selectedShow.Name, epNo, selectedShow.MALID, selectedShow.Duration)
+				c, tmp, tmpChap, _, _, err := playDualCmd(subStream, dubStream, selectedShow.Name, epNo, selectedShow.MALID, selectedShow.Duration)
 				if err != nil {
 					fmt.Printf("Error preparing playback: %v\n", err)
 					os.Exit(1)
@@ -175,7 +175,7 @@ func main() {
 				fmt.Printf("Error resolving DUB stream: %v\n", err)
 				os.Exit(1)
 			}
-			c, tmp, tmpChap, err := playSingleCmd(dubStream, selectedShow.Name, epNo, selectedShow.MALID, selectedShow.Duration)
+			c, tmp, tmpChap, _, _, err := playSingleCmd(dubStream, selectedShow.Name, epNo, selectedShow.MALID, selectedShow.Duration)
 			if err != nil {
 				fmt.Printf("Error preparing playback: %v\n", err)
 				os.Exit(1)
@@ -194,7 +194,7 @@ func main() {
 				fmt.Printf("Error resolving SUB stream: %v\n", err)
 				os.Exit(1)
 			}
-			c, tmp, tmpChap, err := playSingleCmd(subStream, selectedShow.Name, epNo, selectedShow.MALID, selectedShow.Duration)
+			c, tmp, tmpChap, _, _, err := playSingleCmd(subStream, selectedShow.Name, epNo, selectedShow.MALID, selectedShow.Duration)
 			if err != nil {
 				fmt.Printf("Error preparing playback: %v\n", err)
 				os.Exit(1)

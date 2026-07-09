@@ -153,7 +153,7 @@ func parseJikanDuration(d string) float64 {
 	return 1440.0 // Default 24 mins
 }
 
-func getMpvCmd(streamURL string, title string, epNo string, malID string, durationStr string, extraArgs []string) (*exec.Cmd, string, string, error) {
+func getMpvCmd(streamURL string, title string, epNo string, malID string, durationStr string, extraArgs []string) (*exec.Cmd, string, string, float64, string, error) {
 	durationSeconds := parseJikanDuration(durationStr)
 	epVal := parseEpisodeNumber(epNo)
 
@@ -254,7 +254,7 @@ local skip_times_json = %q
 		if tempChaptersFile != "" {
 			os.Remove(tempChaptersFile)
 		}
-		return nil, "", "", err
+		return nil, "", "", 0.0, "", err
 	}
 	if _, err := tmpFile.WriteString(luaContent); err != nil {
 		tmpFile.Close()
@@ -262,7 +262,7 @@ local skip_times_json = %q
 		if tempChaptersFile != "" {
 			os.Remove(tempChaptersFile)
 		}
-		return nil, "", "", err
+		return nil, "", "", 0.0, "", err
 	}
 	tmpFile.Close()
 
@@ -300,14 +300,14 @@ local skip_times_json = %q
 	args = append(args, streamURL)
 
 	cmd := exec.Command("mpv", args...)
-	return cmd, tmpFile.Name(), tempChaptersFile, nil
+	return cmd, tmpFile.Name(), tempChaptersFile, durationSeconds, string(skipTimesJSON), nil
 }
 
-func playSingleCmd(streamURL, title, epNo, malID, durationStr string) (*exec.Cmd, string, string, error) {
+func playSingleCmd(streamURL, title, epNo, malID, durationStr string) (*exec.Cmd, string, string, float64, string, error) {
 	return getMpvCmd(streamURL, title, epNo, malID, durationStr, nil)
 }
 
-func playDualCmd(subStream, dubStream string, title, epNo, malID, durationStr string) (*exec.Cmd, string, string, error) {
+func playDualCmd(subStream, dubStream string, title, epNo, malID, durationStr string) (*exec.Cmd, string, string, float64, string, error) {
 	subTracks := countAudioStreams(subStream)
 	if subTracks <= 0 {
 		debugLog("playDualCmd: subTracks is %d, falling back to 1", subTracks)
@@ -461,7 +461,7 @@ func queryMediaTitle() (string, error) {
 	return result.Data, nil
 }
 
-func loadFileInMpv(streamURL, title, epNo, malID string, extraArgs []string) error {
+func loadFileInMpv(streamURL, title, epNo, malID string, extraArgs []string, durationSeconds float64, skipTimesJSON string) error {
 	conn, err := net.DialTimeout("unix", "/tmp/clare-mpv.sock", 100*time.Millisecond)
 	if err != nil {
 		return err
@@ -485,6 +485,9 @@ func loadFileInMpv(streamURL, title, epNo, malID string, extraArgs []string) err
 			_, _ = sendMpvCommand(conn, []interface{}{"audio-add", audioPath, "select"})
 		}
 	}
+
+	// Send update-episode-info message to update Lua variables for progress reporting and auto-skipping
+	_, _ = sendMpvCommand(conn, []interface{}{"script-message", "update-episode-info", malID, epNo, fmt.Sprintf("%f", durationSeconds), skipTimesJSON})
 
 	// Unpause MPV explicitly
 	_, _ = sendMpvCommand(conn, []interface{}{"set_property", "pause", false})

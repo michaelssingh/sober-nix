@@ -46,6 +46,24 @@ end
 
 local current_skipped = {}
 
+mp.register_script_message("update-episode-info", function(new_mal_id, new_ep_no, new_duration, new_skip_times_json)
+    mal_id = new_mal_id
+    ep_no = tonumber(new_ep_no) or ep_no
+    jikan_duration = tonumber(new_duration) or jikan_duration
+    if new_skip_times_json and new_skip_times_json ~= "" then
+        local ok, decoded = pcall(utils.parse_json, new_skip_times_json)
+        if ok and type(decoded) == "table" then
+            skip_intervals = decoded
+        else
+            skip_intervals = {}
+        end
+    else
+        skip_intervals = {}
+    end
+    current_skipped = {}
+end)
+
+
 mp.observe_property("time-pos", "number", function(_, val)
     if val then
         last_time = val

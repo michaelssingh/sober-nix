@@ -302,6 +302,8 @@ type resolvedPlaybackMsg struct {
 	tempLuaFile      string
 	tempChaptersFile string
 	err              error
+	durationSeconds  float64
+	skipTimesJSON    string
 }
 
 type playbackFinishedMsg struct {
@@ -865,6 +867,39 @@ func (m *model) toggleEpisodeCompleted(epNo string) {
 	m.refreshEpisodeListItems()
 }
 
+func (m *model) markEpisodeCompletedGo(epNo string) {
+	if m.selectedShow.MALID == "" || m.selectedShow.MALID == "0" {
+		return
+	}
+	malID := m.selectedShow.MALID
+	positions, err := loadPositions()
+	if err != nil {
+		positions = make(map[string]ShowState)
+	}
+	showState, ok := positions[malID]
+	if !ok {
+		showState = ShowState{
+			CompletedEpisodes: []float64{},
+		}
+	}
+	targetEp := parseEpisodeNumber(epNo)
+	found := false
+	for _, ep := range showState.CompletedEpisodes {
+		if ep == targetEp {
+			found = true
+			break
+		}
+	}
+	if !found {
+		showState.CompletedEpisodes = append(showState.CompletedEpisodes, targetEp)
+		sort.Float64s(showState.CompletedEpisodes)
+		debugLog("[INFO] Go: marked episode %s as completed", epNo)
+	}
+	showState.ResumeState = nil
+	positions[malID] = showState
+	_ = savePositions(positions)
+}
+
 
 func humanAgo(ts int64) string {
 	if ts == 0 {
@@ -1108,7 +1143,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				
 				debugLog("[INFO] Attempting to load next file in existing MPV via IPC...")
-				err := loadFileInMpv(streamURL, m.selectedShow.Name, m.selectedEp, m.selectedShow.MALID, extraArgs)
+				err := loadFileInMpv(streamURL, m.selectedShow.Name, m.selectedEp, m.selectedShow.MALID, extraArgs, msg.durationSeconds, msg.skipTimesJSON)
 				if err == nil {
 					debugLog("[INFO] Successfully loaded next episode via IPC!")
 					reused = true
@@ -1132,6 +1167,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 							conn.Close()
 						}
 					}
+
+					m.refreshHistory()
+					m.refreshEpisodeListItems()
+					go SyncAllHistory()
 				} else {
 					debugLog("[WARN] IPC loadfile failed: %v. Starting new MPV process...", err)
 				}
@@ -1222,9 +1261,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if m.mpvStatus.Duration > 0 && m.mpvStatus.PlaybackTime >= m.mpvStatus.Duration - 1.5 {
 					if m.autoplay && !m.triggerAutoplay {
 						m.triggerAutoplay = true
+						// Explicitly mark the current episode as completed in positions.json
+						m.markEpisodeCompletedGo(m.selectedEp)
 						// Save progress history for current episode
 						_ = recordWatch(m.selectedShow.ID, m.selectedShow.Name, m.selectedEp)
 						m.refreshHistory()
+						m.refreshEpisodeListItems()
 
 						cmd := m.triggerAutoplayAction()
 						if cmd != nil {
@@ -2049,17 +2091,13 @@ func (m model) View() string {
 			pTitleStyle.Render(fmt.Sprintf("%s - Ep %s", m.playingShow.Name, m.playingEp)),
 			pb,
 			int(m.mpvStatus.Volume),
-			formatCheckbox("Autoplay (a)", m.autoplay),
-			formatCheckbox("Auto-Skip (s)", m.autoskip),
-			formatCheckbox("Skip Fillers (f)", m.skipFillers),
+			formatCheckbox("autoplay (a)", m.autoplay),
+			formatCheckbox("auto-skip (s)", m.autoskip),
+			formatCheckbox("skip-fillers (f)", m.skipFillers),
 		)
 
 		playerView = playerBorder.Render(playerContent)
 	}
-
-	// Top Banner
-	s.WriteString(titleStyle.Render(" クレア "))
-	s.WriteString("\n\n")
 
 	// Navigation Tabs
 	activeTabStyle := lipgloss.NewStyle().
@@ -2106,18 +2144,10 @@ func (m model) View() string {
 	listHeight := m.dynamicListHeight()
 
 	if showTabs {
-		s.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, tabs...) + "\n\n")
-	}
-
-	if m.playbackActive {
-		s.WriteString(playerView + "\n\n")
-	}
-
-	// Help bar always sits right below the player/tabs — never at the bottom.
-	// This eliminates all flush-bottom padding math that causes gaps in foot
-	// due to font-size / terminal cell-height rounding.
-	if helpText := m.viewFooter(); helpText != "" {
-		s.WriteString(helpText + "\n\n")
+		logoStr := titleStyle.Render(" クレア ")
+		s.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, logoStr+"   ", lipgloss.JoinHorizontal(lipgloss.Top, tabs...)) + "\n\n")
+	} else {
+		s.WriteString(titleStyle.Render(" クレア ") + "\n\n")
 	}
 
 	bodyStyle := lipgloss.NewStyle().Height(listHeight)
@@ -2299,38 +2329,25 @@ func (m model) View() string {
 			cfgStrings = append(cfgStrings, fmt.Sprintf("%s%-30s : %s", cursor, itemStyle.Render(opt.name), opt.value))
 		}
 
-		infoCardStyle := lipgloss.NewStyle().
-			Border(lipgloss.RoundedBorder()).
-			BorderForeground(lipgloss.Color("#565f89")).
-			Padding(1, 2).
-			Width(m.width - 6)
-
-		var infoCard strings.Builder
-		infoCard.WriteString(lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#bb9af7")).Render("◆ AniList / MAL Sync Configuration ◆") + "\n\n")
-		infoCard.WriteString("To enable automatic progress synchronization to AniList or MyAnimeList,\n")
-		infoCard.WriteString("set your tokens inside the config file at:\n")
-		infoCard.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("#7dcfff")).Render("~/.config/clare/config.json") + "\n\n")
-		infoCard.WriteString("Example configuration:\n")
-		infoCard.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("#9ece6a")).Render(`{
-  "autoplay": true,
-  "autoskip": true,
-  "skip_fillers": false,
-  "anilist_token": "YOUR_ANILIST_ACCESS_TOKEN",
-  "mal_token": "YOUR_MAL_ACCESS_TOKEN"
-}`) + "\n\n")
-		infoCard.WriteString("Note: Run clare's log tab [3] during sync to check status/verify successful API requests.")
-
 		bodyContent := fmt.Sprintf(
-			"◆ TUI USER CONFIGURATION ◆\n\n%s\n\n%s",
+			"%s ◆ TUI USER CONFIGURATION ◆\n\n%s",
+			titleStyle.Render(" クレア "),
 			strings.Join(cfgStrings, "\n"),
-			infoCardStyle.Render(infoCard.String()),
 		)
 
-				s.WriteString(bodyStyle.Render(bodyContent))
+		s.WriteString(bodyStyle.Render(bodyContent))
 
 	case stateError:
 		s.WriteString(errorStyle.Render("Error encountered:") + "\n\n")
 		s.WriteString(fmt.Sprintf("  %v\n\n", m.err))
+	}
+
+	if m.playbackActive {
+		s.WriteString("\n\n" + playerView)
+	}
+
+	if helpText := m.viewFooter(); helpText != "" {
+		s.WriteString("\n\n" + helpText)
 	}
 
 	return s.String()
@@ -2377,6 +2394,9 @@ func doPreparePlayback(selectedShow AnimeShow, epNo, mode, quality string, downl
 		var tempChapters string
 		var err error
 
+		var durationSeconds float64
+		var skipTimesJSON string
+
 		if download {
 			// Resolve URL and build download command
 			var stream string
@@ -2401,32 +2421,32 @@ func doPreparePlayback(selectedShow AnimeShow, epNo, mode, quality string, downl
 					return resolvedPlaybackMsg{err: fmt.Errorf("failed to resolve dual streams: sub (%v), dub (%v)", errSub, errDub)}
 				}
 				debugLog("doPreparePlayback: sub failed (%v), falling back to dub-only", errSub)
-				cmd, tempLua, tempChapters, err = playSingleCmd(dubStream, selectedShow.Name, epNo, selectedShow.MALID, selectedShow.Duration)
+				cmd, tempLua, tempChapters, durationSeconds, skipTimesJSON, err = playSingleCmd(dubStream, selectedShow.Name, epNo, selectedShow.MALID, selectedShow.Duration)
 			} else if errDub != nil {
 				debugLog("doPreparePlayback: dub failed (%v), falling back to sub-only", errDub)
-				cmd, tempLua, tempChapters, err = playSingleCmd(subStream, selectedShow.Name, epNo, selectedShow.MALID, selectedShow.Duration)
+				cmd, tempLua, tempChapters, durationSeconds, skipTimesJSON, err = playSingleCmd(subStream, selectedShow.Name, epNo, selectedShow.MALID, selectedShow.Duration)
 				if err == nil {
-					return resolvedPlaybackMsg{cmd: cmd, tempLuaFile: tempLua, tempChaptersFile: tempChapters, warning: fmt.Sprintf("⚠ Dub unavailable (%v) — playing sub only", errDub)}
+					return resolvedPlaybackMsg{cmd: cmd, tempLuaFile: tempLua, tempChaptersFile: tempChapters, durationSeconds: durationSeconds, skipTimesJSON: skipTimesJSON, warning: fmt.Sprintf("⚠ Dub unavailable (%v) — playing sub only", errDub)}
 				}
 			} else {
 				debugLog("doPreparePlayback: both streams resolved, launching dual-audio")
-				cmd, tempLua, tempChapters, err = playDualCmd(subStream, dubStream, selectedShow.Name, epNo, selectedShow.MALID, selectedShow.Duration)
+				cmd, tempLua, tempChapters, durationSeconds, skipTimesJSON, err = playDualCmd(subStream, dubStream, selectedShow.Name, epNo, selectedShow.MALID, selectedShow.Duration)
 			}
 		} else if mode == "dub" {
 			dubStream, errDub := resolveStreamURL(selectedShow.ID, "dub", epNo, quality)
 			if errDub != nil {
 				return resolvedPlaybackMsg{err: errDub}
 			}
-			cmd, tempLua, tempChapters, err = playSingleCmd(dubStream, selectedShow.Name, epNo, selectedShow.MALID, selectedShow.Duration)
+			cmd, tempLua, tempChapters, durationSeconds, skipTimesJSON, err = playSingleCmd(dubStream, selectedShow.Name, epNo, selectedShow.MALID, selectedShow.Duration)
 		} else {
 			subStream, errSub := resolveStreamURL(selectedShow.ID, "sub", epNo, quality)
 			if errSub != nil {
 				return resolvedPlaybackMsg{err: errSub}
 			}
-			cmd, tempLua, tempChapters, err = playSingleCmd(subStream, selectedShow.Name, epNo, selectedShow.MALID, selectedShow.Duration)
+			cmd, tempLua, tempChapters, durationSeconds, skipTimesJSON, err = playSingleCmd(subStream, selectedShow.Name, epNo, selectedShow.MALID, selectedShow.Duration)
 		}
 
-		return resolvedPlaybackMsg{cmd: cmd, tempLuaFile: tempLua, tempChaptersFile: tempChapters, err: err}
+		return resolvedPlaybackMsg{cmd: cmd, tempLuaFile: tempLua, tempChaptersFile: tempChapters, durationSeconds: durationSeconds, skipTimesJSON: skipTimesJSON, err: err}
 	}
 }
 
@@ -3103,21 +3123,17 @@ func nextMode(current string) string {
 }
 
 func (m *model) dynamicListHeight() int {
-	// Layout (top to bottom, no bottom content):
-	//   title (1) + \n\n (2) = 3
-	//   tabs  (1) + \n\n (2) = 3  [when tabs shown]
-	//   player bar (~4) + \n\n (2) = 6  [when playback active]
-	//   help bar (1) + \n\n (2) = 3  [always when tabs shown]
-	//   body list fills the rest
-	baseOffset := 3 // title + spacing (no tabs)
-	if m.state == stateHistory || m.state == stateSearchInput || m.state == stateSearchRunning ||
-		m.state == stateShowSelect || m.state == stateEpisodeSelect || m.state == stateSourceSelect ||
-		m.state == stateLogs || m.state == stateConfig {
-		baseOffset = 9 // title(3) + tabs(3) + help bar(3)
-	}
+	// Base layout:
+	// - Top header (inline logo+tabs, or just logo): 1 text line + 2 spacing = 3 lines
+	// - Bottom help bar: 2 spacing + 1 text line = 3 lines
+	// Total base offset = 6 lines
+	baseOffset := 6
+
+	// If playback is active, add player bar (4 lines) + 2 spacing = 6 lines
 	if m.playbackActive {
-		baseOffset += 6 // player bar + spacing
+		baseOffset += 6
 	}
+
 	h := m.height - baseOffset
 	if h < 5 {
 		return 5
