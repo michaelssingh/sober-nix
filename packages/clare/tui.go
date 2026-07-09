@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -336,6 +337,7 @@ type model struct {
 	initialSearch       string
 	episodeDetails      map[string]JikanEpInfo
 	loadedJikanPages    map[int]bool
+	fetchingSynopsis    map[string]bool
 	autoplay            bool
 	autoskip            bool
 	skipFillers         bool
@@ -493,6 +495,7 @@ func initialModel(initialSearch, mode, quality string, download bool) model {
 		initialSearch:      initialSearch,
 		episodeDetails:     make(map[string]JikanEpInfo),
 		loadedJikanPages:   make(map[int]bool),
+		fetchingSynopsis:   make(map[string]bool),
 		autoplay:           cfg.Autoplay,
 		autoskip:           cfg.Autoskip,
 		skipFillers:        cfg.SkipFillers,
@@ -888,6 +891,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Clear metadata maps
 		m.episodeDetails = make(map[string]JikanEpInfo)
 		m.loadedJikanPages = make(map[int]bool)
+		m.fetchingSynopsis = make(map[string]bool)
 
 		// Load Jikan cache if MAL ID is present
 		if m.selectedShow.MALID != "" && m.selectedShow.MALID != "0" {
@@ -1307,6 +1311,42 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		_ = saveJikanCache(msg.malID, cacheData)
 		m.refreshEpisodeListItems()
+
+		// Trigger lazy-loading of synopsis for the currently selected episode
+		selectedItem := m.episodeList.SelectedItem()
+		if selectedItem != nil && m.selectedShow.MALID != "" && m.selectedShow.MALID != "0" {
+			if epItem, ok := selectedItem.(episodeItem); ok {
+				if info, ok := m.episodeDetails[epItem.epNo]; !ok || info.Synopsis == "" {
+					if !m.fetchingSynopsis[epItem.epNo] {
+						m.fetchingSynopsis[epItem.epNo] = true
+						return m, doFetchEpisodeSynopsis(m.selectedShow.MALID, epItem.epNo)
+					}
+				}
+			}
+		}
+		return m, nil
+
+	case episodeSynopsisMsg:
+		if msg.err != nil {
+			debugLog("TUI episodeSynopsisMsg error: %v", msg.err)
+			return m, nil
+		}
+		if info, ok := m.episodeDetails[msg.epNo]; ok {
+			info.Synopsis = msg.synopsis
+			m.episodeDetails[msg.epNo] = info
+		} else {
+			m.episodeDetails[msg.epNo] = JikanEpInfo{
+				Synopsis: msg.synopsis,
+			}
+		}
+		cacheData, _ := loadJikanCache(m.selectedShow.MALID)
+		if cacheData == nil {
+			cacheData = make(map[string]JikanEpInfo)
+		}
+		info := cacheData[msg.epNo]
+		info.Synopsis = msg.synopsis
+		cacheData[msg.epNo] = info
+		_ = saveJikanCache(m.selectedShow.MALID, cacheData)
 		return m, nil
 
 	case tea.MouseMsg:
@@ -1700,6 +1740,19 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if _, ok := m.coverArtCache[m.selectedShow.ID]; !ok {
 					m.coverArtCache[m.selectedShow.ID] = "Loading..."
 					cmds = append(cmds, doFetchCoverArt(m.selectedShow.ID, m.selectedShow.Thumbnail, 16, 11))
+				}
+			}
+
+			// Trigger lazy-loading of synopsis for selected episode
+			selectedItem := m.episodeList.SelectedItem()
+			if selectedItem != nil && m.selectedShow.MALID != "" && m.selectedShow.MALID != "0" {
+				if epItem, ok := selectedItem.(episodeItem); ok {
+					if info, ok := m.episodeDetails[epItem.epNo]; !ok || info.Synopsis == "" {
+						if !m.fetchingSynopsis[epItem.epNo] {
+							m.fetchingSynopsis[epItem.epNo] = true
+							cmds = append(cmds, doFetchEpisodeSynopsis(m.selectedShow.MALID, epItem.epNo))
+						}
+					}
 				}
 			}
 
@@ -2113,6 +2166,7 @@ func (m model) View() string {
 		s.WriteString(helpStyle("press enter or esc to return to search"))
 	}
 
+	bodyStr := s.String()
 	if m.playbackActive {
 		titleStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#bb9af7"))
 		statusStr := "▶ PLAYING"
@@ -2157,10 +2211,19 @@ func (m model) View() string {
 			autoskipToggle,
 			skipFillersToggle,
 		)
-		s.WriteString("\n" + playerBorder.Render(playerContent))
+
+		playerView := playerBorder.Render(playerContent)
+		playerHeight := lipgloss.Height(playerView)
+		bodyHeight := lipgloss.Height(bodyStr)
+		
+		padHeight := m.height - bodyHeight - playerHeight
+		if padHeight > 0 {
+			bodyStr += strings.Repeat("\n", padHeight)
+		}
+		bodyStr += playerView
 	}
 
-	return s.String()
+	return bodyStr
 }
 
 func formatTime(seconds float64) string {
@@ -2370,6 +2433,50 @@ func doFetchJikanMetadata(malID string, page int) tea.Cmd {
 			}
 		}
 		return jikanMetadataMsg{malID: malID, page: page, metadata: metadata}
+	}
+}
+
+type episodeSynopsisMsg struct {
+	epNo     string
+	synopsis string
+	err      error
+}
+
+func doFetchEpisodeSynopsis(malID, epNo string) tea.Cmd {
+	return func() tea.Msg {
+		if malID == "" || malID == "0" || epNo == "" {
+			return episodeSynopsisMsg{epNo: epNo, err: fmt.Errorf("invalid arguments")}
+		}
+		epID, err := strconv.Atoi(epNo)
+		if err != nil || epID <= 0 {
+			return episodeSynopsisMsg{epNo: epNo, err: fmt.Errorf("invalid episode ID")}
+		}
+
+		client := newLoggingHttpClient(8 * time.Second)
+		url := fmt.Sprintf("https://api.jikan.moe/v4/anime/%s/episodes/%d", malID, epID)
+		resp, err := client.Get(url)
+		if err != nil {
+			return episodeSynopsisMsg{epNo: epNo, err: err}
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			return episodeSynopsisMsg{epNo: epNo, err: fmt.Errorf("status %d", resp.StatusCode)}
+		}
+
+		var res struct {
+			Data struct {
+				Synopsis string `json:"synopsis"`
+			} `json:"data"`
+		}
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return episodeSynopsisMsg{epNo: epNo, err: err}
+		}
+		if err := json.Unmarshal(body, &res); err != nil {
+			return episodeSynopsisMsg{epNo: epNo, err: err}
+		}
+
+		return episodeSynopsisMsg{epNo: epNo, synopsis: res.Data.Synopsis}
 	}
 }
 

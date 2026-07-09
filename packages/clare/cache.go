@@ -126,3 +126,37 @@ func saveShowCache(showID string, show AnimeShow, episodes []string) error {
 	encoder.SetIndent("", "  ")
 	return encoder.Encode(entry)
 }
+
+// AniSkip Cache
+
+func getAniSkipCachePath(malID, epNo string) string {
+	return filepath.Join(getCacheDir(), "aniskip", malID, epNo+".json")
+}
+
+func loadAniSkipCache(malID, epNo string) []AniSkipResult {
+	path := getAniSkipCachePath(malID, epNo)
+	f, err := os.Open(path)
+	if err != nil {
+		return nil
+	}
+	defer f.Close()
+	var results []AniSkipResult
+	if json.NewDecoder(f).Decode(&results) == nil {
+		return results
+	}
+	return nil
+}
+
+func saveAniSkipCache(malID, epNo string, results []AniSkipResult) {
+	if len(results) == 0 {
+		return
+	}
+	path := getAniSkipCachePath(malID, epNo)
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return
+	}
+	if f, err := os.Create(path); err == nil {
+		_ = json.NewEncoder(f).Encode(results)
+		f.Close()
+	}
+}

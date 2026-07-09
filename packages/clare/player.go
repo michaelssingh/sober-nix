@@ -77,6 +77,12 @@ func fetchAniSkipTimes(malID string, epNo string, durationSeconds float64) []Ani
 		return nil
 	}
 
+	// 1. Try to load from local cache first
+	if cached := loadAniSkipCache(malID, cleanEp); cached != nil {
+		debugLog("fetchAniSkipTimes: cache hit for MAL %s Ep %s", malID, cleanEp)
+		return cached
+	}
+
 	client := newLoggingHttpClient(4 * time.Second)
 	url := fmt.Sprintf("https://api.aniskip.com/v2/skip-times/%s/%s?types[]=op&types[]=ed&types[]=mixed-op&types[]=mixed-ed&types[]=recap&episodeLength=0", malID, cleanEp)
 	debugLog("fetchAniSkipTimes: requesting %s", url)
@@ -111,6 +117,10 @@ func fetchAniSkipTimes(malID string, epNo string, durationSeconds float64) []Ani
 		return nil
 	}
 	debugLog("fetchAniSkipTimes: found %d skip times", len(result.Results))
+
+	// 2. Save results to local cache
+	saveAniSkipCache(malID, cleanEp, result.Results)
+
 	return result.Results
 }
 
