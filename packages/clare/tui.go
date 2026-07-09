@@ -806,6 +806,51 @@ func (m *model) toggleShowCompleted(showID string) {
 	m.refreshHistory()
 }
 
+func (m *model) toggleEpisodeCompleted(epNo string) {
+	if m.selectedShow.MALID == "" || m.selectedShow.MALID == "0" {
+		debugLog("toggleEpisodeCompleted: current show has no valid MAL ID, cannot toggle")
+		return
+	}
+	malID := m.selectedShow.MALID
+
+	positions, err := loadPositions()
+	if err != nil {
+		positions = make(map[string]ShowState)
+	}
+
+	showState, ok := positions[malID]
+	if !ok {
+		showState = ShowState{
+			CompletedEpisodes: []float64{},
+		}
+	}
+
+	targetEp := parseEpisodeNumber(epNo)
+	foundIdx := -1
+	for i, ep := range showState.CompletedEpisodes {
+		if ep == targetEp {
+			foundIdx = i
+			break
+		}
+	}
+
+	if foundIdx >= 0 {
+		// Remove it
+		showState.CompletedEpisodes = append(showState.CompletedEpisodes[:foundIdx], showState.CompletedEpisodes[foundIdx+1:]...)
+		debugLog("toggleEpisodeCompleted: unmarked episode %s as completed", epNo)
+	} else {
+		// Add it
+		showState.CompletedEpisodes = append(showState.CompletedEpisodes, targetEp)
+		sort.Float64s(showState.CompletedEpisodes)
+		debugLog("toggleEpisodeCompleted: marked episode %s as completed", epNo)
+	}
+
+	positions[malID] = showState
+	_ = savePositions(positions)
+	go SyncAllHistory()
+	m.refreshHistory()
+}
+
 
 func humanAgo(ts int64) string {
 	if ts == 0 {
@@ -1735,6 +1780,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "m":
 				m.mode = nextMode(m.mode)
 				return m, nil
+			case "c", "C":
+				selected, ok := m.episodeList.SelectedItem().(episodeItem)
+				if ok {
+					m.toggleEpisodeCompleted(selected.epNo)
+				}
+				return m, nil
 			case "enter":
 				selected, ok := m.episodeList.SelectedItem().(episodeItem)
 				if ok {
@@ -2155,7 +2206,7 @@ func (m model) View() string {
 			autoplayStr = "autoplay: ON"
 		}
 		modeStr := strings.ToUpper(m.mode)
-		footer = helpStyle(fmt.Sprintf("enter: play | a: toggle autoplay (%s) | m: toggle mode (mode: %s) | esc: back | q: quit", autoplayStr, modeStr))
+		footer = helpStyle(fmt.Sprintf("enter: play | a: toggle autoplay (%s) | c: toggle completed | m: toggle mode (mode: %s) | esc: back | q: quit", autoplayStr, modeStr))
 
 	case stateSourceSelect:
 		s.WriteString(m.sourceList.View())
