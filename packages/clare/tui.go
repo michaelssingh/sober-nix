@@ -110,14 +110,27 @@ func (h historyItem) Description() string {
 		return fmt.Sprintf("Completed  ·  %s", ago)
 	}
 	var parts []string
-	if h.nextEp != "" && h.totalEps > 0 {
+	hasExceededTotal := false
+	if h.nextEp != "" {
+		nextEpVal := parseEpisodeNumber(h.nextEp)
+		if h.totalEps > 0 && nextEpVal > float64(h.totalEps) {
+			hasExceededTotal = true
+		}
+	} else if h.lastEp != "" {
+		lastEpVal := parseEpisodeNumber(h.lastEp)
+		if h.totalEps > 0 && lastEpVal > float64(h.totalEps) {
+			hasExceededTotal = true
+		}
+	}
+
+	if h.nextEp != "" && h.totalEps > 0 && !hasExceededTotal {
 		parts = append(parts, fmt.Sprintf("Next: Ep %s / %d", h.nextEp, h.totalEps))
 	} else if h.nextEp != "" {
 		parts = append(parts, fmt.Sprintf("Next: Ep %s", h.nextEp))
 	} else if h.lastEp != "" {
 		parts = append(parts, fmt.Sprintf("Last: Ep %s", h.lastEp))
 	}
-	if h.progressPct >= 0 && h.totalEps > 0 {
+	if h.progressPct >= 0 && h.totalEps > 0 && !hasExceededTotal {
 		bar := renderSmoothProgressBar(h.progressPct, 8)
 		parts = append(parts, fmt.Sprintf("[%s] %d%%", bar, int(h.progressPct*100)))
 	}
@@ -520,6 +533,7 @@ func initialModel(initialSearch, mode, quality string, download bool) model {
 		m.mpvStatus = reattachedStatus
 	}
 
+	m.loadExistingLogs()
 	m.refreshHistory()
 	go tailLogFile(m.clareLogChan)
 
@@ -969,6 +983,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width = msg.Width
 		m.height = msg.Height
 		m.recalculateSizes()
+		m.refreshLogsViewport()
 		return m, nil
 
 	case spinner.TickMsg:
@@ -1303,11 +1318,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 		
-		var formattedLogs []string
-		for _, logLine := range m.telemetryLogs {
-			formattedLogs = append(formattedLogs, formatLogLine(logLine))
-		}
-		m.telemetryViewport.SetContent(strings.Join(formattedLogs, "\n"))
+		m.refreshLogsViewport()
 		if wasAtBottom {
 			m.telemetryViewport.GotoBottom()
 		}
@@ -3237,6 +3248,90 @@ func formatLogLine(line string) string {
 		return lipgloss.NewStyle().Foreground(lipgloss.Color("#7dcfff")).Render(line)
 	}
 	return lipgloss.NewStyle().Foreground(lipgloss.Color("#c0caf5")).Render(line)
+}
+
+func (m *model) loadExistingLogs() {
+	dir := os.Getenv("CLARE_STATE_DIR")
+	if dir == "" {
+		stateHome := os.Getenv("XDG_STATE_HOME")
+		if stateHome == "" {
+			home, _ := os.UserHomeDir()
+			stateHome = filepath.Join(home, ".local", "state")
+		}
+		dir = filepath.Join(stateHome, "clare")
+	}
+	logFile := filepath.Join(dir, "debug.log")
+
+	f, err := os.Open(logFile)
+	if err != nil {
+		return
+	}
+	defer f.Close()
+
+	var lines []string
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.Contains(line, "TUI KeyMsg:") {
+			continue
+		}
+		lines = append(lines, line)
+	}
+
+	// Keep last 500 lines to avoid memory bloat
+	if len(lines) > 500 {
+		lines = lines[len(lines)-500:]
+	}
+
+	m.telemetryLogs = lines
+}
+
+func wrapLogLine(line string, width int) string {
+	if len(line) < 22 || line[0] != '[' || line[20] != ']' {
+		// No standard timestamp, just wrap the whole line using Lipgloss
+		return formatLogLine(line)
+	}
+
+	timestamp := line[:22]
+	content := line[22:]
+
+	contentWidth := width - 22
+	if contentWidth < 20 {
+		contentWidth = 20
+	}
+
+	// Apply lipgloss styling to the content first
+	styledContent := formatLogLine(content)
+
+	contentStyle := lipgloss.NewStyle().Width(contentWidth)
+	wrappedContent := contentStyle.Render(styledContent)
+
+	lines := strings.Split(wrappedContent, "\n")
+	var result []string
+	tsStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#565f89")) // dark gray for timestamp
+	
+	result = append(result, tsStyle.Render(timestamp)+lines[0])
+	indent := strings.Repeat(" ", 22)
+	for i := 1; i < len(lines); i++ {
+		result = append(result, indent+lines[i])
+	}
+
+	return strings.Join(result, "\n")
+}
+
+func (m *model) refreshLogsViewport() {
+	var formattedLogs []string
+	width := m.telemetryViewport.Width
+	if width <= 0 {
+		width = m.width - 4
+	}
+	if width <= 0 {
+		width = 80 // fallback
+	}
+	for _, logLine := range m.telemetryLogs {
+		formattedLogs = append(formattedLogs, wrapLogLine(logLine, width))
+	}
+	m.telemetryViewport.SetContent(strings.Join(formattedLogs, "\n"))
 }
 
 func (m *model) triggerAutoplayAction() tea.Cmd {

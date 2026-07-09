@@ -311,6 +311,16 @@ func TestLogStreamingAndFormatting(t *testing.T) {
 }
 
 func TestModelLoggingIntegration(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "clare-test-model-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	origStateDir := os.Getenv("CLARE_STATE_DIR")
+	os.Setenv("CLARE_STATE_DIR", tmpDir)
+	defer os.Setenv("CLARE_STATE_DIR", origStateDir)
+
 	m := initialModel("", "sub", "best", false)
 	m.telemetryViewport.Width = 80
 	m.telemetryViewport.Height = 20
