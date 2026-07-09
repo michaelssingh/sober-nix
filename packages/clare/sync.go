@@ -174,7 +174,7 @@ func SyncProgress(malIDStr string, epNoStr string) {
 }
 
 func syncToAniList(token string, malID int, progress int) error {
-	var resolveQuery = `query ($idMal: Int) { Media (idMal: $idMal, type: ANIME) { id } }`
+	var resolveQuery = `query ($idMal: Int) { Media (idMal: $idMal, type: ANIME) { id episodes } }`
 	payload := map[string]interface{}{
 		"query": resolveQuery,
 		"variables": map[string]interface{}{
@@ -206,7 +206,8 @@ func syncToAniList(token string, malID int, progress int) error {
 	var resolveResp struct {
 		Data struct {
 			Media struct {
-				ID int `json:"id"`
+				ID       int  `json:"id"`
+				Episodes *int `json:"episodes"`
 			} `json:"Media"`
 		} `json:"data"`
 	}
@@ -217,6 +218,13 @@ func syncToAniList(token string, malID int, progress int) error {
 	anilistMediaID := resolveResp.Data.Media.ID
 	if anilistMediaID == 0 {
 		return fmt.Errorf("could not resolve AniList Media ID for MAL ID %d", malID)
+	}
+
+	status := "CURRENT"
+	if resolveResp.Data.Media.Episodes != nil && *resolveResp.Data.Media.Episodes > 0 {
+		if progress >= *resolveResp.Data.Media.Episodes {
+			status = "COMPLETED"
+		}
 	}
 
 	var mutation = `mutation ($mediaId: Int, $progress: Int, $status: MediaListStatus) {
@@ -230,7 +238,7 @@ func syncToAniList(token string, malID int, progress int) error {
 		"variables": map[string]interface{}{
 			"mediaId":  anilistMediaID,
 			"progress": progress,
-			"status":   "CURRENT",
+			"status":   status,
 		},
 	}
 	mutBody, _ := json.Marshal(mutationPayload)
@@ -330,7 +338,7 @@ func pullFromAniList(token string, positions map[string]ShowState) (bool, error)
 
 	// 2. Fetch the MediaListCollection using the username
 	collectionQuery := `query ($userName: String!) {
-		MediaListCollection (userName: $userName, type: ANIME) {
+		MediaListCollection (userName: $userName, type: ANIME, status: CURRENT) {
 			lists {
 				entries {
 					media {
