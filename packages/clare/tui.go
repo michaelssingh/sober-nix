@@ -2011,7 +2011,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m model) View() string {
 	var s strings.Builder
-	var footer string
 
 	var playerView string
 	if m.playbackActive {
@@ -2114,6 +2113,13 @@ func (m model) View() string {
 		s.WriteString(playerView + "\n\n")
 	}
 
+	// Help bar always sits right below the player/tabs — never at the bottom.
+	// This eliminates all flush-bottom padding math that causes gaps in foot
+	// due to font-size / terminal cell-height rounding.
+	if helpText := m.viewFooter(); helpText != "" {
+		s.WriteString(helpText + "\n\n")
+	}
+
 	bodyStyle := lipgloss.NewStyle().Height(listHeight)
 
 	switch m.state {
@@ -2152,7 +2158,6 @@ func (m model) View() string {
 		} else {
 			s.WriteString(m.historyList.View())
 		}
-		footer = helpStyle("s: search  enter: resume  c: toggle completed  d: remove  q: quit")
 
 	case stateSearchInput:
 		var bodyBuf strings.Builder
@@ -2180,12 +2185,10 @@ func (m model) View() string {
 			bodyBuf.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("#565f89")).Italic(true).Render("Your search history is empty. Try searching for popular titles like \"Frieren\" or \"Bleach\"!") + "\n")
 		}
 		s.WriteString(bodyStyle.Render(bodyBuf.String()))
-		footer = helpStyle("enter: search | up/down: browse history | esc: cancel")
 
 	case stateSearchRunning:
 		bodyContent := fmt.Sprintf("%s %s\n", m.spinner.View(), m.loadingMsg)
 		s.WriteString(bodyStyle.Render(bodyContent))
-		footer = helpStyle("Please wait...")
 
 	case stateShowSelect:
 		if m.width >= 80 {
@@ -2217,7 +2220,6 @@ func (m model) View() string {
 		} else {
 			s.WriteString(m.showList.View())
 		}
-		footer = helpStyle("enter: select show | esc: back | q: quit")
 
 	case stateEpisodeSelect:
 		if m.width >= 80 {
@@ -2237,21 +2239,13 @@ func (m model) View() string {
 		} else {
 			s.WriteString(m.episodeList.View())
 		}
-		autoplayStr := "autoplay: OFF"
-		if m.autoplay {
-			autoplayStr = "autoplay: ON"
-		}
-		modeStr := strings.ToUpper(m.mode)
-		footer = helpStyle(fmt.Sprintf("enter: play | a: toggle autoplay (%s) | c: toggle completed | m: toggle mode (mode: %s) | esc: back | q: quit", autoplayStr, modeStr))
 
 	case stateSourceSelect:
 		s.WriteString(m.sourceList.View())
-		footer = helpStyle("enter: play with selected source | esc: back | q: quit")
 
 	case statePlaybackPreparing:
 		bodyContent := fmt.Sprintf("%s %s\n", m.spinner.View(), m.loadingMsg)
 		s.WriteString(bodyStyle.Render(bodyContent))
-		footer = helpStyle("Preparing playback...")
 
 	case statePlaybackActive:
 		titleStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#bb9af7"))
@@ -2275,11 +2269,9 @@ func (m model) View() string {
 
 		activeBody.WriteString(fmt.Sprintf("Volume: %d%%\n\n", int(m.mpvStatus.Volume)))
 		s.WriteString(bodyStyle.Render(activeBody.String()))
-		footer = helpStyle("space: pause/resume  left/right: seek 10s  up/down: volume  esc/q: stop playback")
 
 	case stateLogs:
 		s.WriteString(m.telemetryViewport.View())
-		footer = helpStyle("1: history | 2: search | q: quit")
 
 	case stateConfig:
 		var cfgStrings []string
@@ -2335,27 +2327,13 @@ func (m model) View() string {
 		)
 
 				s.WriteString(bodyStyle.Render(bodyContent))
-		footer = helpStyle("enter/space: toggle/cycle | up/down: navigate | esc: back")
 
 	case stateError:
 		s.WriteString(errorStyle.Render("Error encountered:") + "\n\n")
 		s.WriteString(fmt.Sprintf("  %v\n\n", m.err))
-		footer = helpStyle("press enter or esc to return to search")
 	}
 
-	bodyStr := s.String()
-
-	if footer != "" {
-		bodyHeight := lipgloss.Height(bodyStr)
-		footerHeight := lipgloss.Height(footer)
-		padHeight := m.height - bodyHeight - footerHeight - 1
-		if padHeight > 0 {
-			bodyStr += strings.Repeat("\n", padHeight)
-		}
-		bodyStr += footer
-	}
-
-	return bodyStr
+	return s.String()
 }
 
 func formatTime(seconds float64) string {
@@ -3125,23 +3103,63 @@ func nextMode(current string) string {
 }
 
 func (m *model) dynamicListHeight() int {
+	// Layout (top to bottom, no bottom content):
+	//   title (1) + \n\n (2) = 3
+	//   tabs  (1) + \n\n (2) = 3  [when tabs shown]
+	//   player bar (~4) + \n\n (2) = 6  [when playback active]
+	//   help bar (1) + \n\n (2) = 3  [always when tabs shown]
+	//   body list fills the rest
+	baseOffset := 3 // title + spacing (no tabs)
+	if m.state == stateHistory || m.state == stateSearchInput || m.state == stateSearchRunning ||
+		m.state == stateShowSelect || m.state == stateEpisodeSelect || m.state == stateSourceSelect ||
+		m.state == stateLogs || m.state == stateConfig {
+		baseOffset = 9 // title(3) + tabs(3) + help bar(3)
+	}
 	if m.playbackActive {
-		// 6 lines top chrome (title + tabs) + 4 lines player bar + 4 lines spacing/help footer = 14
-		h := m.height - 14
-		if h < 5 {
-			return 5
-		}
-		return h
+		baseOffset += 6 // player bar + spacing
 	}
-	offset := 6
-	if m.state == stateHistory || m.state == stateSearchInput || m.state == stateSearchRunning || m.state == stateShowSelect || m.state == stateEpisodeSelect || m.state == stateSourceSelect || m.state == stateLogs || m.state == stateConfig {
-		offset = 9 // 6 top chrome + 3 for "\n\n" + help bar line
-	}
-	h := m.height - offset
+	h := m.height - baseOffset
 	if h < 5 {
 		return 5
 	}
 	return h
+}
+
+// viewFooter returns the help bar text for the current state.
+// It is rendered at the top of the UI (below the player bar) so that
+// no content is ever pushed to the bottom of the terminal — avoiding
+// the cell-height rounding gap that foot exhibits with bottom padding.
+func (m model) viewFooter() string {
+	switch m.state {
+	case stateHistory:
+		return helpStyle("s: search  enter: resume  c: toggle completed  d: remove  q: quit")
+	case stateSearchInput:
+		return helpStyle("enter: search | up/down: browse history | esc: cancel")
+	case stateSearchRunning:
+		return helpStyle("Please wait...")
+	case stateShowSelect:
+		return helpStyle("enter: select show | esc: back | q: quit")
+	case stateEpisodeSelect:
+		autoplayStr := "autoplay: OFF"
+		if m.autoplay {
+			autoplayStr = "autoplay: ON"
+		}
+		return helpStyle(fmt.Sprintf("enter: play | a: toggle autoplay (%s) | c: toggle completed | m: toggle mode (mode: %s) | esc: back | q: quit",
+			autoplayStr, strings.ToUpper(m.mode)))
+	case stateSourceSelect:
+		return helpStyle("enter: play with selected source | esc: back | q: quit")
+	case statePlaybackPreparing:
+		return helpStyle("Preparing playback...")
+	case statePlaybackActive:
+		return helpStyle("space: pause/resume  left/right: seek 10s  up/down: volume  esc/q: stop playback")
+	case stateLogs:
+		return helpStyle("1: history | 2: search | q: quit")
+	case stateConfig:
+		return helpStyle("enter/space: toggle/cycle | up/down: navigate | esc: back")
+	case stateError:
+		return helpStyle("press enter or esc to return to search")
+	}
+	return ""
 }
 
 func (m *model) recalculateSizes() {
