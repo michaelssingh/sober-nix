@@ -1653,6 +1653,17 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						}
 						_ = saveHistory(filtered)
 					}
+
+					// Also clean up positions.json for this show
+					if cached, _, found := loadShowCache(selected.showID); found && cached.MALID != "" && cached.MALID != "0" {
+						if positions, err := loadPositions(); err == nil {
+							if _, exists := positions[cached.MALID]; exists {
+								delete(positions, cached.MALID)
+								_ = savePositions(positions)
+							}
+						}
+					}
+
 					m.refreshHistory()
 				}
 				return m, nil

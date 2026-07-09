@@ -40,15 +40,6 @@ func SyncAllHistory() {
 
 	changed := false
 
-	// 1. Pull down watch history from AniList first
-	debugLog("[API] SyncAllHistory: pulling watch collection from AniList...")
-	pulledChanged, err := pullFromAniList(anilistToken, positions)
-	if err != nil {
-		debugLog("[ERROR] SyncAllHistory: failed to pull from AniList: %v", err)
-	} else if pulledChanged {
-		changed = true
-	}
-
 	// 2. Push any local progress not yet on AniList
 	malToName := loadMalIDToNameMap()
 	for malIDStr, state := range positions {
