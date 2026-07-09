@@ -600,16 +600,19 @@ func (m *model) refreshHistory() {
 					// In-progress episode
 					nextVal := showState.ResumeState.Episode
 					
-					// If the resume state episode is already marked completed, default to maxCompleted + 1
-					isResumeCompleted := false
-					for _, cEp := range showState.CompletedEpisodes {
-						if cEp == nextVal {
-							isResumeCompleted = true
+					// Find the next uncompleted episode starting from the resume state
+					for {
+						isCompleted := false
+						for _, cEp := range showState.CompletedEpisodes {
+							if cEp == nextVal {
+								isCompleted = true
+								break
+							}
+						}
+						if !isCompleted {
 							break
 						}
-					}
-					if isResumeCompleted {
-						nextVal = maxCompleted + 1.0
+						nextVal += 1.0
 					}
 
 					epStr := fmt.Sprintf("%.1f", nextVal)
@@ -639,6 +642,21 @@ func (m *model) refreshHistory() {
 						nextVal = epVal + 1.0
 					} else {
 						nextVal = epVal
+					}
+					
+					// Find the next uncompleted episode starting from nextVal
+					for {
+						isCompleted := false
+						for _, cEp := range showState.CompletedEpisodes {
+							if cEp == nextVal {
+								isCompleted = true
+								break
+							}
+						}
+						if !isCompleted {
+							break
+						}
+						nextVal += 1.0
 					}
 					
 					if item.totalEps > 0 {
@@ -2579,8 +2597,21 @@ func (m *model) refreshEpisodeListItems() {
 				}
 			}
 			nextEpVal := maxCompleted + 1.0
-			if sState.ResumeState != nil && sState.ResumeState.Episode > maxCompleted {
+			if sState.ResumeState != nil {
 				nextEpVal = sState.ResumeState.Episode
+			}
+			for {
+				isCompleted := false
+				for _, cEp := range sState.CompletedEpisodes {
+					if cEp == nextEpVal {
+						isCompleted = true
+						break
+					}
+				}
+				if !isCompleted {
+					break
+				}
+				nextEpVal += 1.0
 			}
 			nextEp = fmt.Sprintf("%.1f", nextEpVal)
 			if strings.HasSuffix(nextEp, ".0") {

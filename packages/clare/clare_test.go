@@ -26,9 +26,9 @@ func TestCleanHTML(t *testing.T) {
 		input    string
 		expected string
 	}{
-		{"Hello <br> World", "Hello \n World"},
-		{"Hello <BR/> World", "Hello \n World"},
-		{"Hello <br /> World", "Hello \n World"},
+		{"Hello <br> World", "Hello\n World"},
+		{"Hello <BR/> World", "Hello\n World"},
+		{"Hello <br /> World", "Hello\n World"},
 		{"<b>Bold</b> and <i>Italic</i>", "Bold and Italic"},
 		{"&quot;Quotes&quot; &amp; Ampersand", "\"Quotes\" & Ampersand"},
 		{"&#039;Single quote&#039; and &rsquo;apostrophe&rsquo;", "'Single quote' and 'apostrophe'"},
