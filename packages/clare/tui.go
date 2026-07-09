@@ -2167,9 +2167,9 @@ func (m model) View() string {
 
 	if showTabs {
 		logoStr := titleStyle.Render(" クレア ")
-		s.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, logoStr+"   ", lipgloss.JoinHorizontal(lipgloss.Top, tabs...)) + "\n\n")
+		s.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, logoStr+"   ", lipgloss.JoinHorizontal(lipgloss.Top, tabs...)) + "\n")
 	} else {
-		s.WriteString(titleStyle.Render(" クレア ") + "\n\n")
+		s.WriteString(titleStyle.Render(" クレア ") + "\n")
 	}
 
 	bodyStyle := lipgloss.NewStyle().Height(listHeight)
@@ -2365,11 +2365,11 @@ func (m model) View() string {
 	}
 
 	if m.playbackActive {
-		s.WriteString("\n\n" + playerView)
+		s.WriteString("\n" + playerView)
 	}
 
 	if helpText := m.viewFooter(); helpText != "" {
-		s.WriteString("\n\n" + helpText)
+		s.WriteString("\n" + helpText)
 	}
 
 	return s.String()
@@ -3146,14 +3146,14 @@ func nextMode(current string) string {
 
 func (m *model) dynamicListHeight() int {
 	// Base layout:
-	// - Top header (inline logo+tabs, or just logo): 1 text line + 2 spacing = 3 lines
-	// - Bottom help bar: 2 spacing + 1 text line = 3 lines
-	// Total base offset = 6 lines
-	baseOffset := 6
+	// - Top header (inline logo+tabs, or just logo): 1 text line + 1 spacing = 2 lines
+	// - Bottom help bar: 1 spacing + 1 text line = 2 lines
+	// Total base offset = 4 lines
+	baseOffset := 4
 
-	// If playback is active, add player bar (4 lines) + 2 spacing = 6 lines
+	// If playback is active, add player bar (4 lines) + 1 spacing = 5 lines
 	if m.playbackActive {
-		baseOffset += 6
+		baseOffset += 5
 	}
 
 	h := m.height - baseOffset
