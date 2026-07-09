@@ -2713,12 +2713,12 @@ func (m model) renderShowDetailsPanel(show AnimeShow, coverArtANSI string, width
 	metaKeyStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#565f89"))
 	metaValStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#7dcfff"))
 	
+	// Build border style without a fixed height — only applied if content overflows
 	borderStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color("#7aa2f7")).
 		Padding(1, 2).
-		Width(width).
-		Height(height)
+		Width(width)
 
 	// Format metadata lines
 	scoreStr := "N/A"
@@ -2825,7 +2825,13 @@ func (m model) renderShowDetailsPanel(show AnimeShow, coverArtANSI string, width
 		rightPanelContent,
 	)
 
-	s.WriteString(borderStyle.Render(panelContent))
+	// Only enforce fixed height if content overflows — otherwise shrink to fit
+	autoRendered := borderStyle.Render(panelContent)
+	if lipgloss.Height(autoRendered) >= height {
+		s.WriteString(borderStyle.Height(height).Render(panelContent))
+	} else {
+		s.WriteString(autoRendered)
+	}
 	return s.String()
 }
 
