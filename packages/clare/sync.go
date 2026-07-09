@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -48,7 +49,8 @@ func SyncAllHistory() {
 	}
 
 	// 2. Push any local progress not yet on AniList
-	for showID, state := range positions {
+	malToName := loadMalIDToNameMap()
+	for malIDStr, state := range positions {
 		if len(state.CompletedEpisodes) == 0 {
 			continue
 		}
@@ -66,26 +68,25 @@ func SyncAllHistory() {
 			continue
 		}
 
-		// Look up the MAL ID from show cache
-		show, _, found := loadShowCache(showID)
-		if !found || show.MALID == "" || show.MALID == "0" {
-			continue
-		}
-
-		malID, err := strconv.Atoi(show.MALID)
+		malID, err := strconv.Atoi(malIDStr)
 		if err != nil || malID == 0 {
 			continue
 		}
 
+		showName := malToName[malIDStr]
+		if showName == "" {
+			showName = fmt.Sprintf("MAL ID %d", malID)
+		}
+
 		epProgress := int(maxEp)
 		if err := syncToAniList(anilistToken, malID, epProgress); err != nil {
-			debugLog("[ERROR] SyncAllHistory: AniList sync failed for %s (MAL %d): %v", show.Name, malID, err)
+			debugLog("[ERROR] SyncAllHistory: AniList sync failed for %s: %v", showName, err)
 			continue
 		}
 
-		debugLog("[INFO] SyncAllHistory: synced %s (MAL %d) up to ep %d", show.Name, malID, epProgress)
+		debugLog("[INFO] SyncAllHistory: synced %s up to ep %d", showName, epProgress)
 		state.LastSyncedEp = maxEp
-		positions[showID] = state
+		positions[malIDStr] = state
 		changed = true
 	}
 
@@ -282,25 +283,67 @@ func syncToMAL(token string, malID int, progress int) error {
 type syncRefreshMsg struct{}
 
 func pullFromAniList(token string, positions map[string]ShowState) (bool, error) {
-	query := `query {
-		Viewer {
-			mediaListCollection (type: ANIME, statusIn: [CURRENT, COMPLETED]) {
-				lists {
-					entries {
-						media {
-							idMal
-							title { romaji english }
-							episodes
-						}
-						progress
-						status
+	// 1. Fetch current viewer's username
+	viewerQuery := `query { Viewer { name } }`
+	viewerPayload := map[string]interface{}{
+		"query": viewerQuery,
+	}
+	viewerBody, _ := json.Marshal(viewerPayload)
+
+	reqViewer, err := http.NewRequest("POST", "https://graphql.anilist.co", bytes.NewBuffer(viewerBody))
+	if err != nil {
+		return false, err
+	}
+	reqViewer.Header.Set("Content-Type", "application/json")
+	reqViewer.Header.Set("Authorization", "Bearer "+token)
+
+	client := &http.Client{Timeout: 15 * time.Second}
+	respViewer, err := client.Do(reqViewer)
+	if err != nil {
+		return false, err
+	}
+	defer respViewer.Body.Close()
+
+	if respViewer.StatusCode != http.StatusOK {
+		return false, fmt.Errorf("AniList viewer query returned status %d", respViewer.StatusCode)
+	}
+
+	var viewerResp struct {
+		Data struct {
+			Viewer struct {
+				Name string `json:"name"`
+			} `json:"Viewer"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(respViewer.Body).Decode(&viewerResp); err != nil {
+		return false, err
+	}
+
+	username := viewerResp.Data.Viewer.Name
+	if username == "" {
+		return false, fmt.Errorf("could not retrieve authenticated AniList username")
+	}
+
+	// 2. Fetch the MediaListCollection using the username
+	collectionQuery := `query ($userName: String!) {
+		MediaListCollection (userName: $userName, type: ANIME) {
+			lists {
+				entries {
+					media {
+						idMal
+						episodes
 					}
+					progress
+					status
 				}
 			}
 		}
 	}`
 	payload := map[string]interface{}{
-		"query": query,
+		"query": collectionQuery,
+		"variables": map[string]interface{}{
+			"userName": username,
+		},
 	}
 	body, _ := json.Marshal(payload)
 
@@ -311,7 +354,6 @@ func pullFromAniList(token string, positions map[string]ShowState) (bool, error)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+token)
 
-	client := &http.Client{Timeout: 15 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
 		return false, err
@@ -324,20 +366,18 @@ func pullFromAniList(token string, positions map[string]ShowState) (bool, error)
 
 	var pullResp struct {
 		Data struct {
-			Viewer struct {
-				MediaListCollection struct {
-					Lists []struct {
-						Entries []struct {
-							Media struct {
-								IDMal    int `json:"idMal"`
-								Episodes int `json:"episodes"`
-							} `json:"media"`
-							Progress int    `json:"progress"`
-							Status   string `json:"status"`
-						} `json:"entries"`
-					} `json:"lists"`
-				} `json:"mediaListCollection"`
-			} `json:"Viewer"`
+			MediaListCollection struct {
+				Lists []struct {
+					Entries []struct {
+						Media struct {
+							IDMal    int `json:"idMal"`
+							Episodes int `json:"episodes"`
+						} `json:"media"`
+						Progress int    `json:"progress"`
+						Status   string `json:"status"`
+					} `json:"entries"`
+				} `json:"lists"`
+			} `json:"mediaListCollection"`
 		} `json:"data"`
 	}
 
@@ -346,14 +386,14 @@ func pullFromAniList(token string, positions map[string]ShowState) (bool, error)
 	}
 
 	changed := false
-	for _, l := range pullResp.Data.Viewer.MediaListCollection.Lists {
+	for _, l := range pullResp.Data.MediaListCollection.Lists {
 		for _, entry := range l.Entries {
 			malID := entry.Media.IDMal
 			if malID <= 0 {
 				continue
 			}
 			malIDStr := strconv.Itoa(malID)
-			
+
 			state, exists := positions[malIDStr]
 			if !exists {
 				state = ShowState{
@@ -376,7 +416,7 @@ func pullFromAniList(token string, positions map[string]ShowState) (bool, error)
 				for ep := 1; ep <= entry.Progress; ep++ {
 					newCompleted[float64(ep)] = true
 				}
-				
+
 				state.CompletedEpisodes = []float64{}
 				for ep := range newCompleted {
 					state.CompletedEpisodes = append(state.CompletedEpisodes, ep)
@@ -392,4 +432,28 @@ func pullFromAniList(token string, positions map[string]ShowState) (bool, error)
 	}
 
 	return changed, nil
+}
+
+func loadMalIDToNameMap() map[string]string {
+	m := make(map[string]string)
+	cacheDir := filepath.Join(getCacheDir(), "shows")
+	files, err := os.ReadDir(cacheDir)
+	if err != nil {
+		return m
+	}
+	for _, file := range files {
+		if !file.IsDir() && strings.HasSuffix(file.Name(), ".json") {
+			path := filepath.Join(cacheDir, file.Name())
+			if f, err := os.Open(path); err == nil {
+				var entry CachedShowEntry
+				if json.NewDecoder(f).Decode(&entry) == nil {
+					if entry.Show.MALID != "" && entry.Show.MALID != "0" {
+						m[entry.Show.MALID] = entry.Show.Name
+					}
+				}
+				f.Close()
+			}
+		}
+	}
+	return m
 }
