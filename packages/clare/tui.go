@@ -1165,6 +1165,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
+	case syncRefreshMsg:
+		m.refreshHistory()
+		return m, nil
+
 	case clareLogMsg:
 		line := string(msg)
 		if strings.Contains(line, "TUI KeyMsg:") {

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -31,11 +32,22 @@ func SyncAllHistory() {
 	}
 
 	positions, err := loadPositions()
-	if err != nil || len(positions) == 0 {
-		return
+	if err != nil {
+		positions = make(map[string]ShowState)
 	}
 
 	changed := false
+
+	// 1. Pull down watch history from AniList first
+	debugLog("[API] SyncAllHistory: pulling watch collection from AniList...")
+	pulledChanged, err := pullFromAniList(anilistToken, positions)
+	if err != nil {
+		debugLog("[ERROR] SyncAllHistory: failed to pull from AniList: %v", err)
+	} else if pulledChanged {
+		changed = true
+	}
+
+	// 2. Push any local progress not yet on AniList
 	for showID, state := range positions {
 		if len(state.CompletedEpisodes) == 0 {
 			continue
@@ -80,6 +92,9 @@ func SyncAllHistory() {
 	if changed {
 		if err := savePositions(positions); err != nil {
 			debugLog("[ERROR] SyncAllHistory: failed to save positions after sync: %v", err)
+		}
+		if globalProgram != nil {
+			globalProgram.Send(syncRefreshMsg{})
 		}
 	}
 }
@@ -262,4 +277,119 @@ func syncToMAL(token string, malID int, progress int) error {
 	}
 
 	return nil
+}
+
+type syncRefreshMsg struct{}
+
+func pullFromAniList(token string, positions map[string]ShowState) (bool, error) {
+	query := `query {
+		Viewer {
+			mediaListCollection (type: ANIME, statusIn: [CURRENT, COMPLETED]) {
+				lists {
+					entries {
+						media {
+							idMal
+							title { romaji english }
+							episodes
+						}
+						progress
+						status
+					}
+				}
+			}
+		}
+	}`
+	payload := map[string]interface{}{
+		"query": query,
+	}
+	body, _ := json.Marshal(payload)
+
+	req, err := http.NewRequest("POST", "https://graphql.anilist.co", bytes.NewBuffer(body))
+	if err != nil {
+		return false, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	client := &http.Client{Timeout: 15 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return false, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return false, fmt.Errorf("AniList pull returned status %d", resp.StatusCode)
+	}
+
+	var pullResp struct {
+		Data struct {
+			Viewer struct {
+				MediaListCollection struct {
+					Lists []struct {
+						Entries []struct {
+							Media struct {
+								IDMal    int `json:"idMal"`
+								Episodes int `json:"episodes"`
+							} `json:"media"`
+							Progress int    `json:"progress"`
+							Status   string `json:"status"`
+						} `json:"entries"`
+					} `json:"lists"`
+				} `json:"mediaListCollection"`
+			} `json:"Viewer"`
+		} `json:"data"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&pullResp); err != nil {
+		return false, err
+	}
+
+	changed := false
+	for _, l := range pullResp.Data.Viewer.MediaListCollection.Lists {
+		for _, entry := range l.Entries {
+			malID := entry.Media.IDMal
+			if malID <= 0 {
+				continue
+			}
+			malIDStr := strconv.Itoa(malID)
+			
+			state, exists := positions[malIDStr]
+			if !exists {
+				state = ShowState{
+					CompletedEpisodes: []float64{},
+				}
+			}
+
+			localMax := 0.0
+			for _, ep := range state.CompletedEpisodes {
+				if ep > localMax {
+					localMax = ep
+				}
+			}
+
+			if float64(entry.Progress) > localMax {
+				newCompleted := make(map[float64]bool)
+				for _, ep := range state.CompletedEpisodes {
+					newCompleted[ep] = true
+				}
+				for ep := 1; ep <= entry.Progress; ep++ {
+					newCompleted[float64(ep)] = true
+				}
+				
+				state.CompletedEpisodes = []float64{}
+				for ep := range newCompleted {
+					state.CompletedEpisodes = append(state.CompletedEpisodes, ep)
+				}
+				sort.Float64s(state.CompletedEpisodes)
+
+				state.LastSyncedEp = float64(entry.Progress)
+				positions[malIDStr] = state
+				changed = true
+				debugLog("[INFO] PullSync: updated local progress for MAL ID %d to Ep %d from AniList", malID, entry.Progress)
+			}
+		}
+	}
+
+	return changed, nil
 }
