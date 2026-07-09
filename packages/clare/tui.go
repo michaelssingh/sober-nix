@@ -698,6 +698,9 @@ func (m *model) refreshHistory() {
 			}
 		}
 
+		if item.progressPct > 1.0 {
+			item.progressPct = 1.0
+		}
 		allItems = append(allItems, item)
 	}
 	m.historyItems = allItems
