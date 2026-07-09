@@ -1951,6 +1951,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m model) View() string {
 	var s strings.Builder
+	var footer string // populated by each state case; suppressed when player is active
 
 	// Top Banner
 	s.WriteString(titleStyle.Render(" クレア "))
@@ -2042,7 +2043,7 @@ func (m model) View() string {
 		} else {
 			s.WriteString(m.historyList.View())
 		}
-		s.WriteString("\n\n" + helpStyle("s: search  enter: resume  c: toggle completed  d: remove  q: quit"))
+		footer = helpStyle("s: search  enter: resume  c: toggle completed  d: remove  q: quit")
 
 	case stateSearchInput:
 		var bodyBuf strings.Builder
@@ -2070,12 +2071,12 @@ func (m model) View() string {
 			bodyBuf.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("#565f89")).Italic(true).Render("Your search history is empty. Try searching for popular titles like \"Frieren\" or \"Bleach\"!") + "\n")
 		}
 		s.WriteString(bodyStyle.Render(bodyBuf.String()))
-		s.WriteString("\n\n" + helpStyle("enter: search | up/down: browse history | esc: cancel"))
+		footer = helpStyle("enter: search | up/down: browse history | esc: cancel")
 
 	case stateSearchRunning:
 		bodyContent := fmt.Sprintf("%s %s\n", m.spinner.View(), m.loadingMsg)
 		s.WriteString(bodyStyle.Render(bodyContent))
-		s.WriteString("\n\n" + helpStyle("Please wait..."))
+		footer = helpStyle("Please wait...")
 
 	case stateShowSelect:
 		if m.width >= 80 {
@@ -2107,7 +2108,7 @@ func (m model) View() string {
 		} else {
 			s.WriteString(m.showList.View())
 		}
-		s.WriteString("\n\n" + helpStyle("enter: select show | esc: back | q: quit"))
+		footer = helpStyle("enter: select show | esc: back | q: quit")
 
 	case stateEpisodeSelect:
 		if m.width >= 80 {
@@ -2132,16 +2133,16 @@ func (m model) View() string {
 			autoplayStr = "autoplay: ON"
 		}
 		modeStr := strings.ToUpper(m.mode)
-		s.WriteString("\n\n" + helpStyle(fmt.Sprintf("enter: play | a: toggle autoplay (%s) | m: toggle mode (mode: %s) | esc: back | q: quit", autoplayStr, modeStr)))
+		footer = helpStyle(fmt.Sprintf("enter: play | a: toggle autoplay (%s) | m: toggle mode (mode: %s) | esc: back | q: quit", autoplayStr, modeStr))
 
 	case stateSourceSelect:
 		s.WriteString(m.sourceList.View())
-		s.WriteString("\n\n" + helpStyle("enter: play with selected source | esc: back | q: quit"))
+		footer = helpStyle("enter: play with selected source | esc: back | q: quit")
 
 	case statePlaybackPreparing:
 		bodyContent := fmt.Sprintf("%s %s\n", m.spinner.View(), m.loadingMsg)
 		s.WriteString(bodyStyle.Render(bodyContent))
-		s.WriteString("\n\n" + helpStyle("Preparing playback..."))
+		footer = helpStyle("Preparing playback...")
 
 	case statePlaybackActive:
 		titleStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#bb9af7"))
@@ -2165,11 +2166,11 @@ func (m model) View() string {
 
 		activeBody.WriteString(fmt.Sprintf("Volume: %d%%\n\n", int(m.mpvStatus.Volume)))
 		s.WriteString(bodyStyle.Render(activeBody.String()))
-		s.WriteString("\n\n" + helpStyle("space: pause/resume  left/right: seek 10s  up/down: volume  esc/q: stop playback"))
+		footer = helpStyle("space: pause/resume  left/right: seek 10s  up/down: volume  esc/q: stop playback")
 
 	case stateLogs:
 		s.WriteString(m.telemetryViewport.View())
-		s.WriteString("\n\n" + helpStyle("1: history | 2: search | q: quit"))
+		footer = helpStyle("1: history | 2: search | q: quit")
 
 	case stateConfig:
 		var cfgStrings []string
@@ -2225,22 +2226,24 @@ func (m model) View() string {
 		)
 
 		s.WriteString(bodyStyle.Render(bodyContent))
-		s.WriteString("\n\n" + helpStyle("enter/space: toggle/cycle | up/down: navigate | esc: back"))
+		footer = helpStyle("enter/space: toggle/cycle | up/down: navigate | esc: back")
 
 	case stateError:
 		s.WriteString(errorStyle.Render("Error encountered:") + "\n\n")
 		s.WriteString(fmt.Sprintf("  %v\n\n", m.err))
-		s.WriteString(helpStyle("press enter or esc to return to search"))
+		footer = helpStyle("press enter or esc to return to search")
 	}
 
 	bodyStr := s.String()
+
 	if m.playbackActive {
-		titleStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#bb9af7"))
+		// Player bar replaces the help text footer — render it flush to the bottom
+		pTitleStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#bb9af7"))
 		statusStr := "▶ PLAYING"
 		if m.mpvStatus.Paused {
 			statusStr = "⏸ PAUSED"
 		}
-		
+
 		var pb string
 		if m.mpvStatus.Duration > 0 {
 			pct := m.mpvStatus.PlaybackTime / m.mpvStatus.Duration
@@ -2265,29 +2268,30 @@ func (m model) View() string {
 			return fmt.Sprintf("%s %s", box, name)
 		}
 
-		autoplayToggle := formatCheckbox("Autoplay (a)", m.autoplay)
-		autoskipToggle := formatCheckbox("Auto-Skip (s)", m.autoskip)
-		skipFillersToggle := formatCheckbox("Skip Fillers (f)", m.skipFillers)
-
-		playerContent := fmt.Sprintf("%s %s  %s  Vol: %d%%\n%s  •  %s  •  %s", 
-			statusStr, 
-			titleStyle.Render(fmt.Sprintf("%s - Ep %s", m.playingShow.Name, m.playingEp)),
+		playerContent := fmt.Sprintf("%s %s  %s  Vol: %d%%\n%s  •  %s  •  %s",
+			statusStr,
+			pTitleStyle.Render(fmt.Sprintf("%s - Ep %s", m.playingShow.Name, m.playingEp)),
 			pb,
 			int(m.mpvStatus.Volume),
-			autoplayToggle,
-			autoskipToggle,
-			skipFillersToggle,
+			formatCheckbox("Autoplay (a)", m.autoplay),
+			formatCheckbox("Auto-Skip (s)", m.autoskip),
+			formatCheckbox("Skip Fillers (f)", m.skipFillers),
 		)
 
 		playerView := playerBorder.Render(playerContent)
-		playerHeight := lipgloss.Height(playerView)
+		// Push player bar flush to the bottom with no gap
 		bodyHeight := lipgloss.Height(bodyStr)
-		
+		playerHeight := lipgloss.Height(playerView)
 		padHeight := m.height - bodyHeight - playerHeight
 		if padHeight > 0 {
 			bodyStr += strings.Repeat("\n", padHeight)
 		}
 		bodyStr += playerView
+	} else {
+		// Normal mode: append help bar footer
+		if footer != "" {
+			bodyStr += "\n\n" + footer
+		}
 	}
 
 	return bodyStr
@@ -2833,12 +2837,12 @@ func (m model) renderEpisodeDetailsPanel(width, height int) string {
 	metaKeyStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#565f89"))
 	metaValStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#7dcfff"))
 	
+	// Build border style without a fixed height — we'll set it only if content overflows
 	borderStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color("#7aa2f7")).
 		Padding(1, 2).
-		Width(width).
-		Height(height)
+		Width(width)
 
 	item := m.episodeList.SelectedItem()
 	if item == nil {
@@ -2986,7 +2990,14 @@ func (m model) renderEpisodeDetailsPanel(width, height int) string {
 		rightPanelContent,
 	)
 
-	s.WriteString(borderStyle.Render(panelContent))
+	// Only enforce a fixed height if the content would overflow the available space;
+	// otherwise let the panel shrink naturally to avoid a large empty void.
+	autoRendered := borderStyle.Render(panelContent)
+	if lipgloss.Height(autoRendered) >= height {
+		s.WriteString(borderStyle.Height(height).Render(panelContent))
+	} else {
+		s.WriteString(autoRendered)
+	}
 	return s.String()
 }
 
@@ -3020,12 +3031,18 @@ func nextMode(current string) string {
 }
 
 func (m *model) dynamicListHeight() int {
+	if m.playbackActive {
+		// 6 lines top chrome (title + tabs) + 4 lines player bar = 10
+		// help bar is suppressed when player is active
+		h := m.height - 10
+		if h < 5 {
+			return 5
+		}
+		return h
+	}
 	offset := 6
 	if m.state == stateHistory || m.state == stateSearchInput || m.state == stateSearchRunning || m.state == stateShowSelect || m.state == stateEpisodeSelect || m.state == stateSourceSelect || m.state == stateLogs || m.state == stateConfig {
-		offset = 9
-	}
-	if m.playbackActive {
-		offset += 5 // status bar is 4 lines height + 1 line spacing border
+		offset = 9 // 6 top chrome + 3 for "\n\n" + help bar line
 	}
 	h := m.height - offset
 	if h < 5 {
