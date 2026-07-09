@@ -568,23 +568,31 @@ func (m *model) refreshHistory() {
 			item.totalEps = cached.EpCount()
 		}
 
+		// u.Completed is the canonical completion signal — set by AniList pull
+		// (trusted) or by watching the final local episode. Check it first
+		// before any episode-count math so remote completions are always honoured.
+		if u.Completed {
+			item.isCompleted = true
+		}
+
 		if positions != nil && malID != "" && malID != "0" {
 			if showState, ok := positions[malID]; ok {
-				// Determine if completed
-				maxCompleted := 0.0
-				for _, ep := range showState.CompletedEpisodes {
-					if ep > maxCompleted {
-						maxCompleted = ep
+				// Only derive completion from episode math if not already flagged.
+				if !item.isCompleted {
+					maxCompleted := 0.0
+					for _, ep := range showState.CompletedEpisodes {
+						if ep > maxCompleted {
+							maxCompleted = ep
+						}
+					}
+					lastEpVal := parseEpisodeNumber(item.lastEp)
+					if item.totalEps > 0 && maxCompleted <= float64(item.totalEps) && lastEpVal <= float64(item.totalEps) {
+						completed := (maxCompleted == float64(item.totalEps)) ||
+							(lastEpVal == float64(item.totalEps)) ||
+							(len(showState.CompletedEpisodes) >= item.totalEps)
+						item.isCompleted = completed
 					}
 				}
-				lastEpVal := parseEpisodeNumber(item.lastEp)
-				completed := false
-				if item.totalEps > 0 && maxCompleted <= float64(item.totalEps) && lastEpVal <= float64(item.totalEps) {
-					completed = (maxCompleted == float64(item.totalEps)) ||
-						(lastEpVal == float64(item.totalEps)) ||
-						(len(showState.CompletedEpisodes) >= item.totalEps)
-				}
-				item.isCompleted = completed
 
 				// Check if the last watched episode in history is completed
 				lastEpCompleted := false
@@ -1295,7 +1303,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 			// Trigger background sync to AniList/MAL
-			go func(malID string, epNo string) {
+			go func(malID string, epNo string, showID string) {
 				time.Sleep(1 * time.Second)
 				positions, err := loadPositions()
 				if err == nil && malID != "" {
@@ -1309,11 +1317,19 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 							}
 						}
 						if isCompleted {
-							SyncProgress(malID, epNo)
+							// Determine if this is the final episode in the local AllAnime arc.
+							// Clare — not AniList's episode count — is the source of truth.
+							completedLocally := false
+							if cached, _, ok := loadShowCache(showID); ok {
+								if arcCount := cached.EpCount(); arcCount > 0 {
+									completedLocally = int(reqEp) >= arcCount
+								}
+							}
+							SyncProgress(malID, epNo, completedLocally)
 						}
 					}
 				}
-			}(m.selectedShow.MALID, m.selectedEp)
+			}(m.selectedShow.MALID, m.selectedEp, m.selectedShow.ID)
 		}
 
 		m.state = stateSearchRunning

@@ -9,10 +9,17 @@ import (
 )
 
 type HistoryEntry struct {
-	ShowID    string `json:"show_id"`
-	ShowName  string `json:"show_name"`
-	Episode   string `json:"episode"`
-	Timestamp int64  `json:"timestamp"`
+	ShowID     string `json:"show_id"`
+	ShowName   string `json:"show_name"`
+	Episode    string `json:"episode"`
+	Timestamp  int64  `json:"timestamp"`
+	// Completed is set to true when AniList confirms COMPLETED status on pull,
+	// or when the user watches the final episode locally. This is the canonical
+	// completion signal — Clare never infers completion from episode count math alone.
+	Completed  bool   `json:"completed,omitempty"`
+	// AnilistID caches the AniList media ID so syncToAniList can skip the
+	// MAL-to-AniList ID resolution API call on every episode advance.
+	AnilistID  int    `json:"anilist_id,omitempty"`
 }
 
 func getHistoryPath() string {
@@ -51,15 +58,29 @@ func saveHistory(history []HistoryEntry) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
 		return err
 	}
-	f, err := os.Create(path)
+
+	// Write to a temp file first, then rename atomically to avoid corruption.
+	tmpPath := path + ".tmp"
+	f, err := os.Create(tmpPath)
 	if err != nil {
 		return err
 	}
-	defer f.Close()
-
 	encoder := json.NewEncoder(f)
 	encoder.SetIndent("", "  ")
-	return encoder.Encode(history)
+	if err := encoder.Encode(history); err != nil {
+		f.Close()
+		os.Remove(tmpPath)
+		return err
+	}
+	f.Close()
+
+	// Keep a one-step-behind backup before overwriting.
+	backupPath := path + ".backup"
+	if existing, err := os.ReadFile(path); err == nil {
+		_ = os.WriteFile(backupPath, existing, 0644)
+	}
+
+	return os.Rename(tmpPath, path)
 }
 
 func getUniqueHistory(history []HistoryEntry) []HistoryEntry {

@@ -1135,7 +1135,7 @@ func TestSyncProgressMock(t *testing.T) {
 		os.Unsetenv("MAL_TOKEN")
 	}()
 
-	SyncProgress("12345", "12")
+	SyncProgress("12345", "12", false)
 
 	time.Sleep(200 * time.Millisecond)
 
@@ -1217,7 +1217,7 @@ func TestSyncProgressFileMock(t *testing.T) {
 		os.Unsetenv("MAL_TOKEN_FILE")
 	}()
 
-	SyncProgress("12345", "12")
+	SyncProgress("12345", "12", false)
 
 	time.Sleep(200 * time.Millisecond)
 

@@ -80,7 +80,7 @@ func SyncAllHistory() {
 		}
 
 		epProgress := int(maxEp)
-		if err := syncToAniList(anilistToken, malID, epProgress); err != nil {
+		if err := syncToAniList(anilistToken, malID, epProgress, false, 0); err != nil {
 			debugLog("[ERROR] SyncAllHistory: AniList sync failed for %s: %v", showName, err)
 			continue
 		}
@@ -103,7 +103,10 @@ func SyncAllHistory() {
 
 
 // SyncProgress syncs the anime progress to AniList and/or MyAnimeList in the background.
-func SyncProgress(malIDStr string, epNoStr string) {
+// completedLocally should be true only when Clare itself determines the show is finished
+// (i.e. the user watched the final episode in the AllAnime arc). Clare — not a remote
+// tracker's episode count — is the source of truth for completion.
+func SyncProgress(malIDStr string, epNoStr string, completedLocally bool) {
 	if malIDStr == "" || malIDStr == "0" {
 		return
 	}
@@ -150,13 +153,24 @@ func SyncProgress(malIDStr string, epNoStr string) {
 		return
 	}
 
+	// Look up cached AnilistID from history to skip the MAL→AniList resolve call.
+	cachedAnilistID := 0
+	if history, err := loadHistory(); err == nil {
+		for _, h := range history {
+			if cached, _, found := loadShowCache(h.ShowID); found && cached.MALID == malIDStr {
+				cachedAnilistID = h.AnilistID
+				break
+			}
+		}
+	}
+
 	if anilistToken != "" {
 		go func() {
-			err := syncToAniList(anilistToken, malID, epProgress)
+			err := syncToAniList(anilistToken, malID, epProgress, completedLocally, cachedAnilistID)
 			if err != nil {
 				debugLog("[ERROR] SyncProgress: AniList sync failed: %v", err)
 			} else {
-				debugLog("[INFO] SyncProgress: AniList sync successful for MAL ID %d, Ep %d", malID, epProgress)
+				debugLog("[INFO] SyncProgress: AniList sync successful for MAL ID %d, Ep %d (completed=%v)", malID, epProgress, completedLocally)
 			}
 		}()
 	}
@@ -173,58 +187,65 @@ func SyncProgress(malIDStr string, epNoStr string) {
 	}
 }
 
-func syncToAniList(token string, malID int, progress int) error {
-	var resolveQuery = `query ($idMal: Int) { Media (idMal: $idMal, type: ANIME) { id episodes } }`
-	payload := map[string]interface{}{
-		"query": resolveQuery,
-		"variables": map[string]interface{}{
-			"idMal": malID,
-		},
-	}
-	body, _ := json.Marshal(payload)
-
-	debugLog("[API] AniList POST https://graphql.anilist.co (Resolve MAL ID %d)", malID)
-	req, err := http.NewRequest("POST", "https://graphql.anilist.co", bytes.NewBuffer(body))
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+token)
-
+// syncToAniList pushes episode progress and status to AniList.
+// cachedAnilistID — if non-zero — skips the MAL-to-AniList ID resolution API call.
+// completedLocally — set by Clare when the user finishes the final AllAnime episode;
+// Clare is the authority here, not AniList's episode count.
+func syncToAniList(token string, malID int, progress int, completedLocally bool, cachedAnilistID int) error {
 	client := &http.Client{Timeout: 10 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		bodyBytes, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("AniList resolve query returned status %d: %s", resp.StatusCode, string(bodyBytes))
-	}
-
-	var resolveResp struct {
-		Data struct {
-			Media struct {
-				ID       int  `json:"id"`
-				Episodes *int `json:"episodes"`
-			} `json:"Media"`
-		} `json:"data"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&resolveResp); err != nil {
-		return err
-	}
-
-	anilistMediaID := resolveResp.Data.Media.ID
+	anilistMediaID := cachedAnilistID
 	if anilistMediaID == 0 {
-		return fmt.Errorf("could not resolve AniList Media ID for MAL ID %d", malID)
+		// No cached ID — resolve via MAL ID.
+		var resolveQuery = `query ($idMal: Int) { Media (idMal: $idMal, type: ANIME) { id } }`
+		payload := map[string]interface{}{
+			"query": resolveQuery,
+			"variables": map[string]interface{}{
+				"idMal": malID,
+			},
+		}
+		body, _ := json.Marshal(payload)
+
+		debugLog("[API] AniList POST https://graphql.anilist.co (Resolve MAL ID %d)", malID)
+		req, err := http.NewRequest("POST", "https://graphql.anilist.co", bytes.NewBuffer(body))
+		if err != nil {
+			return err
+		}
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer "+token)
+
+		resp, err := client.Do(req)
+		if err != nil {
+			return err
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			bodyBytes, _ := io.ReadAll(resp.Body)
+			return fmt.Errorf("AniList resolve query returned status %d: %s", resp.StatusCode, string(bodyBytes))
+		}
+
+		var resolveResp struct {
+			Data struct {
+				Media struct {
+					ID int `json:"id"`
+				} `json:"Media"`
+			} `json:"data"`
+		}
+		if err := json.NewDecoder(resp.Body).Decode(&resolveResp); err != nil {
+			return err
+		}
+		anilistMediaID = resolveResp.Data.Media.ID
+		if anilistMediaID == 0 {
+			return fmt.Errorf("could not resolve AniList Media ID for MAL ID %d", malID)
+		}
+	} else {
+		debugLog("[API] AniList: using cached Media ID %d for MAL ID %d (skipping resolve)", anilistMediaID, malID)
 	}
 
 	status := "CURRENT"
-	if resolveResp.Data.Media.Episodes != nil && *resolveResp.Data.Media.Episodes > 0 {
-		if progress >= *resolveResp.Data.Media.Episodes {
-			status = "COMPLETED"
-		}
+	if completedLocally {
+		status = "COMPLETED"
 	}
 
 	var mutation = `mutation ($mediaId: Int, $progress: Int, $status: MediaListStatus) {
@@ -243,7 +264,7 @@ func syncToAniList(token string, malID int, progress int) error {
 	}
 	mutBody, _ := json.Marshal(mutationPayload)
 
-	debugLog("[API] AniList POST https://graphql.anilist.co (SaveMediaListEntry MediaId %d, Ep %d)", anilistMediaID, progress)
+	debugLog("[API] AniList POST https://graphql.anilist.co (SaveMediaListEntry MediaId %d, Ep %d, Status %s)", anilistMediaID, progress, status)
 	reqMut, err := http.NewRequest("POST", "https://graphql.anilist.co", bytes.NewBuffer(mutBody))
 	if err != nil {
 		return err
@@ -336,14 +357,16 @@ func pullFromAniList(token string, positions map[string]ShowState) (bool, error)
 		return false, fmt.Errorf("could not retrieve authenticated AniList username")
 	}
 
-	// 2. Fetch the MediaListCollection using the username
+	// 2. Fetch the MediaListCollection using the username — pull both CURRENT and
+	// COMPLETED so we can restore full watch history on a fresh install and
+	// honour AniList COMPLETED status as the canonical completion signal.
 	collectionQuery := `query ($userName: String!) {
-		MediaListCollection (userName: $userName, type: ANIME, status: CURRENT) {
+		MediaListCollection (userName: $userName, type: ANIME, status_in: [CURRENT, COMPLETED]) {
 			lists {
 				entries {
 					media {
+						id
 						idMal
-						episodes
 						title {
 							english
 							romaji
@@ -387,9 +410,9 @@ func pullFromAniList(token string, positions map[string]ShowState) (bool, error)
 				Lists []struct {
 					Entries []struct {
 						Media struct {
-							IDMal    int `json:"idMal"`
-							Episodes int `json:"episodes"`
-							Title    struct {
+							ID    int `json:"id"`
+							IDMal int `json:"idMal"`
+							Title struct {
 								English string `json:"english"`
 								Romaji  string `json:"romaji"`
 							} `json:"title"`
@@ -415,6 +438,8 @@ func pullFromAniList(token string, positions map[string]ShowState) (bool, error)
 				continue
 			}
 			malIDStr := strconv.Itoa(malID)
+			anilistMediaID := entry.Media.ID
+			isCompletedOnAniList := entry.Status == "COMPLETED"
 
 			state, exists := positions[malIDStr]
 			if !exists {
@@ -435,11 +460,26 @@ func pullFromAniList(token string, positions map[string]ShowState) (bool, error)
 			showID, showName, found := resolveShowByMALID(malIDStr)
 
 			inHistory := false
-			for _, h := range history {
-				if (showID != "" && h.ShowID == showID) || h.ShowName == showName {
+			var existingEntry *HistoryEntry
+			for i := range history {
+				if (showID != "" && history[i].ShowID == showID) || history[i].ShowName == showName {
 					inHistory = true
+					existingEntry = &history[i]
 					break
 				}
+			}
+
+			// If AniList says COMPLETED but we don't know it locally yet, mark it.
+			if isCompletedOnAniList && existingEntry != nil && !existingEntry.Completed {
+				existingEntry.Completed = true
+				if anilistMediaID != 0 {
+					existingEntry.AnilistID = anilistMediaID
+				}
+				if err := saveHistory(history); err == nil {
+					changed = true
+					debugLog("[INFO] PullSync: marked %s as COMPLETED from AniList", showName)
+				}
+				continue
 			}
 
 			needLocalUpdate := float64(entry.Progress) > localMax || !inHistory
@@ -494,10 +534,35 @@ func pullFromAniList(token string, positions map[string]ShowState) (bool, error)
 				}
 
 				if found {
-					epStr := fmt.Sprintf("%d", entry.Progress)
+					// Cap the restored episode at the AllAnime arc count so resume
+					// never points past a valid episode for multi-arc shows.
+					restoredEp := entry.Progress
+					if cached, _, ok := loadShowCache(showID); ok {
+						if arcCount := cached.EpCount(); arcCount > 0 && restoredEp > arcCount {
+							debugLog("[INFO] PullSync: AniList progress %d exceeds AllAnime arc count %d for %s — capping at arc count for resume", restoredEp, arcCount, showName)
+							restoredEp = arcCount
+						}
+					}
+					epStr := fmt.Sprintf("%d", restoredEp)
 					if err := recordWatch(showID, showName, epStr); err != nil {
 						debugLog("[ERROR] PullSync: failed to update local history for %s: %v", showName, err)
 					} else {
+						// Persist AnilistID into the history entry for efficient future syncs.
+						if anilistMediaID != 0 {
+							if h, err := loadHistory(); err == nil {
+								for i := range h {
+									if h[i].ShowID == showID {
+										h[i].AnilistID = anilistMediaID
+										// Trust AniList COMPLETED flag even for freshly restored entries.
+										if isCompletedOnAniList {
+											h[i].Completed = true
+										}
+										_ = saveHistory(h)
+										break
+									}
+								}
+							}
+						}
 						debugLog("[INFO] PullSync: successfully added/updated %s Ep %s in history from AniList", showName, epStr)
 						changed = true
 					}
