@@ -579,9 +579,9 @@ func (m *model) refreshHistory() {
 				}
 				lastEpVal := parseEpisodeNumber(item.lastEp)
 				completed := false
-				if item.totalEps > 0 {
-					completed = (maxCompleted >= float64(item.totalEps)) ||
-						(lastEpVal >= float64(item.totalEps)) ||
+				if item.totalEps > 0 && maxCompleted <= float64(item.totalEps) && lastEpVal <= float64(item.totalEps) {
+					completed = (maxCompleted == float64(item.totalEps)) ||
+						(lastEpVal == float64(item.totalEps)) ||
 						(len(showState.CompletedEpisodes) >= item.totalEps)
 				}
 				item.isCompleted = completed
@@ -660,7 +660,7 @@ func (m *model) refreshHistory() {
 					}
 					
 					if item.totalEps > 0 {
-						if int(nextVal) <= item.totalEps {
+						if int(nextVal) <= item.totalEps || epVal >= float64(item.totalEps) {
 							if nextVal == float64(int(nextVal)) {
 								item.nextEp = fmt.Sprintf("%d", int(nextVal))
 							} else {
@@ -768,8 +768,10 @@ func (m *model) toggleShowCompleted(showID string) {
 	}
 
 	isCompleted := false
-	if totalEps > 0 {
-		isCompleted = (maxCompleted >= float64(totalEps)) || (len(showState.CompletedEpisodes) >= totalEps)
+	if totalEps > 0 && maxCompleted <= float64(totalEps) {
+		isCompleted = (maxCompleted == float64(totalEps)) || (len(showState.CompletedEpisodes) >= totalEps)
+	} else if totalEps > 0 && maxCompleted > float64(totalEps) {
+		isCompleted = false
 	} else if len(showState.CompletedEpisodes) > 0 {
 		isCompleted = true
 	}
