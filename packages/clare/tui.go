@@ -1995,7 +1995,52 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m model) View() string {
 	var s strings.Builder
-	var footer string // populated by each state case; suppressed when player is active
+	var footer string
+
+	var playerView string
+	if m.playbackActive {
+		pTitleStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#bb9af7"))
+		statusStr := "▶ PLAYING"
+		if m.mpvStatus.Paused {
+			statusStr = "⏸ PAUSED"
+		}
+
+		var pb string
+		if m.mpvStatus.Duration > 0 {
+			pct := m.mpvStatus.PlaybackTime / m.mpvStatus.Duration
+			bar := renderSmoothProgressBar(pct, 20)
+			timeStr := fmt.Sprintf("%s/%s", formatTime(m.mpvStatus.PlaybackTime), formatTime(m.mpvStatus.Duration))
+			pb = fmt.Sprintf("[%s] %s", bar, timeStr)
+		} else {
+			pb = "Loading..."
+		}
+
+		playerBorder := lipgloss.NewStyle().
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("#bb9af7")).
+			Padding(0, 1).
+			Width(m.width - 2)
+
+		formatCheckbox := func(name string, val bool) string {
+			box := "[ ]"
+			if val {
+				box = lipgloss.NewStyle().Foreground(lipgloss.Color("#9ece6a")).Render("[✔]")
+			}
+			return fmt.Sprintf("%s %s", box, name)
+		}
+
+		playerContent := fmt.Sprintf("%s %s  %s  Vol: %d%%\n%s  •  %s  •  %s",
+			statusStr,
+			pTitleStyle.Render(fmt.Sprintf("%s - Ep %s", m.playingShow.Name, m.playingEp)),
+			pb,
+			int(m.mpvStatus.Volume),
+			formatCheckbox("Autoplay (a)", m.autoplay),
+			formatCheckbox("Auto-Skip (s)", m.autoskip),
+			formatCheckbox("Skip Fillers (f)", m.skipFillers),
+		)
+
+		playerView = playerBorder.Render(playerContent)
+	}
 
 	// Top Banner
 	s.WriteString(titleStyle.Render(" クレア "))
@@ -2047,6 +2092,10 @@ func (m model) View() string {
 
 	if showTabs {
 		s.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, tabs...) + "\n\n")
+	}
+
+	if m.playbackActive {
+		s.WriteString(playerView + "\n\n")
 	}
 
 	bodyStyle := lipgloss.NewStyle().Height(listHeight)
@@ -2269,7 +2318,7 @@ func (m model) View() string {
 			infoCardStyle.Render(infoCard.String()),
 		)
 
-		s.WriteString(bodyStyle.Render(bodyContent))
+				s.WriteString(bodyStyle.Render(bodyContent))
 		footer = helpStyle("enter/space: toggle/cycle | up/down: navigate | esc: back")
 
 	case stateError:
@@ -2280,67 +2329,14 @@ func (m model) View() string {
 
 	bodyStr := s.String()
 
-	if m.playbackActive {
-		// Player bar replaces the help text footer — render it flush to the bottom
-		pTitleStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#bb9af7"))
-		statusStr := "▶ PLAYING"
-		if m.mpvStatus.Paused {
-			statusStr = "⏸ PAUSED"
-		}
-
-		var pb string
-		if m.mpvStatus.Duration > 0 {
-			pct := m.mpvStatus.PlaybackTime / m.mpvStatus.Duration
-			bar := renderSmoothProgressBar(pct, 20)
-			timeStr := fmt.Sprintf("%s/%s", formatTime(m.mpvStatus.PlaybackTime), formatTime(m.mpvStatus.Duration))
-			pb = fmt.Sprintf("[%s] %s", bar, timeStr)
-		} else {
-			pb = "Loading..."
-		}
-
-		playerBorder := lipgloss.NewStyle().
-			Border(lipgloss.RoundedBorder()).
-			BorderForeground(lipgloss.Color("#bb9af7")).
-			Padding(0, 1).
-			Width(m.width - 2)
-
-		formatCheckbox := func(name string, val bool) string {
-			box := "[ ]"
-			if val {
-				box = lipgloss.NewStyle().Foreground(lipgloss.Color("#9ece6a")).Render("[✔]")
-			}
-			return fmt.Sprintf("%s %s", box, name)
-		}
-
-		playerContent := fmt.Sprintf("%s %s  %s  Vol: %d%%\n%s  •  %s  •  %s",
-			statusStr,
-			pTitleStyle.Render(fmt.Sprintf("%s - Ep %s", m.playingShow.Name, m.playingEp)),
-			pb,
-			int(m.mpvStatus.Volume),
-			formatCheckbox("Autoplay (a)", m.autoplay),
-			formatCheckbox("Auto-Skip (s)", m.autoskip),
-			formatCheckbox("Skip Fillers (f)", m.skipFillers),
-		)
-
-		playerView := playerBorder.Render(playerContent)
-		// Ensure bodyStr ends with a newline to prevent the player bar's top border
-		// from concatenating on the same line as the body's last line.
-		if !strings.HasSuffix(bodyStr, "\n") {
-			bodyStr += "\n"
-		}
-		// Push player bar flush to the bottom with no gap
+	if footer != "" {
 		bodyHeight := lipgloss.Height(bodyStr)
-		playerHeight := lipgloss.Height(playerView)
-		padHeight := m.height - bodyHeight - playerHeight
+		footerHeight := lipgloss.Height(footer)
+		padHeight := m.height - bodyHeight - footerHeight - 1
 		if padHeight > 0 {
 			bodyStr += strings.Repeat("\n", padHeight)
 		}
-		bodyStr += playerView
-	} else {
-		// Normal mode: append help bar footer
-		if footer != "" {
-			bodyStr += "\n\n" + footer
-		}
+		bodyStr += footer
 	}
 
 	return bodyStr
@@ -3114,9 +3110,8 @@ func nextMode(current string) string {
 
 func (m *model) dynamicListHeight() int {
 	if m.playbackActive {
-		// 6 lines top chrome (title + tabs) + 4 lines player bar = 10
-		// help bar is suppressed when player is active
-		h := m.height - 10
+		// 6 lines top chrome (title + tabs) + 4 lines player bar + 4 lines spacing/help footer = 14
+		h := m.height - 14
 		if h < 5 {
 			return 5
 		}
