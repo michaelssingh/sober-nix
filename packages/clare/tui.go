@@ -849,6 +849,7 @@ func (m *model) toggleEpisodeCompleted(epNo string) {
 	_ = savePositions(positions)
 	go SyncAllHistory()
 	m.refreshHistory()
+	m.refreshEpisodeListItems()
 }
 
 
