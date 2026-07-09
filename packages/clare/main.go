@@ -11,7 +11,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-const Version = "0.1.31"
+const Version = "0.1.32"
 
 func main() {
 	searchQuery := flag.String("s", "", "Search query for anime")
@@ -256,5 +256,5 @@ func debugLog(format string, args ...any) {
 		return
 	}
 	defer f.Close()
-	fmt.Fprintf(f, "[%s] "+format+"\n", append([]any{time.Now().Format("15:04:05")}, args...)...)
+	fmt.Fprintf(f, "[%s] "+format+"\n", append([]any{time.Now().Format("2006-01-02 15:04:05")}, args...)...)
 }
