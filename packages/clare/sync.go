@@ -398,6 +398,7 @@ func pullFromAniList(token string, positions map[string]ShowState) (bool, error)
 		return false, err
 	}
 
+	history, _ := loadHistory()
 	changed := false
 	for _, l := range pullResp.Data.MediaListCollection.Lists {
 		for _, entry := range l.Entries {
@@ -421,28 +422,42 @@ func pullFromAniList(token string, positions map[string]ShowState) (bool, error)
 				}
 			}
 
-			if float64(entry.Progress) > localMax {
-				newCompleted := make(map[float64]bool)
-				for _, ep := range state.CompletedEpisodes {
-					newCompleted[ep] = true
+			// Bidirectional sync: sync to local history.json so it populates Continue Watching.
+			// We check if we already have this show resolved and recorded in history.
+			showID, showName, found := resolveShowByMALID(malIDStr)
+
+			inHistory := false
+			for _, h := range history {
+				if (showID != "" && h.ShowID == showID) || h.ShowName == showName {
+					inHistory = true
+					break
 				}
-				for ep := 1; ep <= entry.Progress; ep++ {
-					newCompleted[float64(ep)] = true
+			}
+
+			needLocalUpdate := float64(entry.Progress) > localMax || !inHistory
+
+			if needLocalUpdate {
+				if float64(entry.Progress) > localMax {
+					newCompleted := make(map[float64]bool)
+					for _, ep := range state.CompletedEpisodes {
+						newCompleted[ep] = true
+					}
+					for ep := 1; ep <= entry.Progress; ep++ {
+						newCompleted[float64(ep)] = true
+					}
+
+					state.CompletedEpisodes = []float64{}
+					for ep := range newCompleted {
+						state.CompletedEpisodes = append(state.CompletedEpisodes, ep)
+					}
+					sort.Float64s(state.CompletedEpisodes)
+
+					state.LastSyncedEp = float64(entry.Progress)
+					positions[malIDStr] = state
+					changed = true
+					debugLog("[INFO] PullSync: updated local progress for MAL ID %d to Ep %d from AniList", malID, entry.Progress)
 				}
 
-				state.CompletedEpisodes = []float64{}
-				for ep := range newCompleted {
-					state.CompletedEpisodes = append(state.CompletedEpisodes, ep)
-				}
-				sort.Float64s(state.CompletedEpisodes)
-
-				state.LastSyncedEp = float64(entry.Progress)
-				positions[malIDStr] = state
-				changed = true
-				debugLog("[INFO] PullSync: updated local progress for MAL ID %d to Ep %d from AniList", malID, entry.Progress)
-
-				// Bidirectional sync: sync to local history.json so it populates Continue Watching
-				showID, showName, found := resolveShowByMALID(malIDStr)
 				if !found {
 					// Proactively try to resolve it by searching AllAnime using its title
 					titleToSearch := entry.Media.Title.English
