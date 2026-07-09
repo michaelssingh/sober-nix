@@ -2143,7 +2143,7 @@ func (m model) View() string {
 		tabs = append(tabs, inactiveTabStyle.Render("Logs [3]"))
 		tabs = append(tabs, inactiveTabStyle.Render("Config [4]"))
 		showTabs = true
-	} else if m.state == stateSearchInput || m.state == stateSearchRunning || m.state == stateShowSelect {
+	} else if m.state == stateSearchInput || m.state == stateSearchRunning || m.state == stateShowSelect || m.state == stateEpisodeSelect || m.state == stateSourceSelect || m.state == statePlaybackPreparing {
 		tabs = append(tabs, inactiveTabStyle.Render("Continue Watching [1]"))
 		tabs = append(tabs, activeTabStyle.Render("Search [2]"))
 		tabs = append(tabs, inactiveTabStyle.Render("Logs [3]"))
@@ -3163,6 +3163,22 @@ func (m *model) dynamicListHeight() int {
 	return h
 }
 
+func formatHelp(items ...string) string {
+	var rendered []string
+	for _, item := range items {
+		parts := strings.SplitN(item, ":", 2)
+		if len(parts) == 2 {
+			key := cyanColorStyle.Render(strings.TrimSpace(parts[0]))
+			action := grayColorStyle.Render(strings.TrimSpace(parts[1]))
+			rendered = append(rendered, key+grayColorStyle.Render(": ")+action)
+		} else {
+			rendered = append(rendered, grayColorStyle.Render(item))
+		}
+	}
+	bullet := accentColorStyle.Render("  •  ")
+	return strings.Join(rendered, bullet)
+}
+
 // viewFooter returns the help bar text for the current state.
 // It is rendered at the top of the UI (below the player bar) so that
 // no content is ever pushed to the bottom of the terminal — avoiding
@@ -3170,32 +3186,69 @@ func (m *model) dynamicListHeight() int {
 func (m model) viewFooter() string {
 	switch m.state {
 	case stateHistory:
-		return helpStyle("s: search  enter: resume  c: toggle completed  d: remove  q: quit")
+		return formatHelp(
+			"s: search",
+			"enter: resume",
+			"c: toggle completed",
+			"d: remove",
+			"q: quit",
+		)
 	case stateSearchInput:
-		return helpStyle("enter: search | up/down: browse history | esc: cancel")
+		return formatHelp(
+			"enter: search",
+			"up/down: browse history",
+			"esc: cancel",
+		)
 	case stateSearchRunning:
-		return helpStyle("Please wait...")
+		return grayColorStyle.Render("Please wait...")
 	case stateShowSelect:
-		return helpStyle("enter: select show | esc: back | q: quit")
+		return formatHelp(
+			"enter: select show",
+			"esc: back",
+			"q: quit",
+		)
 	case stateEpisodeSelect:
-		autoplayStr := "autoplay: OFF"
+		autoplayStr := "OFF"
 		if m.autoplay {
-			autoplayStr = "autoplay: ON"
+			autoplayStr = "ON"
 		}
-		return helpStyle(fmt.Sprintf("enter: play | a: toggle autoplay (%s) | c: toggle completed | m: toggle mode (mode: %s) | esc: back | q: quit",
-			autoplayStr, strings.ToUpper(m.mode)))
+		return formatHelp(
+			"enter: play",
+			fmt.Sprintf("a: toggle autoplay (%s)", autoplayStr),
+			"c: toggle completed",
+			fmt.Sprintf("m: toggle mode (%s)", strings.ToUpper(m.mode)),
+			"esc: back",
+			"q: quit",
+		)
 	case stateSourceSelect:
-		return helpStyle("enter: play with selected source | esc: back | q: quit")
+		return formatHelp(
+			"enter: play with selected source",
+			"esc: back",
+			"q: quit",
+		)
 	case statePlaybackPreparing:
-		return helpStyle("Preparing playback...")
+		return grayColorStyle.Render("Preparing playback...")
 	case statePlaybackActive:
-		return helpStyle("space: pause/resume  left/right: seek 10s  up/down: volume  esc/q: stop playback")
+		return formatHelp(
+			"space: pause/resume",
+			"left/right: seek 10s",
+			"up/down: volume",
+			"esc/q: stop playback",
+		)
 	case stateLogs:
-		return helpStyle("1: history | 2: search | q: quit")
+		return formatHelp(
+			"1-4: change tab",
+			"up/down: scroll",
+			"q: quit",
+		)
 	case stateConfig:
-		return helpStyle("enter/space: toggle/cycle | up/down: navigate | esc: back | q: quit")
+		return formatHelp(
+			"up/down: select",
+			"enter/space: toggle/cycle",
+			"q: quit",
+		)
 	case stateError:
-		return helpStyle("press enter or esc to return to search")
+		return errorStyle.Render("press enter or esc to return to search")
 	}
 	return ""
 }
