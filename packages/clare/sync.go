@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -198,7 +199,8 @@ func syncToAniList(token string, malID int, progress int) error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("AniList resolve query returned status %d", resp.StatusCode)
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("AniList resolve query returned status %d: %s", resp.StatusCode, string(bodyBytes))
 	}
 
 	var resolveResp struct {
@@ -248,7 +250,8 @@ func syncToAniList(token string, malID int, progress int) error {
 	defer respMut.Body.Close()
 
 	if respMut.StatusCode != http.StatusOK {
-		return fmt.Errorf("AniList mutation returned status %d", respMut.StatusCode)
+		bodyBytes, _ := io.ReadAll(respMut.Body)
+		return fmt.Errorf("AniList mutation returned status %d: %s", respMut.StatusCode, string(bodyBytes))
 	}
 
 	return nil
@@ -305,7 +308,8 @@ func pullFromAniList(token string, positions map[string]ShowState) (bool, error)
 	defer respViewer.Body.Close()
 
 	if respViewer.StatusCode != http.StatusOK {
-		return false, fmt.Errorf("AniList viewer query returned status %d", respViewer.StatusCode)
+		bodyBytes, _ := io.ReadAll(respViewer.Body)
+		return false, fmt.Errorf("AniList viewer query returned status %d: %s", respViewer.StatusCode, string(bodyBytes))
 	}
 
 	var viewerResp struct {
@@ -361,7 +365,8 @@ func pullFromAniList(token string, positions map[string]ShowState) (bool, error)
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return false, fmt.Errorf("AniList pull returned status %d", resp.StatusCode)
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		return false, fmt.Errorf("AniList pull returned status %d: %s", resp.StatusCode, string(bodyBytes))
 	}
 
 	var pullResp struct {
