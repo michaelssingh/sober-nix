@@ -533,7 +533,6 @@ func initialModel(initialSearch, mode, quality string, download bool) model {
 		m.mpvStatus = reattachedStatus
 	}
 
-	m.loadExistingLogs()
 	m.refreshHistory()
 	go tailLogFile(m.clareLogChan)
 
@@ -1303,10 +1302,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if strings.Contains(line, "TUI KeyMsg:") {
 			return m, readClareLogsCmd(m.clareLogChan)
 		}
+		if strings.Contains(line, "HTTP Request:") || strings.Contains(line, "HTTP Response:") {
+			return m, readClareLogsCmd(m.clareLogChan)
+		}
 		wasAtBottom := m.telemetryViewport.AtBottom()
 		
 		isMpvProgress := func(l string) bool {
-			return strings.Contains(l, "[MPV] AV:") || strings.Contains(l, "[MPV] (Paused) AV:")
+			return strings.Contains(l, "[MPV]") && strings.Contains(l, "AV:")
 		}
 
 		if len(m.telemetryLogs) > 0 && isMpvProgress(line) && isMpvProgress(m.telemetryLogs[len(m.telemetryLogs)-1]) {
@@ -1592,6 +1594,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.state != stateSearchInput || msg.String() == "f3" || msg.String() == "ctrl+3" {
 				m.state = stateLogs
 				m.recalculateSizes()
+				m.telemetryViewport.GotoBottom()
 				return m, nil
 			}
 		case "4", "f4", "ctrl+4":
@@ -1985,6 +1988,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "esc":
 				m.state = stateHistory
 				m.recalculateSizes()
+				return m, nil
+			case "c", "C":
+				m.telemetryLogs = nil
+				m.refreshLogsViewport()
 				return m, nil
 			}
 			var cmd tea.Cmd
@@ -3239,6 +3246,7 @@ func (m model) viewFooter() string {
 		return formatHelp(
 			"1-4: change tab",
 			"up/down: scroll",
+			"c: clear",
 			"q: quit",
 		)
 	case stateConfig:

@@ -329,7 +329,7 @@ func TestModelLoggingIntegration(t *testing.T) {
 		t.Errorf("Expected empty telemetryLogs, got %d lines", len(m.telemetryLogs))
 	}
 
-	msg1 := clareLogMsg("[12:34:56] HTTP Request: GET https://api.jikan.moe")
+	msg1 := clareLogMsg("[12:34:56] [INFO] Syncing completed episode 5...")
 	resModel, cmd := m.Update(msg1)
 	m = resModel.(model)
 
