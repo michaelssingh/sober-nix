@@ -147,38 +147,12 @@ func getMpvCmd(streamURL string, title string, epNo string, malID string, durati
 	durationSeconds := parseJikanDuration(durationStr)
 	epVal := parseEpisodeNumber(epNo)
 
-	// Prepend injected configuration variables to the savePositionLua content
-	luaContent := fmt.Sprintf(`
-local mal_id = %q
-local ep_no = %f
-local jikan_duration = %f
-`, malID, epVal, durationSeconds) + savePositionLua
-
-	tmpFile, err := os.CreateTemp("", "clare-save-position-*.lua")
-	if err != nil {
-		return nil, "", "", err
-	}
-	if _, err := tmpFile.WriteString(luaContent); err != nil {
-		tmpFile.Close()
-		os.Remove(tmpFile.Name())
-		return nil, "", "", err
-	}
-	tmpFile.Close()
-
-	args := []string{
-		"--tls-verify=no",
-		"--force-media-title=" + title + " - Episode " + epNo,
-		"--script=" + tmpFile.Name(),
-		"--http-header-fields=Referer: " + AllAnimeReferer + ",User-Agent: " + UserAgent,
-		"--input-ipc-server=/tmp/clare-mpv.sock",
-		"--osc=yes",
-	}
-
-	// Fetch AniSkip times synchronously and generate FFmpeg metadata chapters file
+	// 1. Fetch AniSkip times synchronously and generate FFmpeg metadata chapters file first
 	tempChaptersFile := ""
+	var times []AniSkipResult
 	if malID != "" && malID != "0" {
 		debugLog("getMpvCmd: fetching AniSkip skip times for malID=%s, epNo=%s", malID, epNo)
-		times := fetchAniSkipTimes(malID, epNo, durationSeconds)
+		times = fetchAniSkipTimes(malID, epNo, durationSeconds)
 		if len(times) > 0 {
 			var ffmetadata strings.Builder
 			ffmetadata.WriteString(";FFMETADATA1\n")
@@ -245,6 +219,50 @@ local jikan_duration = %f
 		} else {
 			debugLog("getMpvCmd: AniSkip returned no skip times for malID=%s, epNo=%s", malID, epNo)
 		}
+	}
+
+	// 2. Prepend injected configuration variables (including auto_skip and skip_times_json) to the savePositionLua content
+	cfg := loadConfig()
+	var skipTimesJSON []byte
+	if len(times) > 0 {
+		skipTimesJSON, _ = json.Marshal(times)
+	} else {
+		skipTimesJSON = []byte("[]")
+	}
+
+	luaContent := fmt.Sprintf(`
+local mal_id = %q
+local ep_no = %f
+local jikan_duration = %f
+local auto_skip = %t
+local skip_times_json = %q
+`, malID, epVal, durationSeconds, cfg.Autoskip, string(skipTimesJSON)) + savePositionLua
+
+	tmpFile, err := os.CreateTemp("", "clare-save-position-*.lua")
+	if err != nil {
+		if tempChaptersFile != "" {
+			os.Remove(tempChaptersFile)
+		}
+		return nil, "", "", err
+	}
+	if _, err := tmpFile.WriteString(luaContent); err != nil {
+		tmpFile.Close()
+		os.Remove(tmpFile.Name())
+		if tempChaptersFile != "" {
+			os.Remove(tempChaptersFile)
+		}
+		return nil, "", "", err
+	}
+	tmpFile.Close()
+
+	args := []string{
+		"--tls-verify=no",
+		"--force-media-title=" + title + " - Episode " + epNo,
+		"--script=" + tmpFile.Name(),
+		"--http-header-fields=Referer: " + AllAnimeReferer + ",User-Agent: " + UserAgent,
+		"--input-ipc-server=/tmp/clare-mpv.sock",
+		"--osc=yes",
+		"--keep-open=yes",
 	}
 
 	if tempChaptersFile != "" {
@@ -411,5 +429,52 @@ func executeMpvAction(cmd []interface{}) error {
 	defer conn.Close()
 	_, err = sendMpvCommand(conn, cmd)
 	return err
+}
+
+func queryMediaTitle() (string, error) {
+	conn, err := net.DialTimeout("unix", "/tmp/clare-mpv.sock", 100*time.Millisecond)
+	if err != nil {
+		return "", err
+	}
+	defer conn.Close()
+	resp, err := sendMpvCommand(conn, []interface{}{"get_property", "media-title"})
+	if err != nil {
+		return "", err
+	}
+	var result struct {
+		Data string `json:"data"`
+	}
+	if err := json.Unmarshal(resp, &result); err != nil {
+		return "", err
+	}
+	return result.Data, nil
+}
+
+func loadFileInMpv(streamURL, title, epNo, malID string, extraArgs []string) error {
+	conn, err := net.DialTimeout("unix", "/tmp/clare-mpv.sock", 100*time.Millisecond)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	// Stop current and load new stream
+	_, err = sendMpvCommand(conn, []interface{}{"loadfile", streamURL, "replace"})
+	if err != nil {
+		return err
+	}
+
+	// Update player window title
+	fullTitle := fmt.Sprintf("%s - Episode %s", title, epNo)
+	_, _ = sendMpvCommand(conn, []interface{}{"set_property", "force-media-title", fullTitle})
+
+	// Add external dub stream if dual-audio mapping is active
+	for _, arg := range extraArgs {
+		if strings.HasPrefix(arg, "--audio-file=") {
+			audioPath := strings.TrimPrefix(arg, "--audio-file=")
+			_, _ = sendMpvCommand(conn, []interface{}{"audio-add", audioPath, "select"})
+		}
+	}
+
+	return nil
 }
 

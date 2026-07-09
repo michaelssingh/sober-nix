@@ -14,11 +14,15 @@ import (
 // SyncAllHistory silently syncs all completed episodes from positions.json
 // to AniList on startup, skipping entries already synced (tracked via LastSyncedEp).
 func SyncAllHistory() {
-	anilistToken := os.Getenv("ANILIST_TOKEN")
+	cfg := loadConfig()
+	anilistToken := cfg.AnilistToken
 	if anilistToken == "" {
-		if path := os.Getenv("ANILIST_TOKEN_FILE"); path != "" {
-			if data, err := os.ReadFile(path); err == nil {
-				anilistToken = strings.TrimSpace(string(data))
+		anilistToken = os.Getenv("ANILIST_TOKEN")
+		if anilistToken == "" {
+			if path := os.Getenv("ANILIST_TOKEN_FILE"); path != "" {
+				if data, err := os.ReadFile(path); err == nil {
+					anilistToken = strings.TrimSpace(string(data))
+				}
 			}
 		}
 	}
@@ -99,20 +103,27 @@ func SyncProgress(malIDStr string, epNoStr string) {
 	}
 	epProgress := int(epNo)
 
-	anilistToken := os.Getenv("ANILIST_TOKEN")
+	cfg := loadConfig()
+	anilistToken := cfg.AnilistToken
 	if anilistToken == "" {
-		if path := os.Getenv("ANILIST_TOKEN_FILE"); path != "" {
-			if data, err := os.ReadFile(path); err == nil {
-				anilistToken = strings.TrimSpace(string(data))
+		anilistToken = os.Getenv("ANILIST_TOKEN")
+		if anilistToken == "" {
+			if path := os.Getenv("ANILIST_TOKEN_FILE"); path != "" {
+				if data, err := os.ReadFile(path); err == nil {
+					anilistToken = strings.TrimSpace(string(data))
+				}
 			}
 		}
 	}
 
-	malToken := os.Getenv("MAL_TOKEN")
+	malToken := cfg.MalToken
 	if malToken == "" {
-		if path := os.Getenv("MAL_TOKEN_FILE"); path != "" {
-			if data, err := os.ReadFile(path); err == nil {
-				malToken = strings.TrimSpace(string(data))
+		malToken = os.Getenv("MAL_TOKEN")
+		if malToken == "" {
+			if path := os.Getenv("MAL_TOKEN_FILE"); path != "" {
+				if data, err := os.ReadFile(path); err == nil {
+					malToken = strings.TrimSpace(string(data))
+				}
 			}
 		}
 	}

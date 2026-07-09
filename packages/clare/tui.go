@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"html"
 	"io"
+	"net"
 	"net/http"
 	"os"
 	"os/exec"
@@ -36,6 +37,7 @@ const (
 	statePlaybackActive
 	stateError
 	stateLogs
+	stateConfig
 )
 
 // Styles for premium aesthetic
@@ -329,6 +331,9 @@ type model struct {
 	episodeDetails      map[string]JikanEpInfo
 	loadedJikanPages    map[int]bool
 	autoplay            bool
+	autoskip            bool
+	skipFillers         bool
+	configCursor        int
 	triggerAutoplay     bool
 	historyShowDetails  map[string]AnimeShow
 	coverArtCache       map[string]string
@@ -425,6 +430,44 @@ func initialModel(initialSearch, mode, quality string, download bool) model {
 	eList := createMinimalList("Select Episode")
 	soList := createMinimalList("Select Source & Resolution")
 
+	cfg := loadConfig()
+
+	// Reattach to running MPV if active
+	var isReattached bool
+	var activeShow AnimeShow
+	var activeEp string
+	var reattachedStatus MpvStatus
+
+	status, err := queryMpvStatus()
+	if err == nil {
+		titleVal, errTitle := queryMediaTitle()
+		if errTitle == nil && titleVal != "" {
+			parts := strings.Split(titleVal, " - Episode ")
+			if len(parts) == 2 {
+				showName := parts[0]
+				epNo := parts[1]
+				
+				var foundShow AnimeShow
+				var found bool
+				hist, _ := loadHistory()
+				for _, h := range hist {
+					if h.ShowName == showName {
+						foundShow, _, found = loadShowCache(h.ShowID)
+						break
+					}
+				}
+				if !found {
+					foundShow = AnimeShow{Name: showName, EnglishName: showName}
+				}
+				activeShow = foundShow
+				activeEp = epNo
+				reattachedStatus = status
+				isReattached = true
+				debugLog("[INFO] Reattached to running MPV: %s (Ep %s)", showName, epNo)
+			}
+		}
+	}
+
 	m := model{
 		state:              stateHistory,
 		historyList:        hList,
@@ -439,13 +482,22 @@ func initialModel(initialSearch, mode, quality string, download bool) model {
 		initialSearch:      initialSearch,
 		episodeDetails:     make(map[string]JikanEpInfo),
 		loadedJikanPages:   make(map[int]bool),
-		autoplay:           true, // Autoplay on by default
+		autoplay:           cfg.Autoplay,
+		autoskip:           cfg.Autoskip,
+		skipFillers:        cfg.SkipFillers,
 		historyShowDetails: make(map[string]AnimeShow),
 		coverArtCache:      make(map[string]string),
 		telemetryViewport:  viewport.New(0, 0),
 		showTelemetry:      true, // Enabled by default
 		aniSkipReady:       make(map[string]bool),
 		clareLogChan:       make(chan string, 1000),
+	}
+
+	if isReattached {
+		m.playbackActive = true
+		m.selectedShow = activeShow
+		m.selectedEp = activeEp
+		m.mpvStatus = reattachedStatus
 	}
 
 	m.refreshHistory()
@@ -715,6 +767,9 @@ func (m model) Init() tea.Cmd {
 	var cmds []tea.Cmd
 	cmds = append(cmds, m.spinner.Tick)
 	cmds = append(cmds, readClareLogsCmd(m.clareLogChan))
+	if m.playbackActive {
+		cmds = append(cmds, tickMpvStatusCmd())
+	}
 	if m.initialSearch != "" {
 		cmds = append(cmds, doSearch(m.initialSearch, "sub"))
 	} else if m.state == stateHistory {
@@ -746,25 +801,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
-		
-		// Set sizes for all lists
-		listHeight := m.height - 6
-		if listHeight < 5 {
-			listHeight = 5
-		}
-		leftWidth := m.width - 4
-		if m.width >= 80 {
-			leftWidth = m.width / 2
-			if leftWidth < 35 {
-				leftWidth = 35
-			}
-		}
-		m.historyList.SetSize(leftWidth, listHeight)
-		m.showList.SetSize(leftWidth, listHeight)
-		m.episodeList.SetSize(leftWidth, listHeight)
-		m.sourceList.SetSize(leftWidth, listHeight)
-		m.telemetryViewport.Width = m.width - 4
-		m.telemetryViewport.Height = m.height - 9
+		m.recalculateSizes()
 		return m, nil
 
 	case spinner.TickMsg:
@@ -885,15 +922,48 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// If autoplay was triggered, fetch next stream immediately
 		if m.triggerAutoplay {
 			m.triggerAutoplay = false
+			currEpVal := parseEpisodeNumber(m.selectedEp)
 			var nextEpNo string
 			foundNext := false
-			for _, item := range m.episodeItems {
-				if epItem, ok := item.(episodeItem); ok && epItem.isNext {
-					nextEpNo = epItem.epNo
-					foundNext = true
-					break
+			
+			totalEps := m.selectedShow.EpCount()
+			if totalEps == 0 {
+				totalEps = 1000
+			}
+			
+			if currEpVal > 0 && int(currEpVal) < totalEps {
+				nextEpVal := currEpVal + 1.0
+				if nextEpVal == float64(int(nextEpVal)) {
+					nextEpNo = fmt.Sprintf("%d", int(nextEpVal))
+				} else {
+					nextEpNo = fmt.Sprintf("%.1f", nextEpVal)
+				}
+				foundNext = true
+			}
+			
+			if foundNext && nextEpNo != "" && m.skipFillers {
+				// Cycle checking if next episode is a filler
+				for {
+					if info, ok := m.episodeDetails[nextEpNo]; ok && info.Filler {
+						debugLog("[INFO] Autoplay: Skipping filler episode %s", nextEpNo)
+						currVal := parseEpisodeNumber(nextEpNo)
+						nextVal := currVal + 1.0
+						if int(currVal) < totalEps {
+							if nextVal == float64(int(nextVal)) {
+								nextEpNo = fmt.Sprintf("%d", int(nextVal))
+							} else {
+								nextEpNo = fmt.Sprintf("%.1f", nextVal)
+							}
+						} else {
+							nextEpNo = ""
+							break
+						}
+					} else {
+						break
+					}
 				}
 			}
+
 			if foundNext && nextEpNo != "" {
 				m.selectedEp = nextEpNo
 				m.state = statePlaybackPreparing
@@ -925,7 +995,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, doFetchJikanMetadata(m.selectedShow.MALID, page)
 
 	case resolvedPlaybackMsg:
-		debugLog("TUI resolvedPlaybackMsg: err=%v, warning=%s, tempLuaFile=%s, tempChaptersFile=%s", msg.err, msg.warning, msg.tempLuaFile, msg.tempChaptersFile)
+		debugLog("[INFO] resolvedPlaybackMsg: err=%v, warning=%s, tempLuaFile=%s, tempChaptersFile=%s", msg.err, msg.warning, msg.tempLuaFile, msg.tempChaptersFile)
 		if msg.err != nil {
 			m.state = stateError
 			m.err = msg.err
@@ -935,66 +1005,118 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.loadingMsg = msg.warning
 		}
 
-		if m.activeCmd != nil {
-			debugLog("resolvedPlaybackMsg: stopping existing playback process")
-			_ = m.activeCmd.Process.Kill()
-			_ = m.activeCmd.Wait()
-			if m.tempLuaFile != "" {
-				_ = os.Remove(m.tempLuaFile)
-			}
-			if m.tempChaptersFile != "" {
-				_ = os.Remove(m.tempChaptersFile)
+		// Try to reuse the running MPV instance
+		reused := false
+		if m.playbackActive {
+			args := msg.cmd.Args
+			if len(args) >= 2 {
+				streamURL := args[len(args)-1]
+				var extraArgs []string
+				for _, arg := range args[1 : len(args)-1] {
+					if strings.HasPrefix(arg, "--audio-file=") {
+						extraArgs = append(extraArgs, arg)
+					}
+				}
+				
+				debugLog("[INFO] Attempting to load next file in existing MPV via IPC...")
+				err := loadFileInMpv(streamURL, m.selectedShow.Name, m.selectedEp, m.selectedShow.MALID, extraArgs)
+				if err == nil {
+					debugLog("[INFO] Successfully loaded next episode via IPC!")
+					reused = true
+					
+					// Clean up the old temp files
+					if m.tempLuaFile != "" {
+						_ = os.Remove(m.tempLuaFile)
+					}
+					if m.tempChaptersFile != "" {
+						_ = os.Remove(m.tempChaptersFile)
+					}
+					
+					m.tempLuaFile = msg.tempLuaFile
+					m.tempChaptersFile = msg.tempChaptersFile
+					
+					// Dynamically set new chapters-file in MPV
+					if msg.tempChaptersFile != "" {
+						conn, errIPC := net.DialTimeout("unix", "/tmp/clare-mpv.sock", 100*time.Millisecond)
+						if errIPC == nil {
+							_, _ = sendMpvCommand(conn, []interface{}{"set_property", "chapters-file", msg.tempChaptersFile})
+							conn.Close()
+						}
+					}
+				} else {
+					debugLog("[WARN] IPC loadfile failed: %v. Starting new MPV process...", err)
+				}
 			}
 		}
-		m.activeCmd = msg.cmd
+
+		if !reused {
+			if m.activeCmd != nil {
+				debugLog("[INFO] resolvedPlaybackMsg: stopping existing playback process")
+				_ = m.activeCmd.Process.Kill()
+				_ = m.activeCmd.Wait()
+				if m.tempLuaFile != "" {
+					_ = os.Remove(m.tempLuaFile)
+				}
+				if m.tempChaptersFile != "" {
+					_ = os.Remove(m.tempChaptersFile)
+				}
+			}
+			m.activeCmd = msg.cmd
+			m.tempLuaFile = msg.tempLuaFile
+			m.tempChaptersFile = msg.tempChaptersFile
+
+			stdout, err := msg.cmd.StdoutPipe()
+			if err != nil {
+				m.state = stateError
+				m.err = err
+				return m, nil
+			}
+			stderr, err := msg.cmd.StderrPipe()
+			if err != nil {
+				m.state = stateError
+				m.err = err
+				return m, nil
+			}
+
+			if err := msg.cmd.Start(); err != nil {
+				m.state = stateError
+				m.err = err
+				return m, nil
+			}
+
+			debugLog("[INFO] --- Playback Started: %s (Ep %s) ---", m.selectedShow.Name, m.selectedEp)
+
+			go func() {
+				scanner := bufio.NewScanner(stdout)
+				for scanner.Scan() {
+					debugLog("[MPV] %s", scanner.Text())
+				}
+			}()
+
+			go func() {
+				scanner := bufio.NewScanner(stderr)
+				for scanner.Scan() {
+					debugLog("[MPV] %s", scanner.Text())
+				}
+			}()
+		}
+
+		m.playbackActive = true
+		m.mpvStatus = MpvStatus{Paused: false, Volume: 100}
 
 		if m.selectedShow.ID != "" {
 			m.state = stateEpisodeSelect
 		} else {
 			m.state = stateHistory
 		}
-		m.tempLuaFile = msg.tempLuaFile
-		m.tempChaptersFile = msg.tempChaptersFile
-		m.playbackActive = true
-		m.mpvStatus = MpvStatus{Paused: false, Volume: 100}
 
-		stdout, err := msg.cmd.StdoutPipe()
-		if err != nil {
-			m.state = stateError
-			m.err = err
-			return m, nil
+		var exitCmd tea.Cmd
+		if !reused {
+			exitCmd = waitForExitCmd(msg.cmd, msg.tempLuaFile, msg.tempChaptersFile)
 		}
-		stderr, err := msg.cmd.StderrPipe()
-		if err != nil {
-			m.state = stateError
-			m.err = err
-			return m, nil
-		}
-
-		if err := msg.cmd.Start(); err != nil {
-			m.state = stateError
-			m.err = err
-			return m, nil
-		}
-
-		debugLog("--- Playback Started: %s (Ep %s) ---", m.selectedShow.Name, m.selectedEp)
-
-		go func() {
-			scanner := bufio.NewScanner(stdout)
-			for scanner.Scan() {
-				debugLog("[MPV] %s", scanner.Text())
-			}
-		}()
-
-		go func() {
-			scanner := bufio.NewScanner(stderr)
-			for scanner.Scan() {
-				debugLog("[MPV] %s", scanner.Text())
-			}
-		}()
 
 		return m, tea.Batch(
-			waitForExitCmd(msg.cmd, msg.tempLuaFile, msg.tempChaptersFile),
+			exitCmd,
 			tickMpvStatusCmd(),
 		)
 
@@ -1002,6 +1124,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.playbackActive {
 			if msg.err == nil {
 				m.mpvStatus = msg.status
+				
+				// Autoplay trigger: if playback time reaches near duration
+				if m.mpvStatus.Duration > 0 && m.mpvStatus.PlaybackTime >= m.mpvStatus.Duration - 1.5 {
+					if m.autoplay && !m.triggerAutoplay {
+						m.triggerAutoplay = true
+						// Save progress history for current episode
+						_ = recordWatch(m.selectedShow.ID, m.selectedShow.Name, m.selectedEp)
+						m.refreshHistory()
+					}
+				}
 			}
 			return m, tickMpvStatusCmd()
 		}
@@ -1015,7 +1147,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		wasAtBottom := m.telemetryViewport.AtBottom()
 		
 		isMpvProgress := func(l string) bool {
-			return strings.Contains(l, "[MPV] AV:")
+			return strings.Contains(l, "[MPV] AV:") || strings.Contains(l, "[MPV] (Paused) AV:")
 		}
 
 		if len(m.telemetryLogs) > 0 && isMpvProgress(line) && isMpvProgress(m.telemetryLogs[len(m.telemetryLogs)-1]) {
@@ -1026,7 +1158,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.telemetryLogs = m.telemetryLogs[len(m.telemetryLogs)-1000:]
 			}
 		}
-		m.telemetryViewport.SetContent(strings.Join(m.telemetryLogs, "\n"))
+		
+		var formattedLogs []string
+		for _, logLine := range m.telemetryLogs {
+			formattedLogs = append(formattedLogs, formatLogLine(logLine))
+		}
+		m.telemetryViewport.SetContent(strings.Join(formattedLogs, "\n"))
 		if wasAtBottom {
 			m.telemetryViewport.GotoBottom()
 		}
@@ -1177,6 +1314,18 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		if m.playbackActive && m.state != stateSearchInput && !isFiltering {
 			switch msg.String() {
+			case "a":
+				m.autoplay = !m.autoplay
+				_ = saveConfig(m.getConfig())
+				return m, nil
+			case "s":
+				m.autoskip = !m.autoskip
+				_ = saveConfig(m.getConfig())
+				return m, nil
+			case "f":
+				m.skipFillers = !m.skipFillers
+				_ = saveConfig(m.getConfig())
+				return m, nil
 			case "p", " ":
 				_ = executeMpvAction([]interface{}{"cycle", "pause"})
 				return m, nil
@@ -1228,6 +1377,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "1":
 			if m.state != stateSearchInput {
 				m.state = stateHistory
+				m.recalculateSizes()
 				return m, nil
 			}
 		case "2":
@@ -1238,6 +1388,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "3":
 			if m.state != stateSearchInput {
 				m.state = stateLogs
+				m.recalculateSizes()
+				return m, nil
+			}
+		case "4":
+			if m.state != stateSearchInput {
+				m.state = stateConfig
+				m.recalculateSizes()
 				return m, nil
 			}
 		case "tab":
@@ -1246,8 +1403,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.enterSearchState()
 				} else if m.state == stateSearchInput || m.state == stateSearchRunning || m.state == stateShowSelect {
 					m.state = stateLogs
+					m.recalculateSizes()
+				} else if m.state == stateLogs {
+					m.state = stateConfig
+					m.recalculateSizes()
 				} else {
 					m.state = stateHistory
+					m.recalculateSizes()
 				}
 				return m, nil
 			}
@@ -1571,11 +1733,67 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			switch msg.String() {
 			case "esc":
 				m.state = stateHistory
+				m.recalculateSizes()
 				return m, nil
 			}
 			var cmd tea.Cmd
 			m.telemetryViewport, cmd = m.telemetryViewport.Update(msg)
 			return m, cmd
+
+		case stateConfig:
+			switch msg.String() {
+			case "esc":
+				m.state = stateHistory
+				m.recalculateSizes()
+				return m, nil
+			case "up", "k":
+				if m.configCursor > 0 {
+					m.configCursor--
+				}
+				return m, nil
+			case "down", "j":
+				if m.configCursor < 4 {
+					m.configCursor++
+				}
+				return m, nil
+			case "enter", " ", "right", "l", "left", "h":
+				cfg := m.getConfig()
+				switch m.configCursor {
+				case 0:
+					cfg.Autoplay = !cfg.Autoplay
+				case 1:
+					cfg.Autoskip = !cfg.Autoskip
+				case 2:
+					cfg.SkipFillers = !cfg.SkipFillers
+				case 3:
+					if cfg.PreferredMode == "sub" {
+						cfg.PreferredMode = "dub"
+					} else if cfg.PreferredMode == "dub" {
+						cfg.PreferredMode = "dual"
+					} else {
+						cfg.PreferredMode = "sub"
+					}
+				case 4:
+					qualities := []string{"best", "1080p", "720p", "480p", "360p"}
+					idx := -1
+					for i, q := range qualities {
+						if q == cfg.PreferredQuality {
+							idx = i
+							break
+						}
+					}
+					nextIdx := (idx + 1) % len(qualities)
+					cfg.PreferredQuality = qualities[nextIdx]
+				}
+				_ = saveConfig(cfg)
+				m.autoplay = cfg.Autoplay
+				m.autoskip = cfg.Autoskip
+				m.skipFillers = cfg.SkipFillers
+				m.mode = cfg.PreferredMode
+				m.quality = cfg.PreferredQuality
+				return m, nil
+			}
+			return m, nil
 
 		case stateError:
 			switch msg.String() {
@@ -1595,7 +1813,7 @@ func (m model) View() string {
 	var s strings.Builder
 
 	// Top Banner
-	s.WriteString(titleStyle.Render(" CLARE "))
+	s.WriteString(titleStyle.Render(" クレア "))
 	s.WriteString("\n\n")
 
 	// Navigation Tabs
@@ -1618,32 +1836,35 @@ func (m model) View() string {
 		tabs = append(tabs, activeTabStyle.Render("Continue Watching [1]"))
 		tabs = append(tabs, inactiveTabStyle.Render("Search [2]"))
 		tabs = append(tabs, inactiveTabStyle.Render("Logs [3]"))
+		tabs = append(tabs, inactiveTabStyle.Render("Config [4]"))
 		showTabs = true
 	} else if m.state == stateSearchInput || m.state == stateSearchRunning || m.state == stateShowSelect {
 		tabs = append(tabs, inactiveTabStyle.Render("Continue Watching [1]"))
 		tabs = append(tabs, activeTabStyle.Render("Search [2]"))
 		tabs = append(tabs, inactiveTabStyle.Render("Logs [3]"))
+		tabs = append(tabs, inactiveTabStyle.Render("Config [4]"))
 		showTabs = true
 	} else if m.state == stateLogs {
 		tabs = append(tabs, inactiveTabStyle.Render("Continue Watching [1]"))
 		tabs = append(tabs, inactiveTabStyle.Render("Search [2]"))
 		tabs = append(tabs, activeTabStyle.Render("Logs [3]"))
+		tabs = append(tabs, inactiveTabStyle.Render("Config [4]"))
+		showTabs = true
+	} else if m.state == stateConfig {
+		tabs = append(tabs, inactiveTabStyle.Render("Continue Watching [1]"))
+		tabs = append(tabs, inactiveTabStyle.Render("Search [2]"))
+		tabs = append(tabs, inactiveTabStyle.Render("Logs [3]"))
+		tabs = append(tabs, activeTabStyle.Render("Config [4]"))
 		showTabs = true
 	}
 
-	listOffset := 6
+	listHeight := m.dynamicListHeight()
+
 	if showTabs {
 		s.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, tabs...) + "\n\n")
-		listOffset = 9
-	}
-	if m.playbackActive {
-		listOffset += 4
 	}
 
-	listHeight := m.height - listOffset
-	if listHeight < 5 {
-		listHeight = 5
-	}
+	bodyStyle := lipgloss.NewStyle().Height(listHeight)
 
 	switch m.state {
 	case stateHistory:
@@ -1684,25 +1905,28 @@ func (m model) View() string {
 		s.WriteString("\n\n" + helpStyle("s: search  enter: resume  c: toggle completed  d: remove  q: quit"))
 
 	case stateSearchInput:
-		s.WriteString(accentColorStyle.Render("Search Anime:") + "\n\n")
-		s.WriteString(m.searchInput.View() + "\n\n")
+		var bodyBuf strings.Builder
+		bodyBuf.WriteString(accentColorStyle.Render("Search Anime:") + "\n\n")
+		bodyBuf.WriteString(m.searchInput.View() + "\n\n")
 
 		if len(m.searchHistory) > 0 {
-			s.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("#565f89")).Bold(true).Render("Recent Searches:") + "\n")
+			bodyBuf.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("#565f89")).Bold(true).Render("Recent Searches:") + "\n")
 			for i, q := range m.searchHistory {
 				if i == m.searchHistoryIndex {
-					s.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("#7aa2f7")).Render(fmt.Sprintf("  ❯ %s", q)) + "\n")
+					bodyBuf.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("#7aa2f7")).Render(fmt.Sprintf("  ❯ %s", q)) + "\n")
 				} else {
-					s.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("#9ece6a")).Render(fmt.Sprintf("    %s", q)) + "\n")
+					bodyBuf.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("#9ece6a")).Render(fmt.Sprintf("    %s", q)) + "\n")
 				}
 			}
-			s.WriteString("\n")
+			bodyBuf.WriteString("\n")
 		}
-
-		s.WriteString(helpStyle("enter: search | up/down: browse history | esc: cancel"))
+		s.WriteString(bodyStyle.Render(bodyBuf.String()))
+		s.WriteString("\n\n" + helpStyle("enter: search | up/down: browse history | esc: cancel"))
 
 	case stateSearchRunning:
-		s.WriteString(fmt.Sprintf("%s %s\n", m.spinner.View(), m.loadingMsg))
+		bodyContent := fmt.Sprintf("%s %s\n", m.spinner.View(), m.loadingMsg)
+		s.WriteString(bodyStyle.Render(bodyContent))
+		s.WriteString("\n\n" + helpStyle("Please wait..."))
 
 	case stateShowSelect:
 		if m.width >= 80 {
@@ -1766,7 +1990,9 @@ func (m model) View() string {
 		s.WriteString("\n\n" + helpStyle("enter: play with selected source | esc: back | q: quit"))
 
 	case statePlaybackPreparing:
-		s.WriteString(fmt.Sprintf("%s %s\n", m.spinner.View(), m.loadingMsg))
+		bodyContent := fmt.Sprintf("%s %s\n", m.spinner.View(), m.loadingMsg)
+		s.WriteString(bodyStyle.Render(bodyContent))
+		s.WriteString("\n\n" + helpStyle("Preparing playback..."))
 
 	case statePlaybackActive:
 		titleStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#bb9af7"))
@@ -1775,24 +2001,81 @@ func (m model) View() string {
 			statusStr = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#e0af68")).Render("⏸ PAUSED")
 		}
 
-		s.WriteString(titleStyle.Render(fmt.Sprintf("Playing: %s — Episode %s", m.selectedShow.Name, m.selectedEp)) + "\n\n")
-		s.WriteString(fmt.Sprintf("Status: %s\n\n", statusStr))
+		var activeBody strings.Builder
+		activeBody.WriteString(titleStyle.Render(fmt.Sprintf("Playing: %s — Episode %s", m.selectedShow.Name, m.selectedEp)) + "\n\n")
+		activeBody.WriteString(fmt.Sprintf("Status: %s\n\n", statusStr))
 
 		if m.mpvStatus.Duration > 0 {
 			pct := m.mpvStatus.PlaybackTime / m.mpvStatus.Duration
 			bar := renderSmoothProgressBar(pct, 30)
 			timeStr := fmt.Sprintf("%s / %s", formatTime(m.mpvStatus.PlaybackTime), formatTime(m.mpvStatus.Duration))
-			s.WriteString(fmt.Sprintf("[%s]  %s\n\n", bar, timeStr))
+			activeBody.WriteString(fmt.Sprintf("[%s]  %s\n\n", bar, timeStr))
 		} else {
-			s.WriteString("Loading playback time...\n\n")
+			activeBody.WriteString("Loading playback time...\n\n")
 		}
 
-		s.WriteString(fmt.Sprintf("Volume: %d%%\n\n", int(m.mpvStatus.Volume)))
-		s.WriteString(helpStyle("space: pause/resume  left/right: seek 10s  up/down: volume  esc/q: stop playback"))
+		activeBody.WriteString(fmt.Sprintf("Volume: %d%%\n\n", int(m.mpvStatus.Volume)))
+		s.WriteString(bodyStyle.Render(activeBody.String()))
+		s.WriteString("\n\n" + helpStyle("space: pause/resume  left/right: seek 10s  up/down: volume  esc/q: stop playback"))
 
 	case stateLogs:
 		s.WriteString(m.telemetryViewport.View())
 		s.WriteString("\n\n" + helpStyle("1: history | 2: search | q: quit"))
+
+	case stateConfig:
+		var cfgStrings []string
+		cfg := m.getConfig()
+		
+		options := []struct {
+			name  string
+			value string
+		}{
+			{"Autoplay Next Episode", formatBool(cfg.Autoplay)},
+			{"Auto-skip Openings/Endings", formatBool(cfg.Autoskip)},
+			{"Automatically Skip Fillers", formatBool(cfg.SkipFillers)},
+			{"Preferred Translation Mode", strings.ToUpper(cfg.PreferredMode)},
+			{"Preferred Stream Quality", strings.ToUpper(cfg.PreferredQuality)},
+		}
+
+		for i, opt := range options {
+			cursor := "  "
+			itemStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#c0caf5"))
+			if i == m.configCursor {
+				cursor = "❯ "
+				itemStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#7aa2f7"))
+			}
+			cfgStrings = append(cfgStrings, fmt.Sprintf("%s%-30s : %s", cursor, itemStyle.Render(opt.name), opt.value))
+		}
+
+		infoCardStyle := lipgloss.NewStyle().
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("#565f89")).
+			Padding(1, 2).
+			Width(m.width - 6)
+
+		var infoCard strings.Builder
+		infoCard.WriteString(lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#bb9af7")).Render("◆ AniList / MAL Sync Configuration ◆") + "\n\n")
+		infoCard.WriteString("To enable automatic progress synchronization to AniList or MyAnimeList,\n")
+		infoCard.WriteString("set your tokens inside the config file at:\n")
+		infoCard.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("#7dcfff")).Render("~/.config/clare/config.json") + "\n\n")
+		infoCard.WriteString("Example configuration:\n")
+		infoCard.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("#9ece6a")).Render(`{
+  "autoplay": true,
+  "autoskip": true,
+  "skip_fillers": false,
+  "anilist_token": "YOUR_ANILIST_ACCESS_TOKEN",
+  "mal_token": "YOUR_MAL_ACCESS_TOKEN"
+}`) + "\n\n")
+		infoCard.WriteString("Note: Run clare's log tab [3] during sync to check status/verify successful API requests.")
+
+		bodyContent := fmt.Sprintf(
+			"◆ TUI USER CONFIGURATION ◆\n\n%s\n\n%s",
+			strings.Join(cfgStrings, "\n"),
+			infoCardStyle.Render(infoCard.String()),
+		)
+
+		s.WriteString(bodyStyle.Render(bodyContent))
+		s.WriteString("\n\n" + helpStyle("enter/space: toggle/cycle | up/down: navigate | esc: back"))
 
 	case stateError:
 		s.WriteString(errorStyle.Render("Error encountered:") + "\n\n")
@@ -1823,12 +2106,26 @@ func (m model) View() string {
 			Padding(0, 1).
 			Width(m.width - 2)
 
-		playerContent := fmt.Sprintf("%s %s  %s  Vol: %d%%\n%s", 
+		formatCheckbox := func(name string, val bool) string {
+			box := "[ ]"
+			if val {
+				box = lipgloss.NewStyle().Foreground(lipgloss.Color("#9ece6a")).Render("[✔]")
+			}
+			return fmt.Sprintf("%s %s", box, name)
+		}
+
+		autoplayToggle := formatCheckbox("Autoplay (a)", m.autoplay)
+		autoskipToggle := formatCheckbox("Auto-Skip (s)", m.autoskip)
+		skipFillersToggle := formatCheckbox("Skip Fillers (f)", m.skipFillers)
+
+		playerContent := fmt.Sprintf("%s %s  %s  Vol: %d%%\n%s  •  %s  •  %s", 
 			statusStr, 
 			titleStyle.Render(fmt.Sprintf("%s - Ep %s", m.selectedShow.Name, m.selectedEp)),
 			pb,
 			int(m.mpvStatus.Volume),
-			helpStyle("p: pause | [ / ]: seek 10s | - / +: vol | x: stop"),
+			autoplayToggle,
+			autoskipToggle,
+			skipFillersToggle,
 		)
 		s.WriteString("\n" + playerBorder.Render(playerContent))
 	}
@@ -2494,4 +2791,79 @@ func nextMode(current string) string {
 	default:
 		return "dual"
 	}
+}
+
+func (m *model) dynamicListHeight() int {
+	offset := 6
+	if m.state == stateHistory || m.state == stateSearchInput || m.state == stateSearchRunning || m.state == stateShowSelect || m.state == stateEpisodeSelect || m.state == stateSourceSelect || m.state == stateLogs || m.state == stateConfig {
+		offset = 9
+	}
+	if m.playbackActive {
+		offset += 5 // status bar is 4 lines height + 1 line spacing border
+	}
+	h := m.height - offset
+	if h < 5 {
+		return 5
+	}
+	return h
+}
+
+func (m *model) recalculateSizes() {
+	leftWidth := m.width - 4
+	if m.width >= 80 {
+		leftWidth = m.width / 2
+		if leftWidth < 35 {
+			leftWidth = 35
+		}
+	}
+	
+	listHeight := m.dynamicListHeight()
+	m.historyList.SetSize(leftWidth, listHeight)
+	m.showList.SetSize(leftWidth, listHeight)
+	m.episodeList.SetSize(leftWidth, listHeight)
+	m.sourceList.SetSize(leftWidth, listHeight)
+	
+	m.telemetryViewport.Width = m.width - 4
+	m.telemetryViewport.Height = listHeight
+}
+
+func (m model) getConfig() Config {
+	cfg := loadConfig()
+	cfg.Autoplay = m.autoplay
+	cfg.Autoskip = m.autoskip
+	cfg.SkipFillers = m.skipFillers
+	cfg.PreferredMode = m.mode
+	cfg.PreferredQuality = m.quality
+	return cfg
+}
+
+func formatBool(b bool) string {
+	if b {
+		return lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#9ece6a")).Render("[ON]")
+	}
+	return lipgloss.NewStyle().Foreground(lipgloss.Color("#f7768e")).Render("[OFF]")
+}
+
+func formatLogLine(line string) string {
+	lower := strings.ToLower(line)
+	if strings.Contains(line, "[ERROR]") || strings.Contains(lower, "error") || strings.Contains(lower, "failed") {
+		return lipgloss.NewStyle().Foreground(lipgloss.Color("#f7768e")).Render(line)
+	}
+	if strings.Contains(line, "[WARN]") || strings.Contains(lower, "warning") {
+		return lipgloss.NewStyle().Foreground(lipgloss.Color("#e0af68")).Render(line)
+	}
+	if strings.Contains(line, "[API]") || strings.Contains(line, "http request") || strings.Contains(line, "http response") {
+		return lipgloss.NewStyle().Foreground(lipgloss.Color("#7dcfff")).Render(line)
+	}
+	if strings.Contains(line, "[MPV]") {
+		parts := strings.SplitN(line, "[MPV]", 2)
+		prefix := parts[0]
+		content := parts[1]
+		mpvBadge := lipgloss.NewStyle().Foreground(lipgloss.Color("#bb9af7")).Render("[MPV]")
+		return prefix + mpvBadge + lipgloss.NewStyle().Foreground(lipgloss.Color("#a9b1d6")).Render(content)
+	}
+	if strings.Contains(line, "[INFO]") {
+		return lipgloss.NewStyle().Foreground(lipgloss.Color("#7dcfff")).Render(line)
+	}
+	return lipgloss.NewStyle().Foreground(lipgloss.Color("#c0caf5")).Render(line)
 }

@@ -32,13 +32,28 @@ func main() {
 		os.Setenv("CLARE_DEBUG", "1")
 	}
 
+	cfg := loadConfig()
+	explicitFlags := make(map[string]bool)
+	flag.Visit(func(f *flag.Flag) {
+		explicitFlags[f.Name] = true
+	})
+
 	query := *searchQuery
 	if query == "" && len(flag.Args()) > 0 {
 		query = strings.Join(flag.Args(), " ")
 	}
 
 	epNo := *episodeNum
-	mode := strings.ToLower(*modeFlag)
+
+	mode := cfg.PreferredMode
+	if explicitFlags["m"] {
+		mode = strings.ToLower(*modeFlag)
+	}
+
+	quality := cfg.PreferredQuality
+	if explicitFlags["q"] {
+		quality = *qualityFlag
+	}
 
 	// If query and episode are both provided, run in non-interactive direct playback mode
 	if query != "" && epNo != "" {
@@ -209,7 +224,7 @@ func main() {
 	// Interactive TUI mode
 	go SyncAllHistory()
 	p := tea.NewProgram(
-		initialModel(query, mode, *qualityFlag, *downloadFlag),
+		initialModel(query, mode, quality, *downloadFlag),
 		tea.WithAltScreen(),
 		tea.WithMouseCellMotion(),
 	)

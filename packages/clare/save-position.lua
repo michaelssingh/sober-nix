@@ -36,11 +36,37 @@ local function save_positions(positions)
     end
 end
 
-local last_time = nil
+local skip_intervals = {}
+if skip_times_json and skip_times_json ~= "" then
+    local ok, decoded = pcall(utils.parse_json, skip_times_json)
+    if ok and type(decoded) == "table" then
+        skip_intervals = decoded
+    end
+end
+
+local current_skipped = {}
 
 mp.observe_property("time-pos", "number", function(_, val)
     if val then
         last_time = val
+        if auto_skip then
+            for _, result in ipairs(skip_intervals) do
+                local start_t = result.interval.startTime
+                local end_t = result.interval.endTime
+                local skip_type = result.skipType
+                
+                -- Only skip Opening, Ending, and Recaps (preserving Prologues/Epilogues)
+                if (skip_type == "op" or skip_type == "mixed-op" or skip_type == "ed" or skip_type == "mixed-ed" or skip_type == "recap") and val >= start_t and val < end_t then
+                    local skip_key = mal_id .. "_" .. ep_no .. "_" .. skip_type
+                    if not current_skipped[skip_key] then
+                        current_skipped[skip_key] = true
+                        mp.commandv("seek", end_t, "absolute")
+                        mp.osd_message("Auto-skipped " .. string.upper(skip_type) .. " (" .. math.floor(end_t - val) .. "s)", 3)
+                        break
+                    end
+                end
+            end
+        end
     end
 end)
 
