@@ -698,14 +698,150 @@ type loggingRoundTripper struct {
 }
 
 func (l *loggingRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
-	debugLog("HTTP Request: %s %s", req.Method, req.URL.String())
+	var bodyBytes []byte
+	if req.Body != nil {
+		bodyBytes, _ = io.ReadAll(req.Body)
+		req.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+	}
+
+	reqLog := getHumanReadableRequestLog(req.Method, req.URL.String(), bodyBytes)
+	debugLog("%s", reqLog)
+
 	resp, err := l.next.RoundTrip(req)
 	if err != nil {
-		debugLog("HTTP Error: %s %s -> %v", req.Method, req.URL.String(), err)
+		debugLog("[ERROR] %s -> %v", reqLog, err)
 		return nil, err
 	}
-	debugLog("HTTP Response: %s %s -> Status %d (Length: %d)", req.Method, req.URL.String(), resp.StatusCode, resp.ContentLength)
+
+	respLog := getHumanReadableResponseLog(req.Method, req.URL.String(), resp.StatusCode)
+	debugLog("%s", respLog)
 	return resp, nil
+}
+
+func getHumanReadableRequestLog(method, urlStr string, body []byte) string {
+	u, err := url.Parse(urlStr)
+	if err != nil {
+		return fmt.Sprintf("HTTP Request: %s %s", method, urlStr)
+	}
+
+	// 1. AllAnime GraphQL (POST to https://api.allanime.day/api)
+	if u.Host == "api.allanime.day" && u.Path == "/api" && method == "POST" {
+		var payload struct {
+			Query     string                 `json:"query"`
+			Variables map[string]interface{} `json:"variables"`
+		}
+		if json.Unmarshal(body, &payload) == nil && payload.Variables != nil {
+			// Search Query
+			if search, ok := payload.Variables["search"].(map[string]interface{}); ok {
+				if q, _ := search["query"].(string); q != "" {
+					translation := "sub"
+					if t, _ := payload.Variables["translationType"].(string); t != "" {
+						translation = t
+					}
+					return fmt.Sprintf("[API] Search Anime: %q (%s)", q, translation)
+				}
+			}
+			// Episode List Query
+			if showID, _ := payload.Variables["showId"].(string); showID != "" {
+				translation := "sub"
+				if t, _ := payload.Variables["translationType"].(string); t != "" {
+					translation = t
+				}
+				showName := showID
+				if cached, _, found := loadShowCache(showID); found {
+					showName = cached.Name
+				}
+				return fmt.Sprintf("[API] Fetch Episode List: %s (%s)", showName, translation)
+			}
+		}
+	}
+
+	// 2. AllAnime GET Resolve Request (e.g. GET https://api.allanime.day/api?variables=...)
+	if u.Host == "api.allanime.day" && u.Path == "/api" && method == "GET" {
+		q := u.Query()
+		if varsStr := q.Get("variables"); varsStr != "" {
+			var vars map[string]interface{}
+			if json.Unmarshal([]byte(varsStr), &vars) == nil {
+				showID, _ := vars["showId"].(string)
+				epNo, _ := vars["episodeString"].(string)
+				translation, _ := vars["translationType"].(string)
+				if translation == "" {
+					translation = "sub"
+				}
+				showName := showID
+				if cached, _, found := loadShowCache(showID); found {
+					showName = cached.Name
+				}
+				return fmt.Sprintf("[API] Resolve Episode %s Link: %s (%s)", epNo, showName, translation)
+			}
+		}
+	}
+
+	// 3. AllAnime Clock Sync (GET /apivtwo/clock.json)
+	if u.Host == "allanime.day" && u.Path == "/apivtwo/clock.json" {
+		return "[API] Fetch Server Clock"
+	}
+
+	// 4. Jikan MAL requests (e.g. /v4/anime/{id}/episodes)
+	if u.Host == "api.jikan.moe" {
+		parts := strings.Split(u.Path, "/")
+		if len(parts) >= 4 && parts[1] == "v4" && parts[2] == "anime" {
+			malID := parts[3]
+			action := "Fetch Details"
+			if len(parts) >= 5 {
+				action = "Fetch " + strings.Title(parts[4])
+			}
+			showName := ""
+			m := loadMalIDToNameMap()
+			if name, ok := m[malID]; ok {
+				showName = name + " - "
+			}
+			pageQuery := ""
+			if page := u.Query().Get("page"); page != "" {
+				pageQuery = fmt.Sprintf(" (Page %s)", page)
+			}
+			return fmt.Sprintf("[MAL] %s: %sMAL ID: %s%s", action, showName, malID, pageQuery)
+		}
+		return fmt.Sprintf("[MAL] Request: %s %s", method, u.Path)
+	}
+
+	// 5. AniSkip requests (e.g. /v1/skip-times/{malId}/{epNo})
+	if u.Host == "api.aniskip.com" {
+		parts := strings.Split(u.Path, "/")
+		if len(parts) >= 5 && parts[1] == "v1" && parts[2] == "skip-times" {
+			malID := parts[3]
+			epNo := parts[4]
+			showName := ""
+			m := loadMalIDToNameMap()
+			if name, ok := m[malID]; ok {
+				showName = name + " - "
+			}
+			return fmt.Sprintf("[AniSkip] Fetch Skip Times: %sMAL ID: %s, Ep: %s", showName, malID, epNo)
+		}
+		return fmt.Sprintf("[AniSkip] Request: %s %s", method, u.Path)
+	}
+
+	cleanPath := u.Path
+	if cleanPath == "" {
+		cleanPath = "/"
+	}
+	return fmt.Sprintf("HTTP Request: %s %s%s", method, u.Host, cleanPath)
+}
+
+func getHumanReadableResponseLog(method, urlStr string, statusCode int) string {
+	u, err := url.Parse(urlStr)
+	if err != nil {
+		return fmt.Sprintf("HTTP Response: Status %d", statusCode)
+	}
+
+	prefix := "[API]"
+	if u.Host == "api.jikan.moe" {
+		prefix = "[MAL]"
+	} else if u.Host == "api.aniskip.com" {
+		prefix = "[AniSkip]"
+	}
+
+	return fmt.Sprintf("%s Response: Status %d", prefix, statusCode)
 }
 
 func newLoggingHttpClient(timeout time.Duration) *http.Client {
