@@ -472,6 +472,11 @@ func initialModel(initialSearch, mode, quality string, download bool) model {
 				debugLog("[INFO] Reattached to running MPV: %s (Ep %s)", showName, epNo)
 			}
 		}
+	} else {
+		if _, statErr := os.Stat("/tmp/clare-mpv.sock"); statErr == nil {
+			debugLog("[INFO] Removing stale MPV socket file...")
+			_ = os.Remove("/tmp/clare-mpv.sock")
+		}
 	}
 
 	m := model{

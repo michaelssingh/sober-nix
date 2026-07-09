@@ -67,11 +67,11 @@ func SyncAllHistory() {
 
 		epProgress := int(maxEp)
 		if err := syncToAniList(anilistToken, malID, epProgress); err != nil {
-			debugLog("SyncAllHistory: AniList sync failed for %s (MAL %d): %v", show.Name, malID, err)
+			debugLog("[ERROR] SyncAllHistory: AniList sync failed for %s (MAL %d): %v", show.Name, malID, err)
 			continue
 		}
 
-		debugLog("SyncAllHistory: synced %s (MAL %d) up to ep %d", show.Name, malID, epProgress)
+		debugLog("[INFO] SyncAllHistory: synced %s (MAL %d) up to ep %d", show.Name, malID, epProgress)
 		state.LastSyncedEp = maxEp
 		positions[showID] = state
 		changed = true
@@ -79,7 +79,7 @@ func SyncAllHistory() {
 
 	if changed {
 		if err := savePositions(positions); err != nil {
-			debugLog("SyncAllHistory: failed to save positions after sync: %v", err)
+			debugLog("[ERROR] SyncAllHistory: failed to save positions after sync: %v", err)
 		}
 	}
 }
@@ -92,13 +92,13 @@ func SyncProgress(malIDStr string, epNoStr string) {
 	}
 	malID, err := strconv.Atoi(malIDStr)
 	if err != nil {
-		debugLog("SyncProgress: invalid MAL ID %q: %v", malIDStr, err)
+		debugLog("[ERROR] SyncProgress: invalid MAL ID %q: %v", malIDStr, err)
 		return
 	}
 	var epNo float64
 	_, err = fmt.Sscanf(epNoStr, "%f", &epNo)
 	if err != nil {
-		debugLog("SyncProgress: invalid episode number %q: %v", epNoStr, err)
+		debugLog("[ERROR] SyncProgress: invalid episode number %q: %v", epNoStr, err)
 		return
 	}
 	epProgress := int(epNo)
@@ -129,7 +129,7 @@ func SyncProgress(malIDStr string, epNoStr string) {
 	}
 
 	if anilistToken == "" && malToken == "" {
-		debugLog("SyncProgress: no ANILIST_TOKEN or MAL_TOKEN env vars found. Skipping sync.")
+		debugLog("[WARN] SyncProgress: no AniList or MAL tokens found. Skipping sync.")
 		return
 	}
 
@@ -137,9 +137,9 @@ func SyncProgress(malIDStr string, epNoStr string) {
 		go func() {
 			err := syncToAniList(anilistToken, malID, epProgress)
 			if err != nil {
-				debugLog("SyncProgress: AniList sync failed: %v", err)
+				debugLog("[ERROR] SyncProgress: AniList sync failed: %v", err)
 			} else {
-				debugLog("SyncProgress: AniList sync successful for MAL ID %d, Ep %d", malID, epProgress)
+				debugLog("[INFO] SyncProgress: AniList sync successful for MAL ID %d, Ep %d", malID, epProgress)
 			}
 		}()
 	}
@@ -148,9 +148,9 @@ func SyncProgress(malIDStr string, epNoStr string) {
 		go func() {
 			err := syncToMAL(malToken, malID, epProgress)
 			if err != nil {
-				debugLog("SyncProgress: MAL sync failed: %v", err)
+				debugLog("[ERROR] SyncProgress: MAL sync failed: %v", err)
 			} else {
-				debugLog("SyncProgress: MAL sync successful for MAL ID %d, Ep %d", malID, epProgress)
+				debugLog("[INFO] SyncProgress: MAL sync successful for MAL ID %d, Ep %d", malID, epProgress)
 			}
 		}()
 	}
@@ -166,6 +166,7 @@ func syncToAniList(token string, malID int, progress int) error {
 	}
 	body, _ := json.Marshal(payload)
 
+	debugLog("[API] AniList POST https://graphql.anilist.co (Resolve MAL ID %d)", malID)
 	req, err := http.NewRequest("POST", "https://graphql.anilist.co", bytes.NewBuffer(body))
 	if err != nil {
 		return err
@@ -216,6 +217,7 @@ func syncToAniList(token string, malID int, progress int) error {
 	}
 	mutBody, _ := json.Marshal(mutationPayload)
 
+	debugLog("[API] AniList POST https://graphql.anilist.co (SaveMediaListEntry MediaId %d, Ep %d)", anilistMediaID, progress)
 	reqMut, err := http.NewRequest("POST", "https://graphql.anilist.co", bytes.NewBuffer(mutBody))
 	if err != nil {
 		return err
@@ -240,6 +242,7 @@ func syncToMAL(token string, malID int, progress int) error {
 	apiURL := fmt.Sprintf("https://api.myanimelist.net/v2/anime/%d/my_list_status", malID)
 	data := fmt.Sprintf("num_watched_episodes=%d&status=watching", progress)
 
+	debugLog("[API] MyAnimeList PUT %s (data: %s)", apiURL, data)
 	req, err := http.NewRequest("PUT", apiURL, bytes.NewBufferString(data))
 	if err != nil {
 		return err
