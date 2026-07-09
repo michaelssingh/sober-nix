@@ -17,6 +17,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
@@ -1310,6 +1311,50 @@ func TestPullFromAniList(t *testing.T) {
 	}
 	if len(state.CompletedEpisodes) != 3 {
 		t.Errorf("Expected 3 completed episodes, got %d", len(state.CompletedEpisodes))
+	}
+}
+
+func TestEpisodeSynopsisLazyLoading(t *testing.T) {
+	m := initialModel("", "sub", "best", false)
+	m.selectedShow = AnimeShow{
+		ID:    "frieren-test",
+		Name:  "Sousou no Frieren",
+		MALID: "52991",
+	}
+	m.selectedEp = "1"
+	m.state = stateEpisodeSelect
+
+	// Populate the episode list so SelectedItem() is not nil
+	epItem := episodeItem{epNo: "1"}
+	m.episodeList.SetItems([]list.Item{epItem})
+
+	// Initial check: synopsis should be empty
+	if m.episodeDetails == nil {
+		m.episodeDetails = make(map[string]JikanEpInfo)
+	}
+	
+	// Create an update message with a mock synopsis
+	msg := episodeSynopsisMsg{
+		epNo:     "1",
+		synopsis: "Frieren and her companions return from their decade-long quest.",
+	}
+
+	updated, _ := m.Update(msg)
+	mUpdated := updated.(model)
+
+	// Verify it was saved to local state
+	info, ok := mUpdated.episodeDetails["1"]
+	if !ok {
+		t.Fatal("Expected episodeDetails for episode 1 to exist")
+	}
+	if info.Synopsis != "Frieren and her companions return from their decade-long quest." {
+		t.Errorf("Expected synopsis to be populated, got %q", info.Synopsis)
+	}
+
+	// Verify rendering contains the synopsis
+	renderedDetails := mUpdated.renderEpisodeDetailsPanel(80, 15)
+	if !strings.Contains(renderedDetails, "Frieren and her companions return") {
+		t.Errorf("Expected rendered details panel to contain synopsis text, got: %s", renderedDetails)
 	}
 }
 

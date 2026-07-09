@@ -432,11 +432,45 @@ func pullFromAniList(token string, positions map[string]ShowState) (bool, error)
 				positions[malIDStr] = state
 				changed = true
 				debugLog("[INFO] PullSync: updated local progress for MAL ID %d to Ep %d from AniList", malID, entry.Progress)
+
+				// Bidirectional sync: sync to local history.json so it populates Continue Watching
+				if showID, showName, found := resolveShowByMALID(malIDStr); found {
+					epStr := fmt.Sprintf("%d", entry.Progress)
+					if err := recordWatch(showID, showName, epStr); err != nil {
+						debugLog("[ERROR] PullSync: failed to update local history for %s: %v", showName, err)
+					} else {
+						debugLog("[INFO] PullSync: successfully added/updated %s Ep %s in history from AniList", showName, epStr)
+					}
+				}
 			}
 		}
 	}
 
 	return changed, nil
+}
+
+func resolveShowByMALID(malIDStr string) (string, string, bool) {
+	cacheDir := filepath.Join(getCacheDir(), "shows")
+	files, err := os.ReadDir(cacheDir)
+	if err != nil {
+		return "", "", false
+	}
+	for _, file := range files {
+		if !file.IsDir() && strings.HasSuffix(file.Name(), ".json") {
+			path := filepath.Join(cacheDir, file.Name())
+			if f, err := os.Open(path); err == nil {
+				var entry CachedShowEntry
+				if json.NewDecoder(f).Decode(&entry) == nil {
+					if entry.Show.MALID == malIDStr {
+						f.Close()
+						return entry.Show.ID, entry.Show.Name, true
+					}
+				}
+				f.Close()
+			}
+		}
+	}
+	return "", "", false
 }
 
 func loadMalIDToNameMap() map[string]string {

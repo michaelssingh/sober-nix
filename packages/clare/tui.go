@@ -584,57 +584,82 @@ func (m *model) refreshHistory() {
 				}
 				item.isCompleted = completed
 
-				if !completed {
-					if showState.ResumeState != nil {
-						// In-progress episode
-						nextVal := maxCompleted + 1.0
-						if showState.ResumeState.Episode > maxCompleted {
-							nextVal = showState.ResumeState.Episode
+				// Check if the last watched episode in history is completed
+				lastEpCompleted := false
+				epVal := parseEpisodeNumber(item.lastEp)
+				for _, cEp := range showState.CompletedEpisodes {
+					if cEp == epVal {
+						lastEpCompleted = true
+						break
+					}
+				}
+
+				if showState.ResumeState != nil {
+					// In-progress episode
+					nextVal := showState.ResumeState.Episode
+					
+					// If the resume state episode is already marked completed, default to maxCompleted + 1
+					isResumeCompleted := false
+					for _, cEp := range showState.CompletedEpisodes {
+						if cEp == nextVal {
+							isResumeCompleted = true
+							break
 						}
-						epStr := fmt.Sprintf("%.1f", nextVal)
-						if strings.HasSuffix(epStr, ".0") {
-							epStr = epStr[:len(epStr)-2]
+					}
+					if isResumeCompleted {
+						nextVal = maxCompleted + 1.0
+					}
+
+					epStr := fmt.Sprintf("%.1f", nextVal)
+					if strings.HasSuffix(epStr, ".0") {
+						epStr = epStr[:len(epStr)-2]
+					}
+					item.nextEp = epStr
+					
+					// Compute progress based on maxCompleted
+					maxEp := 0.0
+					for _, cEp := range showState.CompletedEpisodes {
+						if cEp > maxEp {
+							maxEp = cEp
 						}
-						item.nextEp = epStr
-						// Compute progress based on maxCompleted
+					}
+					currEpVal := parseEpisodeNumber(epStr)
+					if currEpVal > maxEp {
+						maxEp = currEpVal
+					}
+					if item.totalEps > 0 {
+						item.progressPct = maxEp / float64(item.totalEps)
+					}
+				} else if u.Episode != "" {
+					// Finished an episode, next sequential one up if completed, else same episode
+					var nextVal float64
+					if lastEpCompleted {
+						nextVal = epVal + 1.0
+					} else {
+						nextVal = epVal
+					}
+					
+					if item.totalEps > 0 {
+						if int(nextVal) <= item.totalEps {
+							if nextVal == float64(int(nextVal)) {
+								item.nextEp = fmt.Sprintf("%d", int(nextVal))
+							} else {
+								item.nextEp = fmt.Sprintf("%.1f", nextVal)
+							}
+						}
+						// Progress bar percentage uses max completed episode
 						maxEp := 0.0
 						for _, cEp := range showState.CompletedEpisodes {
 							if cEp > maxEp {
 								maxEp = cEp
 							}
 						}
-						currEpVal := parseEpisodeNumber(epStr)
-						if currEpVal > maxEp {
-							maxEp = currEpVal
-						}
-						if item.totalEps > 0 {
-							item.progressPct = maxEp / float64(item.totalEps)
-						}
-					} else if u.Episode != "" {
-						// Finished an episode, next sequential one up
-						nextVal := maxCompleted + 1.0
-						epVal := parseEpisodeNumber(u.Episode)
-						if epVal > maxCompleted {
-							nextVal = epVal + 1.0
-						}
-						if item.totalEps > 0 {
-							if int(nextVal) <= item.totalEps {
-								if nextVal == float64(int(nextVal)) {
-									item.nextEp = fmt.Sprintf("%d", int(nextVal))
-								} else {
-									item.nextEp = fmt.Sprintf("%.1f", nextVal)
-								}
-							}
-							// Progress bar percentage uses max completed episode
-							maxEp := 0.0
-							for _, cEp := range showState.CompletedEpisodes {
-								if cEp > maxEp {
-									maxEp = cEp
-								}
-							}
-							item.progressPct = maxEp / float64(item.totalEps)
+						item.progressPct = maxEp / float64(item.totalEps)
+					} else {
+						if nextVal == float64(int(nextVal)) {
+							item.nextEp = fmt.Sprintf("%d", int(nextVal))
 						} else {
-							item.nextEp = fmt.Sprintf("%.0f", nextVal)
+							item.nextEp = fmt.Sprintf("%.1f", nextVal)
 						}
 					}
 				}
