@@ -336,6 +336,10 @@ func pullFromAniList(token string, positions map[string]ShowState) (bool, error)
 					media {
 						idMal
 						episodes
+						title {
+							english
+							romaji
+						}
 					}
 					progress
 					status
@@ -377,6 +381,10 @@ func pullFromAniList(token string, positions map[string]ShowState) (bool, error)
 						Media struct {
 							IDMal    int `json:"idMal"`
 							Episodes int `json:"episodes"`
+							Title    struct {
+								English string `json:"english"`
+								Romaji  string `json:"romaji"`
+							} `json:"title"`
 						} `json:"media"`
 						Progress int    `json:"progress"`
 						Status   string `json:"status"`
@@ -434,7 +442,35 @@ func pullFromAniList(token string, positions map[string]ShowState) (bool, error)
 				debugLog("[INFO] PullSync: updated local progress for MAL ID %d to Ep %d from AniList", malID, entry.Progress)
 
 				// Bidirectional sync: sync to local history.json so it populates Continue Watching
-				if showID, showName, found := resolveShowByMALID(malIDStr); found {
+				showID, showName, found := resolveShowByMALID(malIDStr)
+				if !found {
+					// Proactively try to resolve it by searching AllAnime using its title
+					titleToSearch := entry.Media.Title.English
+					if titleToSearch == "" {
+						titleToSearch = entry.Media.Title.Romaji
+					}
+					if titleToSearch != "" {
+						debugLog("[INFO] PullSync: show MAL ID %s (%q) not cached locally. Searching AllAnime...", malIDStr, titleToSearch)
+						shows, err := searchAnime(titleToSearch, "sub")
+						if err == nil {
+							for _, s := range shows {
+								if s.MALID == malIDStr {
+									debugLog("[INFO] PullSync: found match for %q on AllAnime: %s (%s). Fetching episodes to cache it...", titleToSearch, s.Name, s.ID)
+									// Fetch episode list, which automatically caches the show details
+									_, _, err := fetchEpisodeList(s.ID, "sub")
+									if err == nil {
+										showID = s.ID
+										showName = s.Name
+										found = true
+										break
+									}
+								}
+							}
+						}
+					}
+				}
+
+				if found {
 					epStr := fmt.Sprintf("%d", entry.Progress)
 					if err := recordWatch(showID, showName, epStr); err != nil {
 						debugLog("[ERROR] PullSync: failed to update local history for %s: %v", showName, err)

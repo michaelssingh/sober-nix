@@ -802,6 +802,7 @@ func (m *model) toggleShowCompleted(showID string) {
 
 	positions[malID] = showState
 	_ = savePositions(positions)
+	go SyncAllHistory()
 	m.refreshHistory()
 }
 
@@ -1190,6 +1191,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			exitCmd = waitForExitCmd(msg.cmd, msg.tempLuaFile, msg.tempChaptersFile)
 		}
 
+		go SyncAllHistory()
+
 		return m, tea.Batch(
 			exitCmd,
 			tickMpvStatusCmd(),
@@ -1271,6 +1274,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.err == nil {
 			_ = recordWatch(m.selectedShow.ID, m.selectedShow.Name, m.selectedEp)
 			m.refreshHistory()
+			go SyncAllHistory()
 			if m.autoplay {
 				m.triggerAutoplay = true
 			}

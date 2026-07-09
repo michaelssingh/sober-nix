@@ -86,6 +86,9 @@ local function update_position()
             }
         end
         local show = data[mal_id]
+        if not show.completed_episodes then
+            show.completed_episodes = {}
+        end
         
         if percent >= 0.8 then
             show.resume_state = nil
