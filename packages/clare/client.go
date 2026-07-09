@@ -740,16 +740,6 @@ func fetchAllResolvedStreams(showID, mode, episodeNo string) ([]ResolvedStream, 
 					URL:        urlVal,
 				})
 			}
-		} else {
-			// Include the raw source URL (embed or direct) as a fallback option
-			rawURL := src.SourceURL
-			if rawURL != "" {
-				results = append(results, ResolvedStream{
-					SourceName: src.SourceName,
-					Quality:    "stream",
-					URL:        rawURL,
-				})
-			}
 		}
 	}
 
