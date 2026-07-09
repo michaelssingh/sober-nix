@@ -1235,6 +1235,84 @@ func TestSyncProgressFileMock(t *testing.T) {
 	}
 }
 
+func TestPullFromAniList(t *testing.T) {
+	var viewerCalled, collectionCalled bool
+
+	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		origHost := r.Header.Get("X-Original-Host")
+		if strings.Contains(origHost, "anilist.co") {
+			var body map[string]interface{}
+			_ = json.NewDecoder(r.Body).Decode(&body)
+			queryStr := fmt.Sprintf("%v", body["query"])
+
+			if strings.Contains(queryStr, "Viewer") {
+				viewerCalled = true
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(`{"data":{"Viewer":{"name":"test-user"}}}`))
+			} else if strings.Contains(queryStr, "MediaListCollection") {
+				collectionCalled = true
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(`{
+					"data": {
+						"mediaListCollection": {
+							"lists": [
+								{
+									"entries": [
+										{
+											"media": {
+												"idMal": 54321,
+												"episodes": 12
+											},
+											"progress": 3,
+											"status": "CURRENT"
+										}
+									]
+								}
+							]
+						}
+					}
+				}`))
+			}
+		}
+	}))
+	defer mockServer.Close()
+
+	origTransport := http.DefaultTransport
+	defer func() { http.DefaultTransport = origTransport }()
+
+	http.DefaultTransport = &syncMockTransport{
+		mockServerURL: mockServer.URL,
+		origTransport: origTransport,
+	}
+
+	positions := make(map[string]ShowState)
+	changed, err := pullFromAniList("mock-token", positions)
+	if err != nil {
+		t.Fatalf("pullFromAniList failed: %v", err)
+	}
+
+	if !viewerCalled {
+		t.Error("Expected AniList Viewer query to be executed")
+	}
+	if !collectionCalled {
+		t.Error("Expected AniList MediaListCollection query to be executed")
+	}
+	if !changed {
+		t.Error("Expected positions to be updated and changed=true")
+	}
+
+	state, ok := positions["54321"]
+	if !ok {
+		t.Fatal("Expected MAL ID 54321 to be added to positions")
+	}
+	if state.LastSyncedEp != 3 {
+		t.Errorf("Expected LastSyncedEp to be 3, got %f", state.LastSyncedEp)
+	}
+	if len(state.CompletedEpisodes) != 3 {
+		t.Errorf("Expected 3 completed episodes, got %d", len(state.CompletedEpisodes))
+	}
+}
+
 
 
 
