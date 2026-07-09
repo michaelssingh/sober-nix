@@ -2326,12 +2326,12 @@ func (m model) View() string {
 				cursor = "❯ "
 				itemStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#7aa2f7"))
 			}
-			cfgStrings = append(cfgStrings, fmt.Sprintf("%s%-30s : %s", cursor, itemStyle.Render(opt.name), opt.value))
+			paddedName := fmt.Sprintf("%-30s", opt.name)
+			cfgStrings = append(cfgStrings, fmt.Sprintf("%s%s : %s", cursor, itemStyle.Render(paddedName), opt.value))
 		}
 
 		bodyContent := fmt.Sprintf(
-			"%s ◆ TUI USER CONFIGURATION ◆\n\n%s",
-			titleStyle.Render(" クレア "),
+			"◆ TUI USER CONFIGURATION ◆\n\n%s",
 			strings.Join(cfgStrings, "\n"),
 		)
 
@@ -3171,7 +3171,7 @@ func (m model) viewFooter() string {
 	case stateLogs:
 		return helpStyle("1: history | 2: search | q: quit")
 	case stateConfig:
-		return helpStyle("enter/space: toggle/cycle | up/down: navigate | esc: back")
+		return helpStyle("enter/space: toggle/cycle | up/down: navigate | esc: back | q: quit")
 	case stateError:
 		return helpStyle("press enter or esc to return to search")
 	}
