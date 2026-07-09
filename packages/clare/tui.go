@@ -1037,15 +1037,19 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case playbackFinishedMsg:
-		debugLog("TUI playbackFinishedMsg: err=%v", msg.err)
+		debugLog("TUI playbackFinishedMsg: err=%v, tempLuaFile=%s, tempChaptersFile=%s", msg.err, msg.tempLuaFile, msg.tempChaptersFile)
 		m.playbackActive = false
-		if m.tempLuaFile != "" {
-			_ = os.Remove(m.tempLuaFile)
-			m.tempLuaFile = ""
+		if msg.tempLuaFile != "" {
+			_ = os.Remove(msg.tempLuaFile)
+			if m.tempLuaFile == msg.tempLuaFile {
+				m.tempLuaFile = ""
+			}
 		}
-		if m.tempChaptersFile != "" {
-			_ = os.Remove(m.tempChaptersFile)
-			m.tempChaptersFile = ""
+		if msg.tempChaptersFile != "" {
+			_ = os.Remove(msg.tempChaptersFile)
+			if m.tempChaptersFile == msg.tempChaptersFile {
+				m.tempChaptersFile = ""
+			}
 		}
 
 		if msg.err == nil {
