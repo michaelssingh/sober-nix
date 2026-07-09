@@ -921,21 +921,10 @@ func TestSearchHistory(t *testing.T) {
 		t.Errorf("Expected searchHistory on model to be populated, got %v", m.searchHistory)
 	}
 
-	// Pressing UP key should set input to first history item: "Frieren"
+	// Pressing UP key should select the last history item: "One Piece" (index 1)
 	msg := tea.KeyMsg{Type: tea.KeyUp}
 	updated, _ := m.Update(msg)
 	mUpdated := updated.(model)
-
-	if mUpdated.searchInput.Value() != "Frieren" {
-		t.Errorf("Expected searchInput value to be 'Frieren', got %q", mUpdated.searchInput.Value())
-	}
-	if mUpdated.searchHistoryIndex != 0 {
-		t.Errorf("Expected searchHistoryIndex to be 0, got %d", mUpdated.searchHistoryIndex)
-	}
-
-	// Pressing UP again should set input to second history item: "One Piece"
-	updated, _ = mUpdated.Update(msg)
-	mUpdated = updated.(model)
 
 	if mUpdated.searchInput.Value() != "One Piece" {
 		t.Errorf("Expected searchInput value to be 'One Piece', got %q", mUpdated.searchInput.Value())
@@ -944,16 +933,27 @@ func TestSearchHistory(t *testing.T) {
 		t.Errorf("Expected searchHistoryIndex to be 1, got %d", mUpdated.searchHistoryIndex)
 	}
 
-	// Pressing DOWN should go back to "Frieren"
-	msg = tea.KeyMsg{Type: tea.KeyDown}
+	// Pressing UP again should select the first history item: "Frieren" (index 0)
 	updated, _ = mUpdated.Update(msg)
 	mUpdated = updated.(model)
 
 	if mUpdated.searchInput.Value() != "Frieren" {
-		t.Errorf("Expected searchInput value to be 'Frieren' after DOWN key, got %q", mUpdated.searchInput.Value())
+		t.Errorf("Expected searchInput value to be 'Frieren', got %q", mUpdated.searchInput.Value())
 	}
 	if mUpdated.searchHistoryIndex != 0 {
 		t.Errorf("Expected searchHistoryIndex to be 0, got %d", mUpdated.searchHistoryIndex)
+	}
+
+	// Pressing DOWN should go back to "One Piece" (index 1)
+	msg = tea.KeyMsg{Type: tea.KeyDown}
+	updated, _ = mUpdated.Update(msg)
+	mUpdated = updated.(model)
+
+	if mUpdated.searchInput.Value() != "One Piece" {
+		t.Errorf("Expected searchInput value to be 'One Piece' after DOWN key, got %q", mUpdated.searchInput.Value())
+	}
+	if mUpdated.searchHistoryIndex != 1 {
+		t.Errorf("Expected searchHistoryIndex to be 1, got %d", mUpdated.searchHistoryIndex)
 	}
 }
 

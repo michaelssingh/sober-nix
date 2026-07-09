@@ -1444,31 +1444,31 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.state != stateSearchInput {
 				return m, tea.Quit
 			}
-		case "1":
-			if m.state != stateSearchInput {
+		case "1", "f1", "ctrl+1":
+			if m.state != stateSearchInput || msg.String() == "f1" || msg.String() == "ctrl+1" {
 				m.state = stateHistory
 				m.recalculateSizes()
 				return m, nil
 			}
-		case "2":
-			if m.state != stateSearchInput {
+		case "2", "f2", "ctrl+2":
+			if m.state != stateSearchInput || msg.String() == "f2" || msg.String() == "ctrl+2" {
 				m.enterSearchState()
 				return m, nil
 			}
-		case "3":
-			if m.state != stateSearchInput {
+		case "3", "f3", "ctrl+3":
+			if m.state != stateSearchInput || msg.String() == "f3" || msg.String() == "ctrl+3" {
 				m.state = stateLogs
 				m.recalculateSizes()
 				return m, nil
 			}
-		case "4":
-			if m.state != stateSearchInput {
+		case "4", "f4", "ctrl+4":
+			if m.state != stateSearchInput || msg.String() == "f4" || msg.String() == "ctrl+4" {
 				m.state = stateConfig
 				m.recalculateSizes()
 				return m, nil
 			}
 		case "tab":
-			if m.state != stateSearchInput {
+			if m.state != stateSearchInput || m.searchInput.Value() == "" {
 				if m.state == stateHistory {
 					m.enterSearchState()
 				} else if m.state == stateSearchInput || m.state == stateSearchRunning || m.state == stateShowSelect {
@@ -1578,20 +1578,37 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case stateSearchInput:
 			switch msg.String() {
 			case "up":
-				if len(m.searchHistory) > 0 && m.searchHistoryIndex < len(m.searchHistory)-1 {
-					m.searchHistoryIndex++
-					m.searchInput.SetValue(m.searchHistory[m.searchHistoryIndex])
-					m.searchInput.SetCursor(len(m.searchHistory[m.searchHistoryIndex]))
+				if len(m.searchHistory) > 0 {
+					if m.searchHistoryIndex == -1 {
+						m.searchHistoryIndex = len(m.searchHistory) - 1
+					} else if m.searchHistoryIndex > 0 {
+						m.searchHistoryIndex--
+					} else {
+						m.searchHistoryIndex = -1
+					}
+					if m.searchHistoryIndex == -1 {
+						m.searchInput.SetValue("")
+					} else {
+						m.searchInput.SetValue(m.searchHistory[m.searchHistoryIndex])
+						m.searchInput.SetCursor(len(m.searchHistory[m.searchHistoryIndex]))
+					}
 				}
 				return m, nil
 			case "down":
-				if m.searchHistoryIndex > 0 {
-					m.searchHistoryIndex--
-					m.searchInput.SetValue(m.searchHistory[m.searchHistoryIndex])
-					m.searchInput.SetCursor(len(m.searchHistory[m.searchHistoryIndex]))
-				} else if m.searchHistoryIndex == 0 {
-					m.searchHistoryIndex = -1
-					m.searchInput.SetValue("")
+				if len(m.searchHistory) > 0 {
+					if m.searchHistoryIndex == -1 {
+						m.searchHistoryIndex = 0
+					} else if m.searchHistoryIndex < len(m.searchHistory)-1 {
+						m.searchHistoryIndex++
+					} else {
+						m.searchHistoryIndex = -1
+					}
+					if m.searchHistoryIndex == -1 {
+						m.searchInput.SetValue("")
+					} else {
+						m.searchInput.SetValue(m.searchHistory[m.searchHistoryIndex])
+						m.searchInput.SetCursor(len(m.searchHistory[m.searchHistoryIndex]))
+					}
 				}
 				return m, nil
 			case "enter":
@@ -1989,19 +2006,28 @@ func (m model) View() string {
 
 	case stateSearchInput:
 		var bodyBuf strings.Builder
-		bodyBuf.WriteString(accentColorStyle.Render("Search Anime:") + "\n\n")
-		bodyBuf.WriteString(m.searchInput.View() + "\n\n")
+		bodyBuf.WriteString(accentColorStyle.Render("🔍 SEARCH ANIME DATABASE") + "\n\n")
+
+		// Create a nice bordered frame for the search input box
+		inputBoxStyle := lipgloss.NewStyle().
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("#7aa2f7")).
+			Padding(0, 1).
+			Width(40)
+		bodyBuf.WriteString(inputBoxStyle.Render(m.searchInput.View()) + "\n\n")
 
 		if len(m.searchHistory) > 0 {
-			bodyBuf.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("#565f89")).Bold(true).Render("Recent Searches:") + "\n")
+			bodyBuf.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("#bb9af7")).Bold(true).Render("◆ Recent Search History ◆") + "\n\n")
 			for i, q := range m.searchHistory {
 				if i == m.searchHistoryIndex {
-					bodyBuf.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("#7aa2f7")).Render(fmt.Sprintf("  ❯ %s", q)) + "\n")
+					bodyBuf.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("#2ac3de")).Bold(true).Render(fmt.Sprintf("  👉 %s", q)) + "\n")
 				} else {
-					bodyBuf.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("#9ece6a")).Render(fmt.Sprintf("    %s", q)) + "\n")
+					bodyBuf.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("#565f89")).Render(fmt.Sprintf("    • %s", q)) + "\n")
 				}
 			}
 			bodyBuf.WriteString("\n")
+		} else {
+			bodyBuf.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("#565f89")).Italic(true).Render("Your search history is empty. Try searching for popular titles like \"Frieren\" or \"Bleach\"!") + "\n")
 		}
 		s.WriteString(bodyStyle.Render(bodyBuf.String()))
 		s.WriteString("\n\n" + helpStyle("enter: search | up/down: browse history | esc: cancel"))
