@@ -2279,6 +2279,11 @@ func (m model) View() string {
 		)
 
 		playerView := playerBorder.Render(playerContent)
+		// Ensure bodyStr ends with a newline to prevent the player bar's top border
+		// from concatenating on the same line as the body's last line.
+		if !strings.HasSuffix(bodyStr, "\n") {
+			bodyStr += "\n"
+		}
 		// Push player bar flush to the bottom with no gap
 		bodyHeight := lipgloss.Height(bodyStr)
 		playerHeight := lipgloss.Height(playerView)
@@ -3021,7 +3026,21 @@ func cleanHTML(input string) string {
 	s = strings.ReplaceAll(s, "”", "\"")
 	s = strings.ReplaceAll(s, "–", "-")
 	s = strings.ReplaceAll(s, "—", "-")
-	s = strings.ReplaceAll(s, "…", "...")
+	s = strings.ReplaceAll(s, "\u2026", "...")
+
+	// Collapse runs of spaces (not newlines) and trim trailing whitespace per line
+	reSpaces := regexp.MustCompile(` {2,}`)
+	lines := strings.Split(s, "\n")
+	for i, line := range lines {
+		line = reSpaces.ReplaceAllString(line, " ")
+		lines[i] = strings.TrimRight(line, " \t")
+	}
+	s = strings.Join(lines, "\n")
+
+	// Collapse 3+ consecutive blank lines down to a single blank line
+	reBlankLines := regexp.MustCompile(`\n{3,}`)
+	s = reBlankLines.ReplaceAllString(s, "\n\n")
+
 	return strings.TrimSpace(s)
 }
 
