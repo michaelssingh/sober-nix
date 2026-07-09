@@ -7,19 +7,21 @@ import (
 )
 
 type Config struct {
-	Autoplay         bool   `json:"autoplay"`
-	Autoskip         bool   `json:"autoskip"`
-	SkipFillers      bool   `json:"skip_fillers"`
-	AnilistToken     string `json:"anilist_token"`
-	MalToken         string `json:"mal_token"`
-	PreferredMode    string `json:"preferred_mode"`    // sub, dub, dual
-	PreferredQuality string `json:"preferred_quality"` // best, 1080p, 720p, etc.
+	Autoplay         bool    `json:"autoplay"`
+	Autoskip         bool    `json:"autoskip"`
+	AutoskipDelay    float64 `json:"autoskip_delay"` // seconds of padding before skipping starts
+	SkipFillers      bool    `json:"skip_fillers"`
+	AnilistToken     string  `json:"anilist_token"`
+	MalToken         string  `json:"mal_token"`
+	PreferredMode    string  `json:"preferred_mode"`    // sub, dub, dual
+	PreferredQuality string  `json:"preferred_quality"` // best, 1080p, 720p, etc.
 }
 
 func getDefaultConfig() Config {
 	return Config{
 		Autoplay:         true,
 		Autoskip:         true,
+		AutoskipDelay:    3.0,
 		SkipFillers:      false,
 		PreferredMode:    "dual",
 		PreferredQuality: "best",
@@ -52,6 +54,9 @@ func loadConfig() Config {
 	}
 	if cfg.PreferredQuality == "" {
 		cfg.PreferredQuality = "best"
+	}
+	if cfg.AutoskipDelay <= 0 {
+		cfg.AutoskipDelay = 3.0
 	}
 	return cfg
 }

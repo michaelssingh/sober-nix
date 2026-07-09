@@ -56,8 +56,8 @@ mp.observe_property("time-pos", "number", function(_, val)
                 local skip_type = result.skipType
                 
                 -- Only skip Opening, Ending, and Recaps (preserving Prologues/Epilogues)
-                -- Add a 1.0 second safety pad to the start to ensure tail-end dialogue is not cut off
-                local padded_start = start_t + 1.0
+                -- Add autoskip_delay seconds of safety pad to the start so pre-OP dialogue is not cut off
+                local padded_start = start_t + autoskip_delay
                 if (skip_type == "op" or skip_type == "mixed-op" or skip_type == "ed" or skip_type == "mixed-ed" or skip_type == "recap") and val >= padded_start and val < end_t then
                     local skip_key = mal_id .. "_" .. ep_no .. "_" .. skip_type
                     if not current_skipped[skip_key] then

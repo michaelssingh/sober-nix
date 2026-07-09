@@ -245,8 +245,9 @@ local mal_id = %q
 local ep_no = %f
 local jikan_duration = %f
 local auto_skip = %t
+local autoskip_delay = %f
 local skip_times_json = %q
-`, malID, epVal, durationSeconds, cfg.Autoskip, string(skipTimesJSON)) + savePositionLua
+`, malID, epVal, durationSeconds, cfg.Autoskip, cfg.AutoskipDelay, string(skipTimesJSON)) + savePositionLua
 
 	tmpFile, err := os.CreateTemp("", "clare-save-position-*.lua")
 	if err != nil {

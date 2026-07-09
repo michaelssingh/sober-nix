@@ -340,6 +340,7 @@ type model struct {
 	fetchingSynopsis    map[string]bool
 	autoplay            bool
 	autoskip            bool
+	autoskipDelay       float64
 	skipFillers         bool
 	configCursor        int
 	triggerAutoplay     bool
@@ -498,6 +499,7 @@ func initialModel(initialSearch, mode, quality string, download bool) model {
 		fetchingSynopsis:   make(map[string]bool),
 		autoplay:           cfg.Autoplay,
 		autoskip:           cfg.Autoskip,
+		autoskipDelay:      cfg.AutoskipDelay,
 		skipFillers:        cfg.SkipFillers,
 		historyShowDetails: make(map[string]AnimeShow),
 		coverArtCache:      make(map[string]string),
@@ -1877,7 +1879,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				return m, nil
 			case "down", "j":
-				if m.configCursor < 4 {
+				if m.configCursor < 5 {
 					m.configCursor++
 				}
 				return m, nil
@@ -1891,6 +1893,18 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				case 2:
 					cfg.SkipFillers = !cfg.SkipFillers
 				case 3:
+					// Cycle delay: 1 → 2 → 3 → 5 → 1
+					delays := []float64{1.0, 2.0, 3.0, 5.0}
+					idx := -1
+					for i, d := range delays {
+						if d == cfg.AutoskipDelay {
+							idx = i
+							break
+						}
+					}
+					nextIdx := (idx + 1) % len(delays)
+					cfg.AutoskipDelay = delays[nextIdx]
+				case 4:
 					if cfg.PreferredMode == "sub" {
 						cfg.PreferredMode = "dub"
 					} else if cfg.PreferredMode == "dub" {
@@ -1898,7 +1912,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					} else {
 						cfg.PreferredMode = "sub"
 					}
-				case 4:
+				case 5:
 					qualities := []string{"best", "1080p", "720p", "480p", "360p"}
 					idx := -1
 					for i, q := range qualities {
@@ -1913,6 +1927,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				_ = saveConfig(cfg)
 				m.autoplay = cfg.Autoplay
 				m.autoskip = cfg.Autoskip
+				m.autoskipDelay = cfg.AutoskipDelay
 				m.skipFillers = cfg.SkipFillers
 				m.mode = cfg.PreferredMode
 				m.quality = cfg.PreferredQuality
@@ -2167,6 +2182,7 @@ func (m model) View() string {
 			{"Autoplay Next Episode", formatBool(cfg.Autoplay)},
 			{"Auto-skip Openings/Endings", formatBool(cfg.Autoskip)},
 			{"Automatically Skip Fillers", formatBool(cfg.SkipFillers)},
+			{"Autoskip Delay", fmt.Sprintf("%.0fs", cfg.AutoskipDelay)},
 			{"Preferred Translation Mode", strings.ToUpper(cfg.PreferredMode)},
 			{"Preferred Stream Quality", strings.ToUpper(cfg.PreferredQuality)},
 		}
@@ -3041,6 +3057,7 @@ func (m model) getConfig() Config {
 	cfg := loadConfig()
 	cfg.Autoplay = m.autoplay
 	cfg.Autoskip = m.autoskip
+	cfg.AutoskipDelay = m.autoskipDelay
 	cfg.SkipFillers = m.skipFillers
 	cfg.PreferredMode = m.mode
 	cfg.PreferredQuality = m.quality
