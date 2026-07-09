@@ -9,7 +9,7 @@
 
 buildGoModule {
   pname = "clare";
-  version = "0.1.32";
+  version = "0.1.33";
 
   src = ./.;
 

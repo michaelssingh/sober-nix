@@ -491,6 +491,7 @@ func pullFromAniList(token string, positions map[string]ShowState) (bool, error)
 						debugLog("[ERROR] PullSync: failed to update local history for %s: %v", showName, err)
 					} else {
 						debugLog("[INFO] PullSync: successfully added/updated %s Ep %s in history from AniList", showName, epStr)
+						changed = true
 					}
 				}
 			}
