@@ -22,7 +22,7 @@ var savePositionLua string
 func countAudioStreams(streamURL string) int {
 	cmd := exec.Command("ffprobe",
 		"-v", "error",
-		"-referer", AllAnimeReferer,
+		"-referer", StreamReferer, // Updated from AllAnimeReferer to prevent HTTP 403
 		"-user_agent", UserAgent,
 		"-select_streams", "a",
 		"-show_entries", "stream=index",
@@ -77,7 +77,6 @@ func fetchAniSkipTimes(malID string, epNo string, durationSeconds float64) []Ani
 		return nil
 	}
 
-	// 1. Try to load from local cache first
 	if cached := loadAniSkipCache(malID, cleanEp); cached != nil {
 		debugLog("fetchAniSkipTimes: cache hit for MAL %s Ep %s", malID, cleanEp)
 		return cached
@@ -118,7 +117,6 @@ func fetchAniSkipTimes(malID string, epNo string, durationSeconds float64) []Ani
 	}
 	debugLog("fetchAniSkipTimes: found %d skip times", len(result.Results))
 
-	// 2. Save results to local cache
 	saveAniSkipCache(malID, cleanEp, result.Results)
 
 	return result.Results
@@ -150,14 +148,13 @@ func parseJikanDuration(d string) float64 {
 		fmt.Sscanf(m, "%f", &val)
 		return val * 60
 	}
-	return 1440.0 // Default 24 mins
+	return 1440.0
 }
 
 func getMpvCmd(streamURL string, title string, epNo string, malID string, durationStr string, extraArgs []string) (*exec.Cmd, string, string, float64, string, error) {
 	durationSeconds := parseJikanDuration(durationStr)
 	epVal := parseEpisodeNumber(epNo)
 
-	// 1. Fetch AniSkip times synchronously and generate FFmpeg metadata chapters file first
 	tempChaptersFile := ""
 	var times []AniSkipResult
 	if malID != "" && malID != "0" {
@@ -231,7 +228,6 @@ func getMpvCmd(streamURL string, title string, epNo string, malID string, durati
 		}
 	}
 
-	// 2. Prepend injected configuration variables (including auto_skip and skip_times_json) to the savePositionLua content
 	cfg := loadConfig()
 	var skipTimesJSON []byte
 	if len(times) > 0 {
@@ -270,7 +266,7 @@ local skip_times_json = %q
 		"--tls-verify=no",
 		"--force-media-title=" + title + " - Episode " + epNo,
 		"--script=" + tmpFile.Name(),
-		"--http-header-fields=Referer: " + AllAnimeReferer + ",User-Agent: " + UserAgent,
+		"--http-header-fields=Referer: " + StreamReferer + ",User-Agent: " + UserAgent, // Updated from AllAnimeReferer
 		"--input-ipc-server=/tmp/clare-mpv.sock",
 		"--osc=yes",
 		"--keep-open=yes",
@@ -280,7 +276,6 @@ local skip_times_json = %q
 		args = append(args, "--chapters-file="+tempChaptersFile)
 	}
 
-	// Retrieve resume position from positions.json and append --start if present
 	startSeconds := 0.0
 	positions, err := loadPositions()
 	if err == nil && positions != nil && malID != "" {
@@ -328,14 +323,14 @@ func downloadCmd(streamURL, title, epNo string) *exec.Cmd {
 	var cmd *exec.Cmd
 	if _, err := exec.LookPath("yt-dlp"); err == nil {
 		cmd = exec.Command("yt-dlp",
-			"--referer", AllAnimeReferer,
+			"--referer", StreamReferer, // Updated from AllAnimeReferer to prevent HTTP 403
 			streamURL,
 			"-o", outputName+".mp4",
 		)
 	} else {
 		cmd = exec.Command("ffmpeg",
 			"-extension_picky", "0",
-			"-referer", AllAnimeReferer,
+			"-referer", StreamReferer, // Updated from AllAnimeReferer to prevent HTTP 403
 			"-i", streamURL,
 			"-c", "copy",
 			outputName+".mp4",
@@ -468,17 +463,14 @@ func loadFileInMpv(streamURL, title, epNo, malID string, extraArgs []string, dur
 	}
 	defer conn.Close()
 
-	// Stop current and load new stream
 	_, err = sendMpvCommand(conn, []interface{}{"loadfile", streamURL, "replace"})
 	if err != nil {
 		return err
 	}
 
-	// Update player window title
 	fullTitle := fmt.Sprintf("%s - Episode %s", title, epNo)
 	_, _ = sendMpvCommand(conn, []interface{}{"set_property", "force-media-title", fullTitle})
 
-	// Add external dub stream if dual-audio mapping is active
 	for _, arg := range extraArgs {
 		if strings.HasPrefix(arg, "--audio-file=") {
 			audioPath := strings.TrimPrefix(arg, "--audio-file=")
@@ -486,12 +478,9 @@ func loadFileInMpv(streamURL, title, epNo, malID string, extraArgs []string, dur
 		}
 	}
 
-	// Send update-episode-info message to update Lua variables for progress reporting and auto-skipping
 	_, _ = sendMpvCommand(conn, []interface{}{"script-message", "update-episode-info", malID, epNo, fmt.Sprintf("%f", durationSeconds), skipTimesJSON})
 
-	// Unpause MPV explicitly
 	_, _ = sendMpvCommand(conn, []interface{}{"set_property", "pause", false})
 
 	return nil
 }
-

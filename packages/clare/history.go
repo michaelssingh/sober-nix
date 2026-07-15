@@ -9,17 +9,17 @@ import (
 )
 
 type HistoryEntry struct {
-	ShowID     string `json:"show_id"`
-	ShowName   string `json:"show_name"`
-	Episode    string `json:"episode"`
-	Timestamp  int64  `json:"timestamp"`
+	ShowID    string `json:"show_id"`
+	ShowName  string `json:"show_name"`
+	Episode   string `json:"episode"`
+	Timestamp int64  `json:"timestamp"`
 	// Completed is set to true when AniList confirms COMPLETED status on pull,
 	// or when the user watches the final episode locally. This is the canonical
 	// completion signal — Clare never infers completion from episode count math alone.
-	Completed  bool   `json:"completed,omitempty"`
+	Completed bool `json:"completed,omitempty"`
 	// AnilistID caches the AniList media ID so syncToAniList can skip the
 	// MAL-to-AniList ID resolution API call on every episode advance.
-	AnilistID  int    `json:"anilist_id,omitempty"`
+	AnilistID int `json:"anilist_id,omitempty"`
 }
 
 func getHistoryPath() string {
@@ -280,4 +280,3 @@ func recordSearch(query string) error {
 
 	return saveSearchHistory(history)
 }
-

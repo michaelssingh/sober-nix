@@ -276,7 +276,7 @@ func TestLogStreamingAndFormatting(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to open log file for appending: %v", err)
 	}
-	
+
 	testMsg := "HTTP Request: GET https://api.jikan.moe/v4/anime/889"
 	_, _ = f.WriteString("[12:34:56] " + testMsg + "\n")
 	_ = f.Close()
@@ -423,7 +423,7 @@ func TestStreamCacheAndPrefetch(t *testing.T) {
 	expectedURL := "https://example.com/stream.m3u8"
 
 	cacheKey := fmt.Sprintf("%s-%s-%s-%s", showID, mode, epNo, quality)
-	
+
 	streamCacheMu.Lock()
 	streamCache[cacheKey] = expectedURL
 	streamCacheMu.Unlock()
@@ -460,9 +460,9 @@ func TestCompletedShowsFiltering(t *testing.T) {
 	showName := "Completed Show"
 
 	show := AnimeShow{
-		ID:        showID,
-		Name:      showName,
-		MALID:     malID,
+		ID:    showID,
+		Name:  showName,
+		MALID: malID,
 		AvailableEpisodes: map[string]any{
 			"sub": float64(12),
 		},
@@ -1342,7 +1342,7 @@ func TestEpisodeSynopsisLazyLoading(t *testing.T) {
 	if m.episodeDetails == nil {
 		m.episodeDetails = make(map[string]JikanEpInfo)
 	}
-	
+
 	// Create an update message with a mock synopsis
 	msg := episodeSynopsisMsg{
 		epNo:     "1",
@@ -1367,10 +1367,3 @@ func TestEpisodeSynopsisLazyLoading(t *testing.T) {
 		t.Errorf("Expected rendered details panel to contain synopsis text, got: %s", renderedDetails)
 	}
 }
-
-
-
-
-
-
-

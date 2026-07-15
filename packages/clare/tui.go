@@ -78,7 +78,7 @@ var (
 			Foreground(lipgloss.Color("#7dcfff")) // Tokyonight cyan/blue
 
 	subDubBadgeStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#bb9af7")) // Tokyonight magenta/purple
+				Foreground(lipgloss.Color("#bb9af7")) // Tokyonight magenta/purple
 )
 
 // List items definitions
@@ -161,7 +161,7 @@ func renderSmoothProgressBar(pct float64, width int) string {
 			bar.WriteString(" ")
 		}
 	}
-	
+
 	barStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#7dcfff")) // Tokyonight ice blue
 	return barStyle.Render(bar.String())
 }
@@ -172,7 +172,7 @@ type showItem struct {
 	show AnimeShow
 }
 
-func (s showItem) Title() string       { return s.show.Name }
+func (s showItem) Title() string { return s.show.Name }
 func (s showItem) Description() string {
 	var parts []string
 	if s.show.Type != "" {
@@ -302,7 +302,6 @@ type CoverArtLoadedMsg struct {
 	ShowID string
 	Ansi   string
 }
-
 
 type aniSkipCheckedMsg struct {
 	epNo  string
@@ -470,7 +469,7 @@ func initialModel(initialSearch, mode, quality string, download bool) model {
 			if len(parts) == 2 {
 				showName := parts[0]
 				epNo := parts[1]
-				
+
 				var foundShow AnimeShow
 				var found bool
 				hist, _ := loadHistory()
@@ -556,7 +555,6 @@ func (m *model) enterSearchState() {
 	m.searchHistoryIndex = -1
 }
 
-
 func (m *model) refreshHistory() {
 	rawHist, err := loadHistory()
 	if err != nil {
@@ -622,7 +620,7 @@ func (m *model) refreshHistory() {
 				if showState.ResumeState != nil {
 					// In-progress episode
 					nextVal := showState.ResumeState.Episode
-					
+
 					// Find the next uncompleted episode starting from the resume state
 					for {
 						isCompleted := false
@@ -643,7 +641,7 @@ func (m *model) refreshHistory() {
 						epStr = epStr[:len(epStr)-2]
 					}
 					item.nextEp = epStr
-					
+
 					// Compute progress based on maxCompleted
 					maxEp := 0.0
 					for _, cEp := range showState.CompletedEpisodes {
@@ -666,7 +664,7 @@ func (m *model) refreshHistory() {
 					} else {
 						nextVal = epVal
 					}
-					
+
 					// Find the next uncompleted episode starting from nextVal
 					for {
 						isCompleted := false
@@ -681,7 +679,7 @@ func (m *model) refreshHistory() {
 						}
 						nextVal += 1.0
 					}
-					
+
 					if item.totalEps > 0 {
 						if int(nextVal) <= item.totalEps || epVal >= float64(item.totalEps) {
 							if nextVal == float64(int(nextVal)) {
@@ -913,7 +911,6 @@ func (m *model) markEpisodeCompletedGo(epNo string) {
 	_ = savePositions(positions)
 }
 
-
 func humanAgo(ts int64) string {
 	if ts == 0 {
 		return "unknown"
@@ -1010,7 +1007,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.showItems = items
 		m.showList.SetItems(items)
-		
+
 		// If there is only one show, auto-select it and fetch episodes immediately
 		if len(msg.shows) == 1 {
 			m.selectedShow = msg.shows[0]
@@ -1058,7 +1055,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					var val int
 					fmt.Sscanf(ep, "%d", &val)
 					if val > 0 {
-						page := (val - 1) / 100 + 1
+						page := (val-1)/100 + 1
 						if _, ok := cacheData[ep]; ok {
 							m.loadedJikanPages[page] = true
 						}
@@ -1125,7 +1122,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			var val int
 			fmt.Sscanf(lastEp, "%d", &val)
 			if val > 0 {
-				page = (val - 1) / 100 + 1
+				page = (val-1)/100 + 1
 			}
 		}
 		m.loadedJikanPages[page] = true
@@ -1155,13 +1152,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						extraArgs = append(extraArgs, arg)
 					}
 				}
-				
+
 				debugLog("[INFO] Attempting to load next file in existing MPV via IPC...")
 				err := loadFileInMpv(streamURL, m.selectedShow.Name, m.selectedEp, m.selectedShow.MALID, extraArgs, msg.durationSeconds, msg.skipTimesJSON)
 				if err == nil {
 					debugLog("[INFO] Successfully loaded next episode via IPC!")
 					reused = true
-					
+
 					// Clean up the old temp files
 					if m.tempLuaFile != "" {
 						_ = os.Remove(m.tempLuaFile)
@@ -1169,10 +1166,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					if m.tempChaptersFile != "" {
 						_ = os.Remove(m.tempChaptersFile)
 					}
-					
+
 					m.tempLuaFile = msg.tempLuaFile
 					m.tempChaptersFile = msg.tempChaptersFile
-					
+
 					// Dynamically set new chapters-file in MPV
 					if msg.tempChaptersFile != "" {
 						conn, errIPC := net.DialTimeout("unix", "/tmp/clare-mpv.sock", 100*time.Millisecond)
@@ -1270,9 +1267,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.playbackActive {
 			if msg.err == nil {
 				m.mpvStatus = msg.status
-				
+
 				// Autoplay trigger: if playback time reaches near duration
-				if m.mpvStatus.Duration > 0 && m.mpvStatus.PlaybackTime >= m.mpvStatus.Duration - 1.5 {
+				if m.mpvStatus.Duration > 0 && m.mpvStatus.PlaybackTime >= m.mpvStatus.Duration-1.5 {
 					if m.autoplay && !m.triggerAutoplay {
 						m.triggerAutoplay = true
 						// Explicitly mark the current episode as completed in positions.json
@@ -1306,7 +1303,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, readClareLogsCmd(m.clareLogChan)
 		}
 		wasAtBottom := m.telemetryViewport.AtBottom()
-		
+
 		isMpvProgress := func(l string) bool {
 			return strings.Contains(l, "[MPV]") && strings.Contains(l, "AV:")
 		}
@@ -1319,7 +1316,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.telemetryLogs = m.telemetryLogs[len(m.telemetryLogs)-1000:]
 			}
 		}
-		
+
 		m.refreshLogsViewport()
 		if wasAtBottom {
 			m.telemetryViewport.GotoBottom()
@@ -1682,7 +1679,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			var cmd tea.Cmd
 			m.historyList, cmd = m.historyList.Update(msg)
-			
+
 			// Trigger details fetch for currently highlighted history item if not loaded
 			if selected, ok := m.historyList.SelectedItem().(historyItem); ok {
 				if selected.showID != m.lastSelectedShowID {
@@ -1902,7 +1899,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			var cmd tea.Cmd
 			m.episodeList, cmd = m.episodeList.Update(msg)
-			
+
 			var cmds []tea.Cmd
 			cmds = append(cmds, cmd)
 
@@ -1937,7 +1934,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					var val int
 					fmt.Sscanf(epItem.epNo, "%d", &val)
 					if val > 0 {
-						page := (val - 1) / 100 + 1
+						page := (val-1)/100 + 1
 						if !m.loadedJikanPages[page] {
 							m.loadedJikanPages[page] = true
 							cmds = append(cmds, doFetchJikanMetadata(m.selectedShow.MALID, page))
@@ -1981,7 +1978,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			var cmd tea.Cmd
 			m.sourceList, cmd = m.sourceList.Update(msg)
 			return m, cmd
-
 
 		case stateLogs:
 			switch msg.String() {
@@ -2335,7 +2331,7 @@ func (m model) View() string {
 	case stateConfig:
 		var cfgStrings []string
 		cfg := m.getConfig()
-		
+
 		options := []struct {
 			name  string
 			value string
@@ -2746,7 +2742,7 @@ func (m *model) refreshEpisodeListItems() {
 		})
 	}
 	m.episodeItems = items
-	
+
 	// Add sub/dub badge to the list title
 	var badge string
 	if subCount > 0 && dubCount > 0 {
@@ -2813,7 +2809,7 @@ func (m model) renderShowDetailsPanel(show AnimeShow, coverArtANSI string, width
 	titleStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#c0caf5"))
 	metaKeyStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#565f89"))
 	metaValStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#7dcfff"))
-	
+
 	// Build border style without a fixed height — only applied if content overflows
 	borderStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
@@ -2824,9 +2820,13 @@ func (m model) renderShowDetailsPanel(show AnimeShow, coverArtANSI string, width
 	// Format metadata lines
 	scoreStr := "N/A"
 	if show.Score > 0 {
-		stars := int(show.Score / 2.0 + 0.5)
-		if stars < 1 { stars = 1 }
-		if stars > 5 { stars = 5 }
+		stars := int(show.Score/2.0 + 0.5)
+		if stars < 1 {
+			stars = 1
+		}
+		if stars > 5 {
+			stars = 5
+		}
 		var starBuf strings.Builder
 		for i := 0; i < 5; i++ {
 			if i < stars {
@@ -2860,13 +2860,13 @@ func (m model) renderShowDetailsPanel(show AnimeShow, coverArtANSI string, width
 	if desc == "" {
 		desc = "No synopsis available."
 	}
-	
+
 	// Layout size calculations:
 	rightColWidth := width - 6
 	if rightColWidth < 15 {
 		rightColWidth = 15
 	}
-	
+
 	rightBodyStyle := lipgloss.NewStyle().Width(rightColWidth).Foreground(lipgloss.Color("#a9b1d6"))
 
 	// We calculate remaining lines in the container to truncate description gracefully
@@ -2943,7 +2943,7 @@ func (m model) renderEpisodeDetailsPanel(width, height int) string {
 	titleStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#c0caf5"))
 	metaKeyStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#565f89"))
 	metaValStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#7dcfff"))
-	
+
 	// Build border style without a fixed height — we'll set it only if content overflows
 	borderStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
@@ -2991,7 +2991,7 @@ func (m model) renderEpisodeDetailsPanel(width, height int) string {
 		classification = lipgloss.NewStyle().Foreground(lipgloss.Color("#565f89")).Render("Loading...")
 	}
 
-		// Layout size calculations:
+	// Layout size calculations:
 	rightColWidth := width - 6
 	if rightColWidth < 15 {
 		rightColWidth = 15
@@ -3026,8 +3026,12 @@ func (m model) renderEpisodeDetailsPanel(width, height int) string {
 				total := showState.ResumeState.TotalSeconds
 				if total > 0 {
 					pct := pos / total
-					if pct > 1.0 { pct = 1.0 }
-					if pct < 0.0 { pct = 0.0 }
+					if pct > 1.0 {
+						pct = 1.0
+					}
+					if pct < 0.0 {
+						pct = 0.0
+					}
 					progressBar = fmt.Sprintf("[%s] %d%% watched", renderSmoothProgressBar(pct, 12), int(pct*100))
 				}
 			}
@@ -3114,7 +3118,7 @@ func cleanHTML(input string) string {
 	s = reBr.ReplaceAllString(s, "\n")
 	reTags := regexp.MustCompile(`<[^>]*>`)
 	s = reTags.ReplaceAllString(s, "")
-	
+
 	// Normalize typographic punctuation to standard ASCII
 	s = strings.ReplaceAll(s, "’", "'")
 	s = strings.ReplaceAll(s, "‘", "'")
@@ -3269,13 +3273,13 @@ func (m *model) recalculateSizes() {
 			leftWidth = 35
 		}
 	}
-	
+
 	listHeight := m.dynamicListHeight()
 	m.historyList.SetSize(leftWidth, listHeight)
 	m.showList.SetSize(leftWidth, listHeight)
 	m.episodeList.SetSize(leftWidth, listHeight)
 	m.sourceList.SetSize(leftWidth, listHeight)
-	
+
 	m.telemetryViewport.Width = m.width - 4
 	m.telemetryViewport.Height = listHeight
 }
@@ -3381,7 +3385,7 @@ func wrapLogLine(line string, width int) string {
 	lines := strings.Split(wrappedContent, "\n")
 	var result []string
 	tsStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#565f89")) // dark gray for timestamp
-	
+
 	result = append(result, tsStyle.Render(timestamp)+lines[0])
 	indent := strings.Repeat(" ", 22)
 	for i := 1; i < len(lines); i++ {

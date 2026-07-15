@@ -11,7 +11,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-const Version = "0.1.39"
+const Version = "0.1.41"
 
 func main() {
 	searchQuery := flag.String("s", "", "Search query for anime")
@@ -249,9 +249,9 @@ func debugLog(format string, args ...any) {
 		}
 		dir = filepath.Join(stateHome, "clare")
 	}
-	_ = os.MkdirAll(dir, 0755)
+	_ = os.MkdirAll(dir, 0o755)
 	logFile := filepath.Join(dir, "debug.log")
-	f, err := os.OpenFile(logFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+	f, err := os.OpenFile(logFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
 	if err != nil {
 		return
 	}

@@ -92,7 +92,6 @@ func SyncAllHistory() {
 	}
 }
 
-
 // SyncProgress syncs the anime progress to AniList and/or MyAnimeList in the background.
 // completedLocally should be true only when Clare itself determines the show is finished
 // (i.e. the user watched the final episode in the AllAnime arc). Clare — not a remote

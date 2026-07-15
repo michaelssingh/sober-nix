@@ -19,13 +19,14 @@ import (
 )
 
 const (
-	AllAnimeReferer    = "https://mkissa.to/"
-	AllAnimeBase       = "allanime.day"
-	AllAnimeAPI        = "https://api.allanime.day/api"
-	UserAgent          = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/121.0"
-	allAnimeKeyPhrase  = "Xot36i3lK3:v1"
-	allAnimeQueryHash  = "d405d0edd690624b66baba3068e0edc3ac90f1597d898a1ec8db4e5c43c00fec"
-	allAnimeQueryOrigin = "https://mkissa.to"
+	AllAnimeReferer     = "https://youtu-chan.com"
+	StreamReferer       = "https://allanimenews.com/" // Required for Wixmp/HLS CDN and Clock Handshakes
+	AllAnimeBase        = "allanime.day"
+	AllAnimeAPI         = "https://api.allanime.day/api"
+	UserAgent           = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/121.0"
+	allAnimeKeyPhrase   = "Xot36i3lK3:v1"
+	allAnimeQueryHash   = "d405d0edd690624b66baba3068e0edc3ac90f1597d898a1ec8db4e5c43c00fec"
+	allAnimeQueryOrigin = "https://youtu-chan.com"
 )
 
 var (
@@ -54,8 +55,8 @@ var (
 		"10": "(", "11": ")", "12": "*", "13": "+", "14": ",",
 		"03": ";", "05": "=", "1d": "%",
 	}
-
-	linkPriorities = []string{"wixmp", "sharepoint", "mpv", "youtube"}
+	linkPriorities = []string{"wixmp", "yt-mp4", "s-mp4", "luf-mp4", "sharepoint", "mpv", "youtube"}
+	// linkPriorities = []string{"wixmp", "sharepoint", "mpv", "youtube"}
 )
 
 type AnimeShow struct {
@@ -72,10 +73,10 @@ type AnimeShow struct {
 	Type                    string              `json:"type"`
 	Score                   float64             `json:"score"`
 	Season                  struct {
-		Quarter string `json:"quarter"`
-		Year    int    `json:"year"`
+		Quarter string  `json:"quarter"`
+		Year    FlexInt `json:"year"`
 	} `json:"season"`
-	Duration                string              `json:"duration"`
+	Duration string `json:"duration"`
 }
 
 func (s AnimeShow) EpCount() int {
@@ -161,6 +162,28 @@ func (s AnimeShow) HasDub(ep string) bool {
 	return dubCount > 0 && epVal <= float64(dubCount)
 }
 
+type FlexInt int
+
+func (fi *FlexInt) UnmarshalJSON(b []byte) error {
+	if len(b) == 0 {
+		return nil
+	}
+	var i int
+	if err := json.Unmarshal(b, &i); err == nil {
+		*fi = FlexInt(i)
+		return nil
+	}
+	var s string
+	if err := json.Unmarshal(b, &s); err == nil {
+		var val int
+		if _, err := fmt.Sscanf(s, "%d", &val); err == nil {
+			*fi = FlexInt(val)
+		}
+		return nil
+	}
+	return nil
+}
+
 type SourceInfo struct {
 	SourceName string
 	SourceURL  string
@@ -214,22 +237,74 @@ func decodeToBeParsed(blob string) ([]SourceInfo, error) {
 
 	nonce := data[1:13]
 
+	// --- Try AES-256-CTR first (Current AllAnime mode) ---
+	plaintext, errCTR := decryptCTR(data, nonce)
+	if errCTR == nil {
+		debugLog("[DECRYPT-CTR] Succeeded. Plaintext: %s", string(plaintext))
+		if sources, parseErr := parseSourcePlaintext(plaintext); parseErr == nil {
+			return sources, nil
+		} else {
+			debugLog("[DECRYPT-CTR] Failed parsing source mapping: %v", parseErr)
+		}
+	} else {
+		debugLog("[DECRYPT-CTR] Decryption failed: %v", errCTR)
+	}
+
+	// --- Fallback: Try AES-256-GCM (Alternative mode) ---
+	plaintext, errGCM := decryptGCM(data, nonce)
+	if errGCM == nil {
+		debugLog("[DECRYPT-GCM] Succeeded. Plaintext: %s", string(plaintext))
+		if sources, parseErr := parseSourcePlaintext(plaintext); parseErr == nil {
+			return sources, nil
+		} else {
+			debugLog("[DECRYPT-GCM] Failed parsing source mapping: %v", parseErr)
+		}
+	} else {
+		debugLog("[DECRYPT-GCM] Decryption failed: %v", errGCM)
+	}
+
+	return nil, fmt.Errorf("decryption failed under both CTR and GCM modes")
+}
+
+func decryptCTR(data, nonce []byte) ([]byte, error) {
+	ciphertext := data[13 : len(data)-16]
+	ctrKey := sha256.Sum256([]byte(allAnimeKeyPhrase))
+
+	block, err := aes.NewCipher(ctrKey[:])
+	if err != nil {
+		return nil, err
+	}
+
+	iv := make([]byte, 16)
+	copy(iv[:12], nonce)
+	iv[15] = 0x02
+
+	stream := cipher.NewCTR(block, iv)
+	plaintext := make([]byte, len(ciphertext))
+	stream.XORKeyStream(plaintext, ciphertext)
+	return plaintext, nil
+}
+
+func decryptGCM(data, nonce []byte) ([]byte, error) {
 	block, err := aes.NewCipher(allAnimeKey)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create AES cipher: %w", err)
+		return nil, err
 	}
 
 	aesGCM, err := cipher.NewGCM(block)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create GCM: %w", err)
+		return nil, err
 	}
 
 	ciphertextWithTag := data[13:]
 	plaintext, err := aesGCM.Open(nil, nonce, ciphertextWithTag, nil)
 	if err != nil {
-		return nil, fmt.Errorf("GCM decrypt failed: %w", err)
+		return nil, err
 	}
+	return plaintext, nil
+}
 
+func parseSourcePlaintext(plaintext []byte) ([]SourceInfo, error) {
 	var result struct {
 		Data struct {
 			Episode struct {
@@ -314,7 +389,7 @@ func generateAAReq(qh string) (string, error) {
 
 func fetchEpisodeSources(showID, mode, episodeNo string) ([]SourceInfo, error) {
 	queryVars := fmt.Sprintf(`{"showId":"%s","translationType":"%s","episodeString":"%s"}`, showID, mode, episodeNo)
-	
+
 	aareq, err := generateAAReq(allAnimeQueryHash)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate aaReq: %w", err)
@@ -366,43 +441,123 @@ func fetchEpisodeSources(showID, mode, episodeNo string) ([]SourceInfo, error) {
 }
 
 func fetchProviderLinks(sourceURL string) (map[string]string, error) {
+	debugLog("[RESOLVE-CLOCK] Resolving clock payload on URL: %s", sourceURL)
+
+	// 1. Intercept direct fast4speed redirector (no clock query needed)
+	if strings.Contains(sourceURL, "fast4speed.rsvp") {
+		debugLog("[RESOLVE-CLOCK] fast4speed.rsvp direct intercept matched.")
+		return map[string]string{
+			"best": sourceURL,
+		}, nil
+	}
+
+	// 2. Intercept Mp4Upload landing page and parse the raw video source
+	if strings.Contains(sourceURL, "mp4upload.com") {
+		debugLog("[RESOLVE-CLOCK] Mp4Upload direct intercept matched.")
+		headers := map[string]string{
+			"User-Agent": UserAgent,
+			"Referer":    "https://www.mp4upload.com",
+		}
+		body, err := doHTTPReqWithRetry("GET", sourceURL, nil, headers)
+		if err != nil {
+			return nil, err
+		}
+
+		re := regexp.MustCompile(`src:\s*"([^"]+)"`)
+		if m := re.FindStringSubmatch(string(body)); len(m) >= 2 {
+			debugLog("[RESOLVE-CLOCK] Mp4Upload stream URL resolved: %s", m[1])
+			return map[string]string{
+				"best": m[1],
+			}, nil
+		}
+		return nil, fmt.Errorf("mp4upload: failed to parse source link")
+	}
+
+	// 3. Fallback: Standard AllAnime internal clock endpoint (Must use StreamReferer)
 	headers := map[string]string{
 		"User-Agent": UserAgent,
-		"Referer":    AllAnimeReferer,
+		"Referer":    StreamReferer, // Force https://allanimenews.com/ to unlock hidden links
 	}
 	body, err := doHTTPReqWithRetry("GET", sourceURL, nil, headers)
 	if err != nil {
 		return nil, err
 	}
 
+	debugLog("[RESOLVE-CLOCK] Received raw response body: %s", string(body))
+
 	links := make(map[string]string)
-	var clockResp ClockResponse
-	if err := json.Unmarshal(body, &clockResp); err == nil {
-		for _, l := range clockResp.Links {
+
+	// Try unmarshaling as a raw JSON array of LinkEntry (Wixmp/HLS format)
+	var linksArr []LinkEntry
+	if err := json.Unmarshal(body, &linksArr); err == nil {
+		debugLog("[RESOLVE-CLOCK] Successfully unmarshaled raw array []LinkEntry")
+		for _, l := range linksArr {
 			quality := l.ResolutionStr
 			if quality == "" && l.HLS {
 				quality = "hls"
 			}
-			if quality != "" {
+			// Only store if the link value is actually present
+			if l.Link != "" && quality != "" {
 				links[quality] = strings.ReplaceAll(l.Link, "\\", "")
+			}
+		}
+	} else {
+		debugLog("[RESOLVE-CLOCK] Array []LinkEntry unmarshal failed: %v. Retrying as ClockResponse object...", err)
+		// Fall back to the ClockResponse object format
+		var clockResp ClockResponse
+		if err := json.Unmarshal(body, &clockResp); err == nil {
+			debugLog("[RESOLVE-CLOCK] Successfully unmarshaled ClockResponse object.")
+			for _, l := range clockResp.Links {
+				quality := l.ResolutionStr
+				if quality == "" && l.HLS {
+					quality = "hls"
+				}
+				// Only store if the link value is actually present
+				if l.Link != "" && quality != "" {
+					links[quality] = strings.ReplaceAll(l.Link, "\\", "")
+				}
+			}
+		} else {
+			debugLog("[RESOLVE-CLOCK] ClockResponse object unmarshal failed: %v", err)
+		}
+	}
+
+	// Apply robust regex fallbacks if JSON unmarshaling fails to map links
+	if len(links) == 0 {
+		debugLog("[RESOLVE-CLOCK] Zero links unmarshaled. Falling back to default regexes...")
+		reVideo := regexp.MustCompile(`"link":"([^"]*)".*?"resolutionStr":"([^"]*)"`)
+		for _, m := range reVideo.FindAllStringSubmatch(string(body), -1) {
+			if len(m) >= 3 {
+				links[m[2]] = strings.ReplaceAll(m[1], "\\", "")
+			}
+		}
+
+		reHLS := regexp.MustCompile(`"hls":true.*?"link":"([^"]*)"`)
+		for _, m := range reHLS.FindAllStringSubmatch(string(body), -1) {
+			if len(m) >= 2 {
+				links["hls"] = strings.ReplaceAll(m[1], "\\", "")
 			}
 		}
 	}
 
-	reVideo := regexp.MustCompile(`"link":"([^"]*)".*?"resolutionStr":"([^"]*)"`)
-	for _, m := range reVideo.FindAllStringSubmatch(string(body), -1) {
-		if len(m) >= 3 {
-			links[m[2]] = strings.ReplaceAll(m[1], "\\", "")
+	// Ultimate wildcard matcher in case key ordering is reversed or different
+	if len(links) == 0 {
+		debugLog("[RESOLVE-CLOCK] Zero links parsed by standard regexes. Falling back to ultimate wildcard matching...")
+		re := regexp.MustCompile(`"(link|url)"\s*:\s*"([^"]+)"`)
+		matches := re.FindAllStringSubmatch(string(body), -1)
+		for _, m := range matches {
+			if len(m) >= 3 {
+				urlVal := strings.ReplaceAll(m[2], "\\", "")
+				if strings.Contains(urlVal, "m3u8") {
+					links["hls"] = urlVal
+				} else {
+					links["best"] = urlVal
+				}
+			}
 		}
 	}
 
-	reHLS := regexp.MustCompile(`"hls":true.*?"link":"([^"]*)"`)
-	for _, m := range reHLS.FindAllStringSubmatch(string(body), -1) {
-		if len(m) >= 2 {
-			links["hls"] = strings.ReplaceAll(m[1], "\\", "")
-		}
-	}
-
+	debugLog("[RESOLVE-CLOCK] Final resolved maps: %+v", links)
 	return links, nil
 }
 
@@ -653,18 +808,31 @@ func doHTTPReqWithRetry(method, url string, payload []byte, headers map[string]s
 			req.Header.Set(k, v)
 		}
 
+		// Inside client.go -> doHTTPReqWithRetry()
 		if strings.Contains(url, "allanime") || strings.Contains(url, "allmanga") || strings.Contains(url, "mkissa") || strings.Contains(url, "youtube-anime") || strings.Contains(url, "allanimenews") {
-			req.Header.Set("x-build-id", "11")
-			if req.Header.Get("Origin") == "" {
-				req.Header.Set("Origin", "https://mkissa.to")
+			// CRITICAL: x-build-id, Origin, and Cookie are ONLY sent to the GraphQL API endpoint (/api).
+			// We check req.URL.Path strictly to prevent matching "/apivtwo/clock.json" which contains the substring "api".
+			if req.URL.Path == "/api" || req.URL.Path == "/api/" {
+				req.Header.Set("x-build-id", "11")
+				if req.Header.Get("Origin") == "" {
+					req.Header.Set("Origin", "https://youtu-chan.com")
+				}
+				if cookieVal != "" {
+					req.Header.Set("Cookie", cookieVal)
+				}
 			}
+
 			if req.Header.Get("Referer") == "" {
-				req.Header.Set("Referer", "https://mkissa.to/")
-			}
-			if cookieVal != "" {
-				req.Header.Set("Cookie", cookieVal)
+				req.Header.Set("Referer", "https://youtu-chan.com")
 			}
 		}
+
+		// Log detailed request fingerprinting
+		var headerLogs []string
+		for k, v := range req.Header {
+			headerLogs = append(headerLogs, fmt.Sprintf("%s: %s", k, strings.Join(v, ",")))
+		}
+		debugLog("[API-REQ] Attempt %d: %s %s | Headers: %s", attempt, method, url, strings.Join(headerLogs, "; "))
 
 		var resp *http.Response
 		resp, err = client.Do(req)
@@ -672,9 +840,20 @@ func doHTTPReqWithRetry(method, url string, payload []byte, headers map[string]s
 			defer resp.Body.Close()
 			body, err = io.ReadAll(resp.Body)
 			if err == nil {
-				isTransientError := resp.StatusCode == 502 || resp.StatusCode == 503 || resp.StatusCode == 504 || resp.StatusCode == 429
+				// Verbose error body capture
+				if resp.StatusCode != http.StatusOK {
+					bodySnippet := string(body)
+					if len(bodySnippet) > 300 {
+						bodySnippet = bodySnippet[:300] + "..."
+					}
+					debugLog("[API-RESP-ERR] Status %d on %s | Body payload: %s", resp.StatusCode, url, bodySnippet)
+				} else {
+					debugLog("[API-RESP-SUCCESS] Status 200 on %s", url)
+				}
+
+				isTransientError := resp.StatusCode == 500 || resp.StatusCode == 502 || resp.StatusCode == 503 || resp.StatusCode == 504 || resp.StatusCode == 429
 				bodyStr := string(body)
-				if !isTransientError && (strings.Contains(bodyStr, "error code: 502") || strings.Contains(bodyStr, "error code: 503")) {
+				if !isTransientError && (strings.Contains(bodyStr, "error code: 502") || strings.Contains(bodyStr, "error code: 503") || strings.Contains(bodyStr, "error code: 500")) {
 					isTransientError = true
 				}
 
@@ -724,14 +903,12 @@ func getHumanReadableRequestLog(method, urlStr string, body []byte) string {
 		return fmt.Sprintf("HTTP Request: %s %s", method, urlStr)
 	}
 
-	// 1. AllAnime GraphQL (POST to https://api.allanime.day/api)
 	if u.Host == "api.allanime.day" && u.Path == "/api" && method == "POST" {
 		var payload struct {
 			Query     string                 `json:"query"`
 			Variables map[string]interface{} `json:"variables"`
 		}
 		if json.Unmarshal(body, &payload) == nil && payload.Variables != nil {
-			// Search Query
 			if search, ok := payload.Variables["search"].(map[string]interface{}); ok {
 				if q, _ := search["query"].(string); q != "" {
 					translation := "sub"
@@ -741,7 +918,6 @@ func getHumanReadableRequestLog(method, urlStr string, body []byte) string {
 					return fmt.Sprintf("[API] Search Anime: %q (%s)", q, translation)
 				}
 			}
-			// Episode List Query
 			if showID, _ := payload.Variables["showId"].(string); showID != "" {
 				translation := "sub"
 				if t, _ := payload.Variables["translationType"].(string); t != "" {
@@ -756,7 +932,6 @@ func getHumanReadableRequestLog(method, urlStr string, body []byte) string {
 		}
 	}
 
-	// 2. AllAnime GET Resolve Request (e.g. GET https://api.allanime.day/api?variables=...)
 	if u.Host == "api.allanime.day" && u.Path == "/api" && method == "GET" {
 		q := u.Query()
 		if varsStr := q.Get("variables"); varsStr != "" {
@@ -777,12 +952,10 @@ func getHumanReadableRequestLog(method, urlStr string, body []byte) string {
 		}
 	}
 
-	// 3. AllAnime Clock Sync (GET /apivtwo/clock.json)
 	if u.Host == "allanime.day" && u.Path == "/apivtwo/clock.json" {
 		return "[API] Fetch Server Clock"
 	}
 
-	// 4. Jikan MAL requests (e.g. /v4/anime/{id}/episodes)
 	if u.Host == "api.jikan.moe" {
 		parts := strings.Split(u.Path, "/")
 		if len(parts) >= 4 && parts[1] == "v4" && parts[2] == "anime" {
@@ -805,7 +978,6 @@ func getHumanReadableRequestLog(method, urlStr string, body []byte) string {
 		return fmt.Sprintf("[MAL] Request: %s %s", method, u.Path)
 	}
 
-	// 5. AniSkip requests (e.g. /v1/skip-times/{malId}/{epNo})
 	if u.Host == "api.aniskip.com" {
 		parts := strings.Split(u.Path, "/")
 		if len(parts) >= 5 && parts[1] == "v1" && parts[2] == "skip-times" {
@@ -885,4 +1057,3 @@ func fetchAllResolvedStreams(showID, mode, episodeNo string) ([]ResolvedStream, 
 
 	return results, nil
 }
-
