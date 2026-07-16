@@ -200,11 +200,17 @@ type ClockResponse struct {
 }
 
 func decodeSourceURL(encoded string) string {
-	encoded = strings.TrimPrefix(encoded, "--")
+	if strings.HasPrefix(encoded, "http://") || strings.HasPrefix(encoded, "https://") {
+		return encoded
+	}
+
+	// Strip legacy "--" prefix if present
+	stripped := strings.TrimPrefix(encoded, "--")
+
 	var result strings.Builder
-	result.Grow(len(encoded))
-	for i := 0; i+1 < len(encoded); i += 2 {
-		pair := encoded[i : i+2]
+	result.Grow(len(stripped))
+	for i := 0; i+1 < len(stripped); i += 2 {
+		pair := stripped[i : i+2]
 		if val, exists := hexSubstitutionTable[pair]; exists {
 			result.WriteString(val)
 		} else {
@@ -216,7 +222,11 @@ func decodeSourceURL(encoded string) string {
 	if strings.HasPrefix(decoded, "/") {
 		decoded = fmt.Sprintf("https://%s%s", AllAnimeBase, decoded)
 	}
-	return decoded
+	// If the decoded result looks like a valid URL, use it; otherwise return original
+	if strings.HasPrefix(decoded, "http://") || strings.HasPrefix(decoded, "https://") || strings.HasPrefix(decoded, "/") {
+		return decoded
+	}
+	return encoded
 }
 
 func decodeToBeParsed(blob string) ([]SourceInfo, error) {
