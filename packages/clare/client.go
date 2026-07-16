@@ -193,6 +193,7 @@ type LinkEntry struct {
 	Link          string `json:"link"`
 	ResolutionStr string `json:"resolutionStr"`
 	HLS           bool   `json:"hls"`
+	Mp4           bool   `json:"mp4"`
 }
 
 type ClockResponse struct {
@@ -334,6 +335,27 @@ func parseSourcePlaintext(plaintext []byte) ([]SourceInfo, error) {
 				SourceURL:  decodeSourceURL(su.SourceURL),
 			})
 		}
+		return sources, nil
+	}
+
+	// Also try top-level {"episode":{...}} structure (CTR decryption path)
+	var topLevel struct {
+		Episode struct {
+			SourceUrls []struct {
+				SourceURL  string `json:"sourceUrl"`
+				SourceName string `json:"sourceName"`
+			} `json:"sourceUrls"`
+		} `json:"episode"`
+	}
+	if err := json.Unmarshal(plaintext, &topLevel); err == nil && len(topLevel.Episode.SourceUrls) > 0 {
+		var sources []SourceInfo
+		for _, su := range topLevel.Episode.SourceUrls {
+			sources = append(sources, SourceInfo{
+				SourceName: su.SourceName,
+				SourceURL:  decodeSourceURL(su.SourceURL),
+			})
+		}
+		debugLog("[PARSE-SOURCES] Parsed %d sources from top-level episode structure", len(sources))
 		return sources, nil
 	}
 
@@ -497,19 +519,36 @@ func fetchProviderLinks(sourceURL string) (map[string]string, error) {
 
 	links := make(map[string]string)
 
+	// extractLinks processes a slice of LinkEntry and populates the links map.
+	// If an entry has mp4:true but no link URL, it signals a direct-play source;
+	// return a special sentinel so the caller can use sourceURL directly.
+	extractLinks := func(entries []LinkEntry) bool {
+		directPlay := false
+		for _, l := range entries {
+			if l.Link != "" {
+				quality := l.ResolutionStr
+				if quality == "" && l.HLS {
+					quality = "hls"
+				}
+				if quality == "" {
+					quality = "best"
+				}
+				links[quality] = strings.ReplaceAll(l.Link, "\\", "")
+			} else if l.Mp4 {
+				// mp4:true with no link = API signals use the sourceURL directly
+				directPlay = true
+			}
+		}
+		return directPlay
+	}
+
 	// Try unmarshaling as a raw JSON array of LinkEntry (Wixmp/HLS format)
 	var linksArr []LinkEntry
 	if err := json.Unmarshal(body, &linksArr); err == nil {
 		debugLog("[RESOLVE-CLOCK] Successfully unmarshaled raw array []LinkEntry")
-		for _, l := range linksArr {
-			quality := l.ResolutionStr
-			if quality == "" && l.HLS {
-				quality = "hls"
-			}
-			// Only store if the link value is actually present
-			if l.Link != "" && quality != "" {
-				links[quality] = strings.ReplaceAll(l.Link, "\\", "")
-			}
+		if extractLinks(linksArr) && len(links) == 0 {
+			debugLog("[RESOLVE-CLOCK] mp4:true with no link URL — skipping broken source")
+			return nil, fmt.Errorf("mp4:true response with no link URL (server returned incomplete payload)")
 		}
 	} else {
 		debugLog("[RESOLVE-CLOCK] Array []LinkEntry unmarshal failed: %v. Retrying as ClockResponse object...", err)
@@ -517,15 +556,9 @@ func fetchProviderLinks(sourceURL string) (map[string]string, error) {
 		var clockResp ClockResponse
 		if err := json.Unmarshal(body, &clockResp); err == nil {
 			debugLog("[RESOLVE-CLOCK] Successfully unmarshaled ClockResponse object.")
-			for _, l := range clockResp.Links {
-				quality := l.ResolutionStr
-				if quality == "" && l.HLS {
-					quality = "hls"
-				}
-				// Only store if the link value is actually present
-				if l.Link != "" && quality != "" {
-					links[quality] = strings.ReplaceAll(l.Link, "\\", "")
-				}
+			if extractLinks(clockResp.Links) && len(links) == 0 {
+				debugLog("[RESOLVE-CLOCK] mp4:true with no link URL — skipping broken source")
+				return nil, fmt.Errorf("mp4:true response with no link URL (server returned incomplete payload)")
 			}
 		} else {
 			debugLog("[RESOLVE-CLOCK] ClockResponse object unmarshal failed: %v", err)
