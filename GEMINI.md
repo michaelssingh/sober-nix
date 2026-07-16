@@ -139,12 +139,14 @@ NIX_REMOTE=daemon /nix/var/nix/profiles/default/bin/nix \
   Do not attempt `systemctl enable/start nix-daemon` — it will fail with "Host is down".
 
 ### Build & Verification Command (on Remote VM)
-This replaces `nixos-rebuild build --flake .` which only works on NixOS hosts:
+This replaces `nixos-rebuild build --flake .` which only works on NixOS hosts. We run it efficiently by pushing the build outputs directly to Cachix:
 ```bash
-NIX_REMOTE=daemon /nix/var/nix/profiles/default/bin/nix build \
+NIX_REMOTE=daemon /home/sprite/.nix-profile/bin/nix build \
   .#nixosConfigurations.otus.config.system.build.toplevel \
+  --print-out-paths \
   --no-link \
-  --extra-experimental-features 'nix-command flakes'
+  --extra-experimental-features 'nix-command flakes' \
+  | xargs -r env NIX_REMOTE=daemon /home/sprite/.nix-profile/bin/cachix push sober-nix
 ```
 Never consider a task complete without a successful build.
 
