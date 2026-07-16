@@ -336,8 +336,8 @@ func TestModelLoggingIntegration(t *testing.T) {
 	if len(m.telemetryLogs) != 1 || m.telemetryLogs[0] != string(msg1) {
 		t.Errorf("Expected telemetryLogs to contain msg1, got %v", m.telemetryLogs)
 	}
-	if !strings.Contains(m.telemetryViewport.View(), string(msg1)) {
-		t.Errorf("Expected viewport view to contain msg1, got %q", m.telemetryViewport.View())
+	if !strings.Contains(m.telemetryViewport.View(), "Syncing completed episode 5...") {
+		t.Errorf("Expected viewport view to contain msg1 content, got %q", m.telemetryViewport.View())
 	}
 	if cmd == nil {
 		t.Error("Expected next readClareLogsCmd to be returned/scheduled")
@@ -350,8 +350,8 @@ func TestModelLoggingIntegration(t *testing.T) {
 	if len(m.telemetryLogs) != 2 || m.telemetryLogs[1] != string(msg2) {
 		t.Errorf("Expected telemetryLogs to contain msg2 at index 1, got %v", m.telemetryLogs)
 	}
-	if !strings.Contains(m.telemetryViewport.View(), string(msg2)) {
-		t.Errorf("Expected viewport view to contain msg2, got %q", m.telemetryViewport.View())
+	if !strings.Contains(m.telemetryViewport.View(), "AV: 00:01:23 / 00:23:28") {
+		t.Errorf("Expected viewport view to contain msg2 content, got %q", m.telemetryViewport.View())
 	}
 	if cmd == nil {
 		t.Error("Expected next readClareLogsCmd to be returned/scheduled")

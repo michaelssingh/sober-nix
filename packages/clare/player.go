@@ -262,11 +262,23 @@ local skip_times_json = %q
 	}
 	tmpFile.Close()
 
+	referer := StreamReferer
+	if strings.Contains(streamURL, "mp4upload.com") {
+		referer = "https://www.mp4upload.com/"
+	} else if strings.Contains(streamURL, "fast4speed") {
+		referer = ""
+	}
+
+	headerFields := "User-Agent: " + UserAgent
+	if referer != "" {
+		headerFields = "Referer: " + referer + ",User-Agent: " + UserAgent
+	}
+
 	args := []string{
 		"--tls-verify=no",
 		"--force-media-title=" + title + " - Episode " + epNo,
 		"--script=" + tmpFile.Name(),
-		"--http-header-fields=Referer: " + StreamReferer + ",User-Agent: " + UserAgent, // Updated from AllAnimeReferer
+		"--http-header-fields=" + headerFields,
 		"--input-ipc-server=/tmp/clare-mpv.sock",
 		"--osc=yes",
 		"--keep-open=yes",
