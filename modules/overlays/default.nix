@@ -82,6 +82,10 @@
       src = inputs.neomutt-src;
     });
 
+    castero = prev.castero.overrideAttrs (_old: {
+      doCheck = false;
+    });
+
     hydroxide = prev.hydroxide.overrideAttrs (_old: rec {
       version = "0.2.32";
       src = final.fetchFromGitHub {
