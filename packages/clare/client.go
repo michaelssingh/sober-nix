@@ -55,7 +55,7 @@ var (
 		"10": "(", "11": ")", "12": "*", "13": "+", "14": ",",
 		"03": ";", "05": "=", "1d": "%",
 	}
-	linkPriorities = []string{"wixmp", "yt-mp4", "s-mp4", "luf-mp4", "sharepoint", "mpv", "youtube"}
+	linkPriorities = []string{"wixmp", "default", "mp4", "s-mp4", "luf-mp4", "sharepoint", "mpv", "youtube", "yt-mp4"}
 	// linkPriorities = []string{"wixmp", "sharepoint", "mpv", "youtube"}
 )
 
@@ -769,7 +769,15 @@ func resolveStreamURL(showID, mode, episodeNo, quality string) (string, error) {
 
 	for _, prioDomain := range linkPriorities {
 		for _, src := range sources {
-			if strings.Contains(strings.ToLower(src.SourceName), prioDomain) {
+			nameLower := strings.ToLower(src.SourceName)
+			urlLower := strings.ToLower(src.SourceURL)
+			matched := false
+			if prioDomain == "mp4" {
+				matched = (nameLower == "mp4")
+			} else {
+				matched = strings.Contains(nameLower, prioDomain) || strings.Contains(urlLower, prioDomain)
+			}
+			if matched {
 				links, err := fetchProviderLinks(src.SourceURL)
 				if err == nil {
 					best := selectBestLink(links, quality)

@@ -320,21 +320,28 @@ func downloadCmd(streamURL, title, epNo string) *exec.Cmd {
 	outputName := fmt.Sprintf("%s - Episode %s", title, epNo)
 	outputName = strings.ReplaceAll(outputName, "/", "-")
 
+	referer := StreamReferer
+	if strings.Contains(streamURL, "mp4upload.com") {
+		referer = "https://www.mp4upload.com/"
+	} else if strings.Contains(streamURL, "fast4speed") {
+		referer = ""
+	}
+
 	var cmd *exec.Cmd
 	if _, err := exec.LookPath("yt-dlp"); err == nil {
-		cmd = exec.Command("yt-dlp",
-			"--referer", StreamReferer, // Updated from AllAnimeReferer to prevent HTTP 403
-			streamURL,
-			"-o", outputName+".mp4",
-		)
+		args := []string{}
+		if referer != "" {
+			args = append(args, "--referer", referer)
+		}
+		args = append(args, streamURL, "-o", outputName+".mp4")
+		cmd = exec.Command("yt-dlp", args...)
 	} else {
-		cmd = exec.Command("ffmpeg",
-			"-extension_picky", "0",
-			"-referer", StreamReferer, // Updated from AllAnimeReferer to prevent HTTP 403
-			"-i", streamURL,
-			"-c", "copy",
-			outputName+".mp4",
-		)
+		args := []string{"-extension_picky", "0"}
+		if referer != "" {
+			args = append(args, "-referer", referer)
+		}
+		args = append(args, "-i", streamURL, "-c", "copy", outputName+".mp4")
+		cmd = exec.Command("ffmpeg", args...)
 	}
 	return cmd
 }
