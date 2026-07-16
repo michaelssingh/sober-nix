@@ -14,10 +14,6 @@
   # --- 2. Graphics (Hardware Acceleration) ---
   hardware.graphics = {
     enable = true;
-    extraPackages = with pkgs; [
-      libvdpau-va-gl
-      libva-vdpau-driver
-    ];
   };
 
   # --- 3. Fonts ---

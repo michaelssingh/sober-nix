@@ -38,7 +38,7 @@ in
       extraConfig = ''
         # Allow stepping the clock if the adjustment is larger than 1 second
         # for the first 3 updates.
-        makestep 1.0 3
+        makestep 1.0 -1
 
         # NTS bootstrap: ignore certificate expiration if the clock is not yet synced.
         # This allows NTS to work even if the clock is far in the past.

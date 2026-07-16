@@ -38,8 +38,8 @@ in
         "browser.compactmode.show" = true;
         "browser.sessionstore.interval" = 600000; # 10 minutes for crash resilience
         "network.prefetch-next" = false; # Do not prefetch links
-        "layers.acceleration.force-enabled" = false;
-        "gfx.webrender.enabled" = false;
+        "layers.acceleration.force-enabled" = true;
+        "gfx.webrender.enabled" = true;
         "media.ffmpeg.vaapi.enabled" = true;
         "media.ffvpx.enabled" = false;
         "media.rdd-ffmpeg.enabled" = true;

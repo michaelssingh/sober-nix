@@ -53,24 +53,35 @@ in
         webpage = {
           inherit (colors) bg;
           darkmode = {
-            enabled = true;
+            enabled = false;
             policy.page = "smart";
-            # Note: 'background_color' might not exist in all versions,
-            # if this causes an error, remove the following line.
           };
-          preferred_color_scheme = "dark";
+          preferred_color_scheme = "light";
         };
       };
+
       fonts.default_family = "FiraCode Nerd Font Mono";
+
       qt.args = [
-        "disable-features=Vp9VideoDecoder,Av1VideoDecoder"
+        # 1. Bypass conservative Chromium GPU driver blocklists
+        "ignore-gpu-blocklist"
+        "enable-gpu-rasterization"
+        "enable-zero-copy"
+
+        # 3. Hardware-matched features (Enables H.264/HEVC decoding while stripping broken encoding flags)
+        "enable-features=VaapiVideoDecoder,CanvasOopRasterization,ZeroCopy,WebRTCPipeWireCapturer,OverlayScrollbar"
+
+        # 4. Clean feature exclusions without clobbering global video hardware decoding contexts
+        "disable-features=UseChromeOSDirectVideoDecoder,DocumentPictureInPictureAPI,EyeDropper,BackgroundFetch,InstalledApp,WebPayments,WebUSB"
       ];
     };
+
     searchEngines = {
       "DEFAULT" = "https://duckduckgo.com/?q={}";
       "g" = "https://google.com/search?q={}";
       "ai" = "https://www.google.com/search?q={}&v=ai&udm=50&ntc=1";
     };
+
     keyBindings = {
       normal = {
         ",v" = "spawn --userscript play-smart";
