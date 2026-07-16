@@ -36,6 +36,7 @@ local function save_positions(positions)
     end
 end
 
+local last_time = nil
 local skip_intervals = {}
 if skip_times_json and skip_times_json ~= "" then
     local ok, decoded = pcall(utils.parse_json, skip_times_json)
@@ -50,6 +51,7 @@ mp.register_script_message("update-episode-info", function(new_mal_id, new_ep_no
     mal_id = new_mal_id
     ep_no = tonumber(new_ep_no) or ep_no
     jikan_duration = tonumber(new_duration) or jikan_duration
+    last_time = nil
     if new_skip_times_json and new_skip_times_json ~= "" then
         local ok, decoded = pcall(utils.parse_json, new_skip_times_json)
         if ok and type(decoded) == "table" then
@@ -61,6 +63,10 @@ mp.register_script_message("update-episode-info", function(new_mal_id, new_ep_no
         skip_intervals = {}
     end
     current_skipped = {}
+end)
+
+mp.register_event("start-file", function()
+    last_time = nil
 end)
 
 

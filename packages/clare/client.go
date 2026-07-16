@@ -55,7 +55,7 @@ var (
 		"10": "(", "11": ")", "12": "*", "13": "+", "14": ",",
 		"03": ";", "05": "=", "1d": "%",
 	}
-	linkPriorities = []string{"wixmp", "default", "mp4", "s-mp4", "luf-mp4", "sharepoint", "mpv", "youtube", "yt-mp4"}
+	linkPriorities = []string{"wixmp", "default", "mp4", "s-mp4", "luf-mp4", "sharepoint", "mpv", "youtube", "yt-mp4", "ok"}
 	// linkPriorities = []string{"wixmp", "sharepoint", "mpv", "youtube"}
 )
 
@@ -478,6 +478,14 @@ func fetchProviderLinks(sourceURL string) (map[string]string, error) {
 	// 1. Intercept direct fast4speed redirector (no clock query needed)
 	if strings.Contains(sourceURL, "fast4speed.rsvp") {
 		debugLog("[RESOLVE-CLOCK] fast4speed.rsvp direct intercept matched.")
+		return map[string]string{
+			"best": sourceURL,
+		}, nil
+	}
+
+	// 2. Intercept ok.ru embed (played natively via yt-dlp)
+	if strings.Contains(sourceURL, "ok.ru/videoembed/") {
+		debugLog("[RESOLVE-CLOCK] ok.ru direct intercept matched.")
 		return map[string]string{
 			"best": sourceURL,
 		}, nil

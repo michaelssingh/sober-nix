@@ -482,7 +482,25 @@ func loadFileInMpv(streamURL, title, epNo, malID string, extraArgs []string, dur
 	}
 	defer conn.Close()
 
-	_, err = sendMpvCommand(conn, []interface{}{"loadfile", streamURL, "replace"})
+	startSeconds := 0.0
+	positions, posErr := loadPositions()
+	if posErr == nil && positions != nil && malID != "" {
+		if showState, ok := positions[malID]; ok && showState.ResumeState != nil {
+			reqEp := parseEpisodeNumber(epNo)
+			if showState.ResumeState.Episode == reqEp {
+				startSeconds = showState.ResumeState.PositionSeconds
+			}
+		}
+	}
+
+	if startSeconds > 0 {
+		startOpt := fmt.Sprintf("start=%f", startSeconds)
+		_, err = sendMpvCommand(conn, []interface{}{"loadfile", streamURL, "replace", startOpt})
+		debugLog("loadFileInMpv: loaded next episode %s with resume position %f seconds", epNo, startSeconds)
+	} else {
+		_, err = sendMpvCommand(conn, []interface{}{"loadfile", streamURL, "replace"})
+		debugLog("loadFileInMpv: loaded next episode %s from the beginning", epNo)
+	}
 	if err != nil {
 		return err
 	}
