@@ -16,7 +16,7 @@ const Version = "0.1.42"
 func main() {
 	searchQuery := flag.String("s", "", "Search query for anime")
 	episodeNum := flag.String("e", "", "Episode number to play")
-	modeFlag := flag.String("m", "dual", "Mode: sub, dub, or dual")
+	modeFlag := flag.String("m", "sub", "Mode: sub or dub")
 	qualityFlag := flag.String("q", "best", "Quality: best, worst, 1080p, 720p, etc.")
 	downloadFlag := flag.Bool("d", false, "Download the episode instead of playing")
 	versionFlag := flag.Bool("version", false, "Print version and exit")
@@ -90,10 +90,10 @@ func main() {
 		if *downloadFlag {
 			fmt.Println("Resolving stream for download...")
 			var stream string
-			if mode == "dual" || mode == "sub" {
-				stream, err = resolveStreamURL(selectedShow.ID, "sub", epNo, *qualityFlag)
-			} else {
+			if mode == "dub" {
 				stream, err = resolveStreamURL(selectedShow.ID, "dub", epNo, *qualityFlag)
+			} else {
+				stream, err = resolveStreamURL(selectedShow.ID, "sub", epNo, *qualityFlag)
 			}
 			if err != nil {
 				fmt.Printf("Error resolving stream: %v\n", err)
@@ -114,62 +114,7 @@ func main() {
 		var tempChapters string
 		var playbackLaunched bool
 
-		if mode == "dual" {
-			fmt.Println("Resolving SUB and DUB streams for dual-audio playback...")
-			subStream, errSub := resolveStreamURL(selectedShow.ID, "sub", epNo, *qualityFlag)
-			dubStream, errDub := resolveStreamURL(selectedShow.ID, "dub", epNo, *qualityFlag)
-
-			if errSub != nil {
-				fmt.Printf("Warning: failed to resolve SUB stream: %v. Trying DUB only.\n", errSub)
-				if errDub != nil {
-					fmt.Printf("Error: failed to resolve DUB stream: %v\n", errDub)
-					os.Exit(1)
-				}
-				c, tmp, tmpChap, _, _, err := playSingleCmd(dubStream, selectedShow.Name, epNo, selectedShow.MALID, selectedShow.Duration)
-				if err != nil {
-					fmt.Printf("Error preparing playback: %v\n", err)
-					os.Exit(1)
-				}
-				tempLua = tmp
-				tempChapters = tmpChap
-				c.Stdout = os.Stdout
-				c.Stderr = os.Stderr
-				if err := c.Start(); err == nil {
-					_ = c.Wait()
-					playbackLaunched = true
-				}
-			} else if errDub != nil {
-				fmt.Printf("Warning: failed to resolve DUB stream: %v. Playing SUB only.\n", errDub)
-				c, tmp, tmpChap, _, _, err := playSingleCmd(subStream, selectedShow.Name, epNo, selectedShow.MALID, selectedShow.Duration)
-				if err != nil {
-					fmt.Printf("Error preparing playback: %v\n", err)
-					os.Exit(1)
-				}
-				tempLua = tmp
-				tempChapters = tmpChap
-				c.Stdout = os.Stdout
-				c.Stderr = os.Stderr
-				if err := c.Start(); err == nil {
-					_ = c.Wait()
-					playbackLaunched = true
-				}
-			} else {
-				fmt.Println("Launching dual-audio playback (English dub + Japanese video)...")
-				c, tmp, tmpChap, _, _, err := playDualCmd(subStream, dubStream, selectedShow.Name, epNo, selectedShow.MALID, selectedShow.Duration)
-				if err != nil {
-					fmt.Printf("Error preparing playback: %v\n", err)
-					os.Exit(1)
-				}
-				tempLua = tmp
-				tempChapters = tmpChap
-				c.Stdout = os.Stdout
-				c.Stderr = os.Stderr
-				if err := c.Start(); err == nil {
-					_ = c.Wait()
-					playbackLaunched = true
-				}
-			}
-		} else if mode == "dub" {
+		if mode == "dub" {
 			dubStream, err := resolveStreamURL(selectedShow.ID, "dub", epNo, *qualityFlag)
 			if err != nil {
 				fmt.Printf("Error resolving DUB stream: %v\n", err)

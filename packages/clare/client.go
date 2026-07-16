@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/exec"
 	"regexp"
 	"strings"
 	"sync"
@@ -1115,4 +1116,152 @@ func fetchAllResolvedStreams(showID, mode, episodeNo string) ([]ResolvedStream, 
 	}
 
 	return results, nil
+}
+
+type AiringShow struct {
+	ID           int    `json:"id"`
+	IDMal        int    `json:"idMal"`
+	TitleRomaji  string `json:"titleRomaji"`
+	TitleEnglish string `json:"titleEnglish"`
+	TitleNative  string `json:"titleNative"`
+	Description  string `json:"description"`
+	Episodes     int    `json:"episodes"`
+	CoverImage   string `json:"coverImage"`
+	NextEpisode  int    `json:"nextEpisode"`
+	TimeUntil    int    `json:"timeUntil"`
+}
+
+func fetchAiringAnime() ([]AiringShow, error) {
+	client := &http.Client{Timeout: 10 * time.Second}
+	query := `
+	query {
+	  Page(page: 1, perPage: 20) {
+	    media(status: RELEASING, sort: POPULARITY_DESC, type: ANIME) {
+	      id
+	      idMal
+	      title {
+	        romaji
+	        english
+	        native
+	      }
+	      coverImage {
+	        large
+	      }
+	      description
+	      episodes
+	      nextAiringEpisode {
+	        episode
+	        timeUntilAiring
+	      }
+	    }
+	  }
+	}`
+
+	payload := map[string]interface{}{
+		"query": query,
+	}
+	body, _ := json.Marshal(payload)
+
+	req, err := http.NewRequest("POST", "https://graphql.anilist.co", bytes.NewBuffer(body))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		respBytes, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("AniList airing request returned status %d: %s", resp.StatusCode, string(respBytes))
+	}
+
+	var aniResp struct {
+		Data struct {
+			Page struct {
+				Media []struct {
+					ID    int   `json:"id"`
+					IDMal *int  `json:"idMal"`
+					Title struct {
+						Romaji  string `json:"romaji"`
+						English string `json:"english"`
+						Native  string `json:"native"`
+					} `json:"title"`
+					CoverImage struct {
+						Large string `json:"large"`
+					} `json:"coverImage"`
+					Description       string `json:"description"`
+					Episodes          *int   `json:"episodes"`
+					NextAiringEpisode *struct {
+						Episode          int `json:"episode"`
+						TimeUntilAiring int `json:"timeUntilAiring"`
+					} `json:"nextAiringEpisode"`
+				} `json:"media"`
+			} `json:"Page"`
+		} `json:"data"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&aniResp); err != nil {
+		return nil, err
+	}
+
+	var shows []AiringShow
+	for _, m := range aniResp.Data.Page.Media {
+		malID := 0
+		if m.IDMal != nil {
+			malID = *m.IDMal
+		}
+		eps := 0
+		if m.Episodes != nil {
+			eps = *m.Episodes
+		}
+		nextEp := 0
+		timeUntil := 0
+		if m.NextAiringEpisode != nil {
+			nextEp = m.NextAiringEpisode.Episode
+			timeUntil = m.NextAiringEpisode.TimeUntilAiring
+		}
+
+		shows = append(shows, AiringShow{
+			ID:           m.ID,
+			IDMal:        malID,
+			TitleRomaji:  m.Title.Romaji,
+			TitleEnglish: m.Title.English,
+			TitleNative:  m.Title.Native,
+			Description:  m.Description,
+			Episodes:     eps,
+			CoverImage:   m.CoverImage.Large,
+			NextEpisode:  nextEp,
+			TimeUntil:    timeUntil,
+		})
+	}
+	return shows, nil
+}
+
+func checkStreamMpvDryRun(urlVal string, headers map[string]string) (bool, error) {
+	args := []string{
+		"--vo=null",
+		"--ao=null",
+		"--frames=1",
+		"--ytdl=no",
+		"--network-timeout=3",
+	}
+	var headerFields []string
+	for k, v := range headers {
+		headerFields = append(headerFields, fmt.Sprintf("%s: %s", k, v))
+	}
+	if len(headerFields) > 0 {
+		args = append(args, fmt.Sprintf("--http-header-fields=%s", strings.Join(headerFields, ",")))
+	}
+	args = append(args, urlVal)
+
+	cmd := exec.Command("mpv", args...)
+	err := cmd.Run()
+	if err != nil {
+		return false, err
+	}
+	return true, nil
 }

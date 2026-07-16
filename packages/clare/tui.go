@@ -39,6 +39,7 @@ const (
 	stateError
 	stateLogs
 	stateConfig
+	stateAiringSelect
 )
 
 // Styles for premium aesthetic
@@ -286,10 +287,17 @@ type tickMpvStatusMsg struct {
 
 type sourceItem struct {
 	stream ResolvedStream
+	status string // "pending", "ok", "dead"
 }
 
 func (s sourceItem) Title() string {
-	return fmt.Sprintf("%s (%s)", s.stream.SourceName, s.stream.Quality)
+	badge := lipgloss.NewStyle().Foreground(lipgloss.Color("#565f89")).Render("[• PENDING]")
+	if s.status == "ok" {
+		badge = lipgloss.NewStyle().Foreground(lipgloss.Color("#9ece6a")).Render("[✓ OK]")
+	} else if s.status == "dead" {
+		badge = lipgloss.NewStyle().Foreground(lipgloss.Color("#f7768e")).Render("[✗ DEAD]")
+	}
+	return fmt.Sprintf("%s %s (%s)", badge, s.stream.SourceName, s.stream.Quality)
 }
 func (s sourceItem) Description() string {
 	return s.stream.URL
@@ -326,55 +334,62 @@ type playbackFinishedMsg struct {
 
 // Bubble Tea Model
 type model struct {
-	state               tuiState
-	historyItems        []list.Item
-	historyList         list.Model
-	searchInput         textinput.Model
-	spinner             spinner.Model
-	showItems           []list.Item
-	showList            list.Model
-	episodeItems        []list.Item
-	episodeList         list.Model
-	selectedShow        AnimeShow
-	selectedEp          string
-	playingShow         AnimeShow
-	playingEp           string
-	episodes            []string
-	download            bool
-	quality             string
-	mode                string // sub, dub, dual
-	err                 error
-	width, height       int
-	loadingMsg          string
-	tempLuaFile         string
-	tempChaptersFile    string
-	initialSearch       string
-	episodeDetails      map[string]JikanEpInfo
-	loadedJikanPages    map[int]bool
-	fetchingSynopsis    map[string]bool
-	autoplay            bool
-	autoskip            bool
-	autoskipDelay       float64
-	skipFillers         bool
-	configCursor        int
-	triggerAutoplay     bool
-	historyShowDetails  map[string]AnimeShow
-	coverArtCache       map[string]string
-	detailsScrollOffset int
-	lastSelectedShowID  string
-	telemetryLogs       []string
-	telemetryViewport   viewport.Model
-	showTelemetry       bool
-	aniSkipReady        map[string]bool
-	activeCmd           *exec.Cmd
-	clareLogChan        chan string
-	showCompleted       bool // whether to include completed shows in history list
-	searchHistory       []string
-	searchHistoryIndex  int
-	sourceList          list.Model
-	resolvedStreams     []ResolvedStream
-	mpvStatus           MpvStatus
-	playbackActive      bool
+	state                   tuiState
+	historyItems            []list.Item
+	historyList             list.Model
+	searchInput             textinput.Model
+	spinner                 spinner.Model
+	showItems               []list.Item
+	showList                list.Model
+	episodeItems            []list.Item
+	episodeList             list.Model
+	selectedShow            AnimeShow
+	selectedEp              string
+	playingShow             AnimeShow
+	playingEp               string
+	episodes                []string
+	download                bool
+	quality                 string
+	mode                    string // sub, dub
+	err                     error
+	width, height           int
+	loadingMsg              string
+	tempLuaFile             string
+	tempChaptersFile        string
+	initialSearch           string
+	episodeDetails          map[string]JikanEpInfo
+	loadedJikanPages        map[int]bool
+	fetchingSynopsis        map[string]bool
+	autoplay                bool
+	autoskip                bool
+	autoskipDelay           float64
+	skipFillers             bool
+	configCursor            int
+	triggerAutoplay         bool
+	historyShowDetails      map[string]AnimeShow
+	coverArtCache           map[string]string
+	detailsScrollOffset     int
+	lastSelectedShowID      string
+	telemetryLogs           []string
+	telemetryViewport       viewport.Model
+	showTelemetry           bool
+	aniSkipReady            map[string]bool
+	activeCmd               *exec.Cmd
+	clareLogChan            chan string
+	showCompleted           bool // whether to include completed shows in history list
+	searchHistory           []string
+	searchHistoryIndex      int
+	sourceList              list.Model
+	resolvedStreams         []ResolvedStream
+	mpvStatus               MpvStatus
+	playbackActive          bool
+	airingSuggestions       []AiringShow
+	airingSuggestionsErr    error
+	airingSuggestionsLoaded bool
+	airingSelIndex          int
+	airingFocused           bool
+	dryRunStates            map[string]string
+	dryRunTested            map[string]bool
 }
 
 func createMinimalList(title string) list.Model {
@@ -969,6 +984,7 @@ func (m model) Init() tea.Cmd {
 			}
 		}
 	}
+	cmds = append(cmds, doFetchAiringSuggestionsCmd())
 	return tea.Batch(cmds...)
 }
 
@@ -1395,13 +1411,98 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		m.resolvedStreams = msg.streams
+		
+		// Initialize dry run states
+		m.dryRunStates = make(map[string]string)
+		m.dryRunTested = make(map[string]bool)
+		for _, s := range msg.streams {
+			m.dryRunStates[s.URL] = "pending"
+		}
+
 		var items []list.Item
 		for _, s := range msg.streams {
-			items = append(items, sourceItem{stream: s})
+			items = append(items, sourceItem{stream: s, status: "pending"})
 		}
 		m.sourceList.SetItems(items)
 		m.sourceList.Title = fmt.Sprintf("Episode %s Sources", msg.epNo)
 		m.state = stateSourceSelect
+
+		// Launch dry-run checks in parallel
+		var cmds []tea.Cmd
+		for _, s := range msg.streams {
+			urlVal := s.URL
+			referer := StreamReferer
+			if strings.Contains(urlVal, "mp4upload.com") {
+				referer = "https://www.mp4upload.com/"
+			} else if strings.Contains(urlVal, "fast4speed") {
+				referer = ""
+			}
+			headers := map[string]string{
+				"User-Agent": UserAgent,
+			}
+			if referer != "" {
+				headers["Referer"] = referer
+			}
+			cmds = append(cmds, doDryRunCheckCmd(urlVal, headers))
+		}
+		return m, tea.Batch(cmds...)
+
+	case airingSuggestionsMsg:
+		m.airingSuggestionsLoaded = true
+		if msg.err != nil {
+			m.airingSuggestionsErr = msg.err
+			debugLog("[ERROR] TUI failed to load airing suggestions: %v", msg.err)
+		} else {
+			m.airingSuggestions = msg.shows
+			debugLog("[INFO] TUI loaded %d airing suggestions from AniList", len(msg.shows))
+		}
+		return m, nil
+
+	case dryRunResultMsg:
+		m.dryRunTested[msg.url] = true
+		if msg.ok {
+			m.dryRunStates[msg.url] = "ok"
+			debugLog("[INFO] Dry-run check for %s succeeded", msg.url)
+		} else {
+			m.dryRunStates[msg.url] = "dead"
+			debugLog("[WARN] Dry-run check for %s failed: %v", msg.url, msg.err)
+		}
+		// Rebuild list items with updated statuses
+		var items []list.Item
+		for _, s := range m.resolvedStreams {
+			status := "pending"
+			if m.dryRunTested[s.URL] {
+				if m.dryRunStates[s.URL] == "ok" {
+					status = "ok"
+				} else {
+					status = "dead"
+				}
+			}
+			items = append(items, sourceItem{stream: s, status: status})
+		}
+		m.sourceList.SetItems(items)
+		return m, nil
+
+	case startDownloadMsg:
+		if msg.err != nil {
+			m.state = stateError
+			m.err = msg.err
+			return m, nil
+		}
+		cmd := downloadCmd(msg.stream, msg.show.Name, msg.epNo)
+		debugLog("[INFO] Starting background download of %s - Episode %s", msg.show.Name, msg.epNo)
+		go func() {
+			err := cmd.Run()
+			if err != nil {
+				debugLog("[ERROR] Download of %s - Episode %s failed: %v", msg.show.Name, msg.epNo, err)
+			} else {
+				debugLog("[INFO] Download of %s - Episode %s completed successfully!", msg.show.Name, msg.epNo)
+			}
+		}()
+		m.telemetryLogs = append(m.telemetryLogs, fmt.Sprintf("[%s] [DOWNLOAD-START] Started downloading Episode %s", time.Now().Format("2006-01-02 15:04:05"), msg.epNo))
+		m.refreshLogsViewport()
+		m.loadingMsg = fmt.Sprintf("📥 Downloading Episode %s...", msg.epNo)
+		m.state = stateEpisodeSelect
 		return m, nil
 
 	case showDetailsResultMsg:
@@ -1601,6 +1702,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 		case "tab":
+			if m.state == stateSearchInput {
+				m.airingFocused = !m.airingFocused
+				if m.airingFocused {
+					m.searchInput.Blur()
+				} else {
+					_ = m.searchInput.Focus()
+				}
+				return m, nil
+			}
 			if m.state != stateSearchInput || m.searchInput.Value() == "" {
 				if m.state == stateHistory {
 					m.enterSearchState()
@@ -1720,6 +1830,37 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, cmd
 
 		case stateSearchInput:
+			if m.airingFocused {
+				switch msg.String() {
+				case "up", "k":
+					if m.airingSelIndex > 0 {
+						m.airingSelIndex--
+					}
+					return m, nil
+				case "down", "j":
+					if m.airingSelIndex < len(m.airingSuggestions)-1 {
+						m.airingSelIndex++
+					}
+					return m, nil
+				case "enter":
+					if m.airingSelIndex >= 0 && m.airingSelIndex < len(m.airingSuggestions) {
+						show := m.airingSuggestions[m.airingSelIndex]
+						title := show.TitleRomaji
+						if title == "" {
+							title = show.TitleEnglish
+						}
+						m.state = stateSearchRunning
+						m.loadingMsg = fmt.Sprintf("Finding show %q on AllAnime...", title)
+						return m, doSearch(title, "sub")
+					}
+				case "esc":
+					m.airingFocused = false
+					_ = m.searchInput.Focus()
+					return m, nil
+				}
+				return m, nil
+			}
+
 			switch msg.String() {
 			case "up":
 				if len(m.searchHistory) > 0 {
@@ -1835,6 +1976,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				selected, ok := m.episodeList.SelectedItem().(episodeItem)
 				if ok {
 					m.toggleEpisodeCompleted(selected.epNo)
+				}
+				return m, nil
+			case "d", "D":
+				selected, ok := m.episodeList.SelectedItem().(episodeItem)
+				if ok {
+					m.selectedEp = selected.epNo
+					m.state = stateSearchRunning
+					m.loadingMsg = fmt.Sprintf("Resolving stream for downloading Episode %s...", selected.epNo)
+					return m, doFetchAndDownloadCmd(m.selectedShow, selected.epNo, m.mode, m.quality)
 				}
 				return m, nil
 			case "enter":
@@ -2034,8 +2184,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				case 4:
 					if cfg.PreferredMode == "sub" {
 						cfg.PreferredMode = "dub"
-					} else if cfg.PreferredMode == "dub" {
-						cfg.PreferredMode = "dual"
 					} else {
 						cfg.PreferredMode = "sub"
 					}
@@ -2215,31 +2363,84 @@ func (m model) View() string {
 		}
 
 	case stateSearchInput:
-		var bodyBuf strings.Builder
-		bodyBuf.WriteString(accentColorStyle.Render("🔍 SEARCH ANIME DATABASE") + "\n\n")
+		var leftBuf strings.Builder
+		leftBuf.WriteString(accentColorStyle.Render("🔍 SEARCH ANIME DATABASE") + "\n\n")
 
-		// Create a nice bordered frame for the search input box
 		inputBoxStyle := lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(lipgloss.Color("#7aa2f7")).
 			Padding(0, 1).
-			Width(40)
-		bodyBuf.WriteString(inputBoxStyle.Render(m.searchInput.View()) + "\n\n")
+			Width(30)
+		leftBuf.WriteString(inputBoxStyle.Render(m.searchInput.View()) + "\n\n")
 
 		if len(m.searchHistory) > 0 {
-			bodyBuf.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("#bb9af7")).Bold(true).Render("◆ Recent Search History ◆") + "\n\n")
+			leftBuf.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("#bb9af7")).Bold(true).Render("◆ Recent History ◆") + "\n\n")
 			for i, q := range m.searchHistory {
-				if i == m.searchHistoryIndex {
-					bodyBuf.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("#2ac3de")).Bold(true).Render(fmt.Sprintf("  👉 %s", q)) + "\n")
+				if !m.airingFocused && i == m.searchHistoryIndex {
+					leftBuf.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("#2ac3de")).Bold(true).Render(fmt.Sprintf(" 👉 %s", q)) + "\n")
 				} else {
-					bodyBuf.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("#565f89")).Render(fmt.Sprintf("    • %s", q)) + "\n")
+					leftBuf.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("#565f89")).Render(fmt.Sprintf("   • %s", q)) + "\n")
 				}
 			}
-			bodyBuf.WriteString("\n")
 		} else {
-			bodyBuf.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("#565f89")).Italic(true).Render("Your search history is empty. Try searching for popular titles like \"Frieren\" or \"Bleach\"!") + "\n")
+			leftBuf.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("#565f89")).Italic(true).Render("Search history is empty.\nTry searching for \"Frieren\" or \"Bleach\".") + "\n")
 		}
-		s.WriteString(bodyStyle.Render(bodyBuf.String()))
+
+		leftView := leftBuf.String()
+
+		var rightBuf strings.Builder
+		rightBuf.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("#ff007f")).Bold(true).Render("🔥 CURRENTLY AIRING Suggestions 🔥") + "\n\n")
+
+		if !m.airingSuggestionsLoaded {
+			if m.airingSuggestionsErr != nil {
+				rightBuf.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("#f7768e")).Render(fmt.Sprintf("Failed to load airing anime: %v", m.airingSuggestionsErr)) + "\n")
+			} else {
+				rightBuf.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("#565f89")).Italic(true).Render("Loading airing schedule from AniList...") + "\n")
+			}
+		} else if len(m.airingSuggestions) == 0 {
+			rightBuf.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("#565f89")).Italic(true).Render("No currently airing anime found.") + "\n")
+		} else {
+			for i, show := range m.airingSuggestions {
+				prefix := "  "
+				titleStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#c0caf5"))
+				if m.airingFocused && i == m.airingSelIndex {
+					prefix = "👉"
+					titleStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#2ac3de")).Bold(true)
+				}
+				
+				title := show.TitleEnglish
+				if title == "" {
+					title = show.TitleRomaji
+				}
+				if len(title) > 35 {
+					title = title[:32] + "..."
+				}
+
+				nextEpStr := ""
+				if show.NextEpisode > 0 {
+					days := show.TimeUntil / 86400
+					hours := (show.TimeUntil % 86400) / 3600
+					if days > 0 {
+						nextEpStr = fmt.Sprintf(" (Ep %d in %dd %dh)", show.NextEpisode, days, hours)
+					} else {
+						nextEpStr = fmt.Sprintf(" (Ep %d in %dh)", show.NextEpisode, hours)
+					}
+				}
+				
+				rightBuf.WriteString(fmt.Sprintf("%s %s%s\n", prefix, titleStyle.Render(title), lipgloss.NewStyle().Foreground(lipgloss.Color("#e0af68")).Render(nextEpStr)))
+			}
+			rightBuf.WriteString("\n" + lipgloss.NewStyle().Foreground(lipgloss.Color("#565f89")).Italic(true).Render("Press [Tab] to switch focus. Use Up/Down and [Enter] to select."))
+		}
+
+		rightView := rightBuf.String()
+
+		leftPane := lipgloss.NewStyle().Width(35).Render(leftView)
+		rightWidth := m.width - 40
+		if rightWidth < 15 {
+			rightWidth = 15
+		}
+		rightPane := lipgloss.NewStyle().Width(rightWidth).Render(rightView)
+		s.WriteString(bodyStyle.Render(lipgloss.JoinHorizontal(lipgloss.Top, leftPane, "   ", rightPane)))
 
 	case stateSearchRunning:
 		bodyContent := fmt.Sprintf("%s %s\n", m.spinner.View(), m.loadingMsg)
@@ -2425,10 +2626,10 @@ func doPreparePlayback(selectedShow AnimeShow, epNo, mode, quality string, downl
 		if download {
 			// Resolve URL and build download command
 			var stream string
-			if mode == "dual" || mode == "sub" {
-				stream, err = resolveStreamURL(selectedShow.ID, "sub", epNo, quality)
-			} else {
+			if mode == "dub" {
 				stream, err = resolveStreamURL(selectedShow.ID, "dub", epNo, quality)
+			} else {
+				stream, err = resolveStreamURL(selectedShow.ID, "sub", epNo, quality)
 			}
 			if err != nil {
 				return resolvedPlaybackMsg{err: err}
@@ -2437,27 +2638,7 @@ func doPreparePlayback(selectedShow AnimeShow, epNo, mode, quality string, downl
 			return resolvedPlaybackMsg{cmd: cmd, err: nil}
 		}
 
-		if mode == "dual" {
-			subStream, errSub := resolveStreamURL(selectedShow.ID, "sub", epNo, quality)
-			dubStream, errDub := resolveStreamURL(selectedShow.ID, "dub", epNo, quality)
-
-			if errSub != nil {
-				if errDub != nil {
-					return resolvedPlaybackMsg{err: fmt.Errorf("failed to resolve dual streams: sub (%v), dub (%v)", errSub, errDub)}
-				}
-				debugLog("doPreparePlayback: sub failed (%v), falling back to dub-only", errSub)
-				cmd, tempLua, tempChapters, durationSeconds, skipTimesJSON, err = playSingleCmd(dubStream, selectedShow.Name, epNo, selectedShow.MALID, selectedShow.Duration)
-			} else if errDub != nil {
-				debugLog("doPreparePlayback: dub failed (%v), falling back to sub-only", errDub)
-				cmd, tempLua, tempChapters, durationSeconds, skipTimesJSON, err = playSingleCmd(subStream, selectedShow.Name, epNo, selectedShow.MALID, selectedShow.Duration)
-				if err == nil {
-					return resolvedPlaybackMsg{cmd: cmd, tempLuaFile: tempLua, tempChaptersFile: tempChapters, durationSeconds: durationSeconds, skipTimesJSON: skipTimesJSON, warning: fmt.Sprintf("⚠ Dub unavailable (%v) — playing sub only", errDub)}
-				}
-			} else {
-				debugLog("doPreparePlayback: both streams resolved, launching dual-audio")
-				cmd, tempLua, tempChapters, durationSeconds, skipTimesJSON, err = playDualCmd(subStream, dubStream, selectedShow.Name, epNo, selectedShow.MALID, selectedShow.Duration)
-			}
-		} else if mode == "dub" {
+		if mode == "dub" {
 			dubStream, errDub := resolveStreamURL(selectedShow.ID, "dub", epNo, quality)
 			if errDub != nil {
 				return resolvedPlaybackMsg{err: errDub}
@@ -2784,6 +2965,45 @@ func tickMpvStatusCmd() tea.Cmd {
 	})
 }
 
+type airingSuggestionsMsg struct {
+	shows []AiringShow
+	err   error
+}
+
+func doFetchAiringSuggestionsCmd() tea.Cmd {
+	return func() tea.Msg {
+		shows, err := fetchAiringAnime()
+		return airingSuggestionsMsg{shows: shows, err: err}
+	}
+}
+
+type dryRunResultMsg struct {
+	url string
+	ok  bool
+	err error
+}
+
+func doDryRunCheckCmd(urlVal string, headers map[string]string) tea.Cmd {
+	return func() tea.Msg {
+		ok, err := checkStreamMpvDryRun(urlVal, headers)
+		return dryRunResultMsg{url: urlVal, ok: ok, err: err}
+	}
+}
+
+type startDownloadMsg struct {
+	stream string
+	err    error
+	show   AnimeShow
+	epNo   string
+}
+
+func doFetchAndDownloadCmd(selectedShow AnimeShow, epNo, mode, quality string) tea.Cmd {
+	return func() tea.Msg {
+		stream, err := resolveStreamURL(selectedShow.ID, mode, epNo, quality)
+		return startDownloadMsg{stream: stream, err: err, show: selectedShow, epNo: epNo}
+	}
+}
+
 func doFetchAllStreams(showID, mode, epNo string) tea.Cmd {
 	return func() tea.Msg {
 		streams, err := fetchAllResolvedStreams(showID, mode, epNo)
@@ -3000,9 +3220,6 @@ func (m model) renderEpisodeDetailsPanel(width, height int) string {
 	// Calculate multiplexing status flags
 	videoStatus := "Video: RESOLVED"
 	audioStatus := "Audio: SINGLE-STREAM"
-	if m.mode == "dual" {
-		audioStatus = "Audio: DUAL-MAPPED"
-	}
 	metadataFlags := fmt.Sprintf("%s  •  %s", videoStatus, audioStatus)
 
 	// Calculate AniSkip pre-flight badge
@@ -3146,12 +3363,10 @@ func cleanHTML(input string) string {
 
 func nextMode(current string) string {
 	switch current {
-	case "dual":
-		return "sub"
 	case "sub":
 		return "dub"
 	default:
-		return "dual"
+		return "sub"
 	}
 }
 

@@ -13,7 +13,7 @@ type Config struct {
 	SkipFillers      bool    `json:"skip_fillers"`
 	AnilistToken     string  `json:"anilist_token"`
 	MalToken         string  `json:"mal_token"`
-	PreferredMode    string  `json:"preferred_mode"`    // sub, dub, dual
+	PreferredMode    string  `json:"preferred_mode"`    // sub, dub
 	PreferredQuality string  `json:"preferred_quality"` // best, 1080p, 720p, etc.
 }
 
@@ -23,7 +23,7 @@ func getDefaultConfig() Config {
 		Autoskip:         true,
 		AutoskipDelay:    3.0,
 		SkipFillers:      false,
-		PreferredMode:    "dual",
+		PreferredMode:    "sub",
 		PreferredQuality: "best",
 	}
 }
@@ -50,7 +50,7 @@ func loadConfig() Config {
 	}
 	// Fallback empty values to default config
 	if cfg.PreferredMode == "" {
-		cfg.PreferredMode = "dual"
+		cfg.PreferredMode = "sub"
 	}
 	if cfg.PreferredQuality == "" {
 		cfg.PreferredQuality = "best"

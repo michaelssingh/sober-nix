@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"bytes"
 	_ "embed"
 	"encoding/json"
 	"fmt"
@@ -19,32 +18,6 @@ import (
 //go:embed save-position.lua
 var savePositionLua string
 
-func countAudioStreams(streamURL string) int {
-	cmd := exec.Command("ffprobe",
-		"-v", "error",
-		"-referer", StreamReferer, // Updated from AllAnimeReferer to prevent HTTP 403
-		"-user_agent", UserAgent,
-		"-select_streams", "a",
-		"-show_entries", "stream=index",
-		"-of", "csv=p=0",
-		streamURL,
-	)
-	var stdout bytes.Buffer
-	cmd.Stdout = &stdout
-	if err := cmd.Run(); err != nil {
-		debugLog("countAudioStreams: ffprobe run failed for URL %s: %v", streamURL, err)
-		return 0
-	}
-	lines := strings.Split(strings.TrimSpace(stdout.String()), "\n")
-	count := 0
-	for _, l := range lines {
-		if strings.TrimSpace(l) != "" {
-			count++
-		}
-	}
-	debugLog("countAudioStreams: ffprobe detected %d audio stream(s) for URL %s", count, streamURL)
-	return count
-}
 
 type AniSkipInterval struct {
 	StartTime float64 `json:"startTime"`
@@ -314,19 +287,6 @@ func playSingleCmd(streamURL, title, epNo, malID, durationStr string) (*exec.Cmd
 	return getMpvCmd(streamURL, title, epNo, malID, durationStr, nil)
 }
 
-func playDualCmd(subStream, dubStream string, title, epNo, malID, durationStr string) (*exec.Cmd, string, string, float64, string, error) {
-	subTracks := countAudioStreams(subStream)
-	if subTracks <= 0 {
-		debugLog("playDualCmd: subTracks is %d, falling back to 1", subTracks)
-		subTracks = 1
-	}
-	aid := fmt.Sprintf("%d", subTracks+1)
-	extraArgs := []string{
-		"--audio-file=" + dubStream,
-		"--aid=" + aid,
-	}
-	return getMpvCmd(subStream, title, epNo, malID, durationStr, extraArgs)
-}
 
 func downloadCmd(streamURL, title, epNo string) *exec.Cmd {
 	outputName := fmt.Sprintf("%s - Episode %s", title, epNo)
