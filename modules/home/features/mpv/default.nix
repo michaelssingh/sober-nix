@@ -10,10 +10,12 @@
       pkgs.mpvScripts.mpris
     ];
     config = {
-      hwdec = "vaapi";
+      hwdec = "auto-safe";
       vo = "gpu";
-      gpu-context = "wayland";
-      gpu-api = "opengl";
+      gpu-context = "auto";
+      gpu-api = "auto";
+      save-position-on-quit = "yes";
+      write-filename-in-watch-later-config = "yes";
       ytdl-format = "bestvideo[height<=720][vcodec^=avc1]+bestaudio/best";
       cache = "yes";
       demuxer-max-bytes = "150MiB";
