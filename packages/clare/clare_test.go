@@ -1371,3 +1371,45 @@ func TestEpisodeSynopsisLazyLoading(t *testing.T) {
 		t.Errorf("Expected rendered details panel to contain synopsis text, got: %s", renderedDetails)
 	}
 }
+
+func TestLiveAPIIntegration(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "clare-test-live-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	origStateDir := os.Getenv("CLARE_STATE_DIR")
+	os.Setenv("CLARE_STATE_DIR", tmpDir)
+	defer os.Setenv("CLARE_STATE_DIR", origStateDir)
+
+	shows, err := searchAnime("Akudama", "sub")
+	if err != nil {
+		t.Fatalf("Live searchAnime failed: %v", err)
+	}
+	if len(shows) == 0 {
+		t.Fatalf("Live searchAnime returned 0 shows")
+	}
+	t.Logf("Found %d shows, first show: %s (ID: %s)", len(shows), shows[0].Name, shows[0].ID)
+
+	show, eps, err := fetchEpisodeList(shows[0].ID, "sub")
+	if err != nil {
+		t.Fatalf("Live fetchEpisodeList failed: %v", err)
+	}
+	t.Logf("Successfully fetched episodes for %s: %d episodes", show.Name, len(eps))
+
+	sources, err := fetchEpisodeSources(shows[0].ID, "sub", "1")
+	if err != nil {
+		t.Fatalf("Live fetchEpisodeSources failed: %v", err)
+	}
+	t.Logf("Found %d sources for episode 1", len(sources))
+	for i, src := range sources {
+		t.Logf("Source %d: Name=%s, URL=%s", i, src.SourceName, src.SourceURL)
+		links, err := fetchProviderLinks(src.SourceURL)
+		if err != nil {
+			t.Logf("Source %d: fetchProviderLinks failed: %v", i, err)
+		} else {
+			t.Logf("Source %d resolved to %d links: %v", i, len(links), links)
+		}
+	}
+}

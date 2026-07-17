@@ -6,6 +6,7 @@ import (
 	"crypto/cipher"
 	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -298,22 +299,42 @@ func decryptCTR(data, nonce []byte) ([]byte, error) {
 }
 
 func decryptGCM(data, nonce []byte) ([]byte, error) {
-	block, err := aes.NewCipher(allAnimeKey)
-	if err != nil {
-		return nil, err
+	versionByte := data[0]
+
+	// Key 1: Versioned Legacy Key
+	keySeed := fmt.Sprintf("Xot36i3lK3:v%d", versionByte)
+	legacyKeyBytes := sha256.Sum256([]byte(keySeed))
+
+	// Try Legacy Key first
+	block, err := aes.NewCipher(legacyKeyBytes[:])
+	if err == nil {
+		aesGCM, errGCM := cipher.NewGCM(block)
+		if errGCM == nil {
+			ciphertextWithTag := data[13:]
+			plaintext, errOpen := aesGCM.Open(nil, nonce, ciphertextWithTag, nil)
+			if errOpen == nil {
+				return plaintext, nil
+			}
+		}
 	}
 
-	aesGCM, err := cipher.NewGCM(block)
-	if err != nil {
-		return nil, err
+	// Key 2: Derived Key from Key Manager (fallback)
+	_, derivedKey, errDK := getDerivedKey()
+	if errDK == nil {
+		block, err = aes.NewCipher(derivedKey)
+		if err == nil {
+			aesGCM, errGCM := cipher.NewGCM(block)
+			if errGCM == nil {
+				ciphertextWithTag := data[13:]
+				plaintext, errOpen := aesGCM.Open(nil, nonce, ciphertextWithTag, nil)
+				if errOpen == nil {
+					return plaintext, nil
+				}
+			}
+		}
 	}
 
-	ciphertextWithTag := data[13:]
-	plaintext, err := aesGCM.Open(nil, nonce, ciphertextWithTag, nil)
-	if err != nil {
-		return nil, err
-	}
-	return plaintext, nil
+	return nil, fmt.Errorf("GCM decryption failed for all keys")
 }
 
 func parseSourcePlaintext(plaintext []byte) ([]SourceInfo, error) {
@@ -389,8 +410,166 @@ func parseSourcePlaintext(plaintext []byte) ([]SourceInfo, error) {
 	return nil, fmt.Errorf("no source URLs decoded from tobeparsed plaintext")
 }
 
+var (
+	cachedEpoch      int64
+	cachedDerivedKey []byte
+	cachedFetchedAt  time.Time
+	cachedMutex      sync.Mutex
+)
+
+func getDerivedKey() (int64, []byte, error) {
+	cachedMutex.Lock()
+	defer cachedMutex.Unlock()
+
+	if cachedEpoch > 0 && time.Since(cachedFetchedAt) < 30*time.Minute {
+		return cachedEpoch, cachedDerivedKey, nil
+	}
+
+	epoch, key, err := fetchAllAnimeCryptoMaterial()
+	if err != nil {
+		return 0, nil, err
+	}
+
+	cachedEpoch = epoch
+	cachedDerivedKey = key
+	cachedFetchedAt = time.Now()
+	return epoch, key, nil
+}
+
+func fetchAllAnimeCryptoMaterial() (int64, []byte, error) {
+	headers := map[string]string{
+		"User-Agent": UserAgent,
+		"Referer":    "https://mkissa.to/",
+	}
+
+	// 1. Fetch homepage
+	htmlBytes, err := doHTTPReqWithRetry("GET", "https://mkissa.to/", nil, headers)
+	if err != nil {
+		return 0, nil, fmt.Errorf("failed to fetch mkissa homepage: %w", err)
+	}
+	html := string(htmlBytes)
+
+	// 2. Parse __aaCrypto JSON
+	reCrypto := regexp.MustCompile(`window\.__aaCrypto\s*=\s*(\{[^{}]*\})`)
+	matchCrypto := reCrypto.FindStringSubmatch(html)
+	if len(matchCrypto) < 2 {
+		return 0, nil, fmt.Errorf("unable to find __aaCrypto in homepage")
+	}
+
+	var bootstrap struct {
+		Epoch int64  `json:"epoch"`
+		PartB string `json:"partB"`
+	}
+	if err := json.Unmarshal([]byte(matchCrypto[1]), &bootstrap); err != nil {
+		return 0, nil, fmt.Errorf("failed to parse __aaCrypto JSON: %w", err)
+	}
+
+	partB, err := base64.StdEncoding.DecodeString(bootstrap.PartB)
+	if err != nil {
+		return 0, nil, fmt.Errorf("failed to decode partB: %w", err)
+	}
+	if len(partB) < 32 {
+		return 0, nil, fmt.Errorf("partB too short: %d bytes", len(partB))
+	}
+
+	// 3. Find app entry JS
+	reApp := regexp.MustCompile(`import\("([^"]*/entry/app\.[^"]*\.js)"\)`)
+	matchApp := reApp.FindStringSubmatch(html)
+	if len(matchApp) < 2 {
+		return 0, nil, fmt.Errorf("unable to find SvelteKit app entry JS")
+	}
+	appURL := matchApp[1]
+
+	// 4. Fetch app entry JS
+	appJSBytes, err := doHTTPReqWithRetry("GET", appURL, nil, headers)
+	if err != nil {
+		return 0, nil, fmt.Errorf("failed to fetch app entry JS: %w", err)
+	}
+	appJS := string(appJSBytes)
+
+	// 5. Extract chunk names
+	reChunks := regexp.MustCompile(`\.\./chunks/([A-Za-z0-9_-]+\.js)`)
+	matchesChunks := reChunks.FindAllStringSubmatch(appJS, -1)
+	if len(matchesChunks) == 0 {
+		return 0, nil, fmt.Errorf("no chunk references found in app entry JS")
+	}
+
+	// Get base URL for chunks
+	lastEntryIdx := strings.LastIndex(appURL, "/entry/")
+	if lastEntryIdx == -1 {
+		return 0, nil, fmt.Errorf("invalid app entry URL structure: %q", appURL)
+	}
+	chunkBaseURL := appURL[:lastEntryIdx] + "/chunks/"
+
+	// 6. Find the crypto chunk containing "aaReq"
+	var maskHex string
+	maxChunks := 40
+	if len(matchesChunks) < maxChunks {
+		maxChunks = len(matchesChunks)
+	}
+
+	// Extract unique chunk names to avoid duplicate fetches
+	seen := make(map[string]bool)
+	var chunkNames []string
+	for _, m := range matchesChunks {
+		name := m[1]
+		if !seen[name] {
+			seen[name] = true
+			chunkNames = append(chunkNames, name)
+		}
+	}
+
+	for i, name := range chunkNames {
+		if i >= maxChunks {
+			break
+		}
+		chunkURL := chunkBaseURL + name
+		chunkBytes, err := doHTTPReqWithRetry("GET", chunkURL, nil, headers)
+		if err != nil {
+			continue
+		}
+		chunkContent := string(chunkBytes)
+
+		if strings.Contains(chunkContent, "aaReq") {
+			reHex := regexp.MustCompile(`\b[0-9a-fA-F]{64}\b`)
+			matchesHex := reHex.FindAllString(chunkContent, -1)
+			for _, hexStr := range matchesHex {
+				if !strings.EqualFold(hexStr, "d405d0edd690624b66baba3068e0edc3ac90f1597d898a1ec8db4e5c43c00fec") {
+					maskHex = hexStr
+					break
+				}
+			}
+			if maskHex != "" {
+				break
+			}
+		}
+	}
+
+	if maskHex == "" {
+		return 0, nil, fmt.Errorf("unable to find client mask in SvelteKit chunks")
+	}
+
+	mask, err := hex.DecodeString(maskHex)
+	if err != nil {
+		return 0, nil, fmt.Errorf("failed to decode client mask hex: %w", err)
+	}
+
+	derivedKey := make([]byte, 32)
+	for i := 0; i < 32; i++ {
+		derivedKey[i] = partB[i] ^ mask[i%len(mask)]
+	}
+
+	return bootstrap.Epoch, derivedKey, nil
+}
+
 func generateAAReq(qh string) (string, error) {
-	epoch := 4128
+	epoch, key, err := getDerivedKey()
+	if err != nil {
+		// Fallback to legacy static key and epoch if fetching fails
+		epoch = 4128
+		key = allAnimeKey
+	}
+
 	buildID := "11"
 	ts := (time.Now().Unix() / 300) * 300 * 1000
 
@@ -400,7 +579,7 @@ func generateAAReq(qh string) (string, error) {
 	hash := sha256.Sum256([]byte(ivSeed))
 	iv := hash[:12]
 
-	block, err := aes.NewCipher(allAnimeKey)
+	block, err := aes.NewCipher(key)
 	if err != nil {
 		return "", err
 	}
