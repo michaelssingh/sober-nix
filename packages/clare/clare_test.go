@@ -818,6 +818,29 @@ func TestMockTUI(t *testing.T) {
 	if mUpdated.state != stateSearchInput {
 		t.Errorf("Expected state to transition to stateSearchInput, got %d", mUpdated.state)
 	}
+
+	// Pressing "3" in stateHistory (using initial model m) transitions state to stateLogs
+	msg = tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'3'}}
+	updated, _ = m.Update(msg)
+	mUpdatedLogs := updated.(model)
+	if mUpdatedLogs.state != stateLogs {
+		t.Errorf("Expected state to transition to stateLogs, got %d", mUpdatedLogs.state)
+	}
+
+	// Add dummy telemetry logs and test clearing them
+	mUpdatedLogs.telemetryLogs = []string{"log line 1", "log line 2"}
+	mUpdatedLogs.refreshLogsViewport()
+	if len(mUpdatedLogs.telemetryLogs) != 2 {
+		t.Errorf("Expected 2 telemetry log lines, got %d", len(mUpdatedLogs.telemetryLogs))
+	}
+
+	// Pressing "c" in stateLogs should clear them
+	msg = tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'c'}}
+	updated, _ = mUpdatedLogs.Update(msg)
+	mUpdatedLogs = updated.(model)
+	if len(mUpdatedLogs.telemetryLogs) != 0 {
+		t.Errorf("Expected telemetry logs to be cleared, but got %d lines", len(mUpdatedLogs.telemetryLogs))
+	}
 }
 
 func TestPlayerResumePosition(t *testing.T) {
