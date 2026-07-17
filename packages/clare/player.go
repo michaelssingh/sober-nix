@@ -326,6 +326,7 @@ type MpvStatus struct {
 }
 
 func sendMpvCommand(conn net.Conn, cmd []interface{}) ([]byte, error) {
+	_ = conn.SetDeadline(time.Now().Add(250 * time.Millisecond))
 	payload := map[string]interface{}{
 		"command": cmd,
 	}
