@@ -222,7 +222,9 @@ func decodeSourceURL(encoded string) string {
 	}
 	decoded := result.String()
 	decoded = strings.ReplaceAll(decoded, "/clock", "/clock.json")
-	if strings.HasPrefix(decoded, "/") {
+	if strings.HasPrefix(decoded, "//") {
+		decoded = "https:" + decoded
+	} else if strings.HasPrefix(decoded, "/") {
 		decoded = fmt.Sprintf("https://%s%s", AllAnimeBase, decoded)
 	}
 	// If the decoded result looks like a valid URL, use it; otherwise return original
@@ -663,9 +665,16 @@ func fetchProviderLinks(sourceURL string) (map[string]string, error) {
 		}, nil
 	}
 
-	// 2. Intercept ok.ru embed (played natively via yt-dlp)
-	if strings.Contains(sourceURL, "ok.ru/videoembed/") {
-		debugLog("[RESOLVE-CLOCK] ok.ru direct intercept matched.")
+	// 2. Intercept third-party embeds (played natively via yt-dlp)
+	if strings.Contains(sourceURL, "ok.ru/videoembed/") ||
+		strings.Contains(sourceURL, "filemoon") ||
+		strings.Contains(sourceURL, "bysekoze") ||
+		strings.Contains(sourceURL, "streamwish") ||
+		strings.Contains(sourceURL, "awish") ||
+		strings.Contains(sourceURL, "dwish") ||
+		strings.Contains(sourceURL, "listeamed") ||
+		strings.Contains(sourceURL, "vidguard") {
+		debugLog("[RESOLVE-CLOCK] Native third-party embed matched: %s", sourceURL)
 		return map[string]string{
 			"best": sourceURL,
 		}, nil

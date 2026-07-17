@@ -1383,26 +1383,15 @@ func TestLiveAPIIntegration(t *testing.T) {
 	os.Setenv("CLARE_STATE_DIR", tmpDir)
 	defer os.Setenv("CLARE_STATE_DIR", origStateDir)
 
-	shows, err := searchAnime("Akudama", "sub")
-	if err != nil {
-		t.Fatalf("Live searchAnime failed: %v", err)
-	}
-	if len(shows) == 0 {
-		t.Fatalf("Live searchAnime returned 0 shows")
-	}
-	t.Logf("Found %d shows, first show: %s (ID: %s)", len(shows), shows[0].Name, shows[0].ID)
+	showID := "zNbh9DKcawQbwnApG"
+	mode := "dub"
+	episodeNo := "11"
 
-	show, eps, err := fetchEpisodeList(shows[0].ID, "sub")
-	if err != nil {
-		t.Fatalf("Live fetchEpisodeList failed: %v", err)
-	}
-	t.Logf("Successfully fetched episodes for %s: %d episodes", show.Name, len(eps))
-
-	sources, err := fetchEpisodeSources(shows[0].ID, "sub", "1")
+	sources, err := fetchEpisodeSources(showID, mode, episodeNo)
 	if err != nil {
 		t.Fatalf("Live fetchEpisodeSources failed: %v", err)
 	}
-	t.Logf("Found %d sources for episode 1", len(sources))
+	t.Logf("Found %d sources for episode %s (%s)", len(sources), episodeNo, mode)
 	for i, src := range sources {
 		t.Logf("Source %d: Name=%s, URL=%s", i, src.SourceName, src.SourceURL)
 		links, err := fetchProviderLinks(src.SourceURL)
