@@ -162,11 +162,11 @@ play_provider_stream() {
     done
     sleep 0.5
     local before_calls
-    before_calls=$(grep -c "MPV_CALL" "$LOG_FILE" 2>/dev/null || echo "0")
+    before_calls=$(grep -h "MPV_CALL" "$LOG_FILE" 2>/dev/null | wc -l)
     tmux send-keys -t "$session" Enter
     sleep 6
     local after_calls
-    after_calls=$(grep -c "MPV_CALL" "$LOG_FILE" 2>/dev/null || echo "0")
+    after_calls=$(grep -h "MPV_CALL" "$LOG_FILE" 2>/dev/null | wc -l)
     if [ "$after_calls" -gt "$before_calls" ]; then
         pass "Successfully played '$target_provider' stream via mpv"
         return 0
@@ -350,8 +350,8 @@ for title in "${TITLES[@]}"; do
 
     # ── 5. Select and play streams from BOTH providers ──────────────────────────
     info "Testing multi-provider playback..."
-    local play_allanime_ok=false
-    local play_gogo_ok=false
+    play_allanime_ok=false
+    play_gogo_ok=false
 
     if play_provider_stream "allanime"; then
         play_allanime_ok=true
