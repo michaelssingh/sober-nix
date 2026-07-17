@@ -1428,34 +1428,45 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.dryRunStates = make(map[string]string)
 		m.dryRunTested = make(map[string]bool)
 		for _, s := range msg.streams {
-			m.dryRunStates[s.URL] = "pending"
+			if EnableDryRun {
+				m.dryRunStates[s.URL] = "pending"
+			} else {
+				m.dryRunStates[s.URL] = "ok"
+				m.dryRunTested[s.URL] = true
+			}
 		}
 
 		var items []list.Item
 		for _, s := range msg.streams {
-			items = append(items, sourceItem{stream: s, status: "pending"})
+			status := "pending"
+			if !EnableDryRun {
+				status = "ok"
+			}
+			items = append(items, sourceItem{stream: s, status: status})
 		}
 		m.sourceList.SetItems(items)
 		m.sourceList.Title = fmt.Sprintf("Episode %s Sources", msg.epNo)
 		m.state = stateSourceSelect
 
-		// Launch dry-run checks in parallel
+		// Launch dry-run checks in parallel if enabled
 		var cmds []tea.Cmd
-		for _, s := range msg.streams {
-			urlVal := s.URL
-			referer := StreamReferer
-			if strings.Contains(urlVal, "mp4upload.com") {
-				referer = "https://www.mp4upload.com/"
-			} else if strings.Contains(urlVal, "fast4speed") {
-				referer = ""
+		if EnableDryRun {
+			for _, s := range msg.streams {
+				urlVal := s.URL
+				referer := StreamReferer
+				if strings.Contains(urlVal, "mp4upload.com") {
+					referer = "https://www.mp4upload.com/"
+				} else if strings.Contains(urlVal, "fast4speed") {
+					referer = ""
+				}
+				headers := map[string]string{
+					"User-Agent": UserAgent,
+				}
+				if referer != "" {
+					headers["Referer"] = referer
+				}
+				cmds = append(cmds, doDryRunCheckCmd(urlVal, headers))
 			}
-			headers := map[string]string{
-				"User-Agent": UserAgent,
-			}
-			if referer != "" {
-				headers["Referer"] = referer
-			}
-			cmds = append(cmds, doDryRunCheckCmd(urlVal, headers))
 		}
 		return m, tea.Batch(cmds...)
 

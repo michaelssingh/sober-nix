@@ -13,6 +13,8 @@ import (
 
 const Version = "0.1.43"
 
+var EnableDryRun bool
+
 func main() {
 	searchQuery := flag.String("s", "", "Search query for anime")
 	episodeNum := flag.String("e", "", "Episode number to play")
@@ -21,7 +23,10 @@ func main() {
 	downloadFlag := flag.Bool("d", false, "Download the episode instead of playing")
 	versionFlag := flag.Bool("version", false, "Print version and exit")
 	debugFlag := flag.Bool("debug", false, "Enable verbose debug logging")
+	dryRunFlag := flag.Bool("dry-run", false, "Enable dry-run checks on streams before playing")
 	flag.Parse()
+
+	EnableDryRun = *dryRunFlag
 
 	if *versionFlag {
 		fmt.Printf("clare %s\n", Version)
