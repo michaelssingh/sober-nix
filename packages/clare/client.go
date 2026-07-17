@@ -666,21 +666,18 @@ func fetchProviderLinks(sourceURL string) (map[string]string, error) {
 	}
 
 	// 2. Intercept third-party embeds (played natively via yt-dlp)
-	if strings.Contains(sourceURL, "ok.ru/videoembed/") {
-		debugLog("[RESOLVE-CLOCK] Native third-party embed matched (Ok.ru): %s", sourceURL)
-		return map[string]string{
-			"best": sourceURL,
-		}, nil
-	}
-	if strings.Contains(sourceURL, "filemoon") ||
+	if strings.Contains(sourceURL, "ok.ru/videoembed/") ||
+		strings.Contains(sourceURL, "filemoon") ||
 		strings.Contains(sourceURL, "bysekoze") ||
 		strings.Contains(sourceURL, "streamwish") ||
 		strings.Contains(sourceURL, "awish") ||
 		strings.Contains(sourceURL, "dwish") ||
 		strings.Contains(sourceURL, "listeamed") ||
 		strings.Contains(sourceURL, "vidguard") {
-		debugLog("[RESOLVE-CLOCK] Unsupported third-party embed host skipped: %s", sourceURL)
-		return nil, fmt.Errorf("unsupported third-party embed host: %s", sourceURL)
+		debugLog("[RESOLVE-CLOCK] Native third-party embed matched: %s", sourceURL)
+		return map[string]string{
+			"best": sourceURL,
+		}, nil
 	}
 
 	// 2. Intercept Mp4Upload landing page and parse the raw video source
