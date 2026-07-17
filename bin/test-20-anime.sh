@@ -121,10 +121,6 @@ capture() {
 verify_all_sources_playable() {
     local session="clare-tui-test"
     local total_sources=0
-    for ((i=0; i<45; i++)); do
-        tmux send-keys -t "$session" Up
-    done
-    sleep 0.5
     local screen
     screen=$(capture "$session")
     local list_started=false
@@ -164,14 +160,10 @@ verify_all_sources_playable() {
         local name="${source_names[idx]}"
         local prov="${source_providers[idx]}"
         info "Testing source #$((idx + 1))/$total_sources: [$prov] $name"
-        for ((i=0; i<45; i++)); do
-            tmux send-keys -t "$session" Up
-        done
-        sleep 0.5
-        for ((i=0; i<idx; i++)); do
+        if [ "$idx" -gt 0 ]; then
             tmux send-keys -t "$session" Down
-        done
-        sleep 0.5
+            sleep 0.5
+        fi
         local before_calls
         before_calls=$(grep -h "MPV_CALL" "$LOG_FILE" 2>/dev/null | wc -l)
         tmux send-keys -t "$session" Enter
