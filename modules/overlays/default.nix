@@ -65,6 +65,10 @@
       ];
     });
 
+    mpv-unwrapped = prev.mpv-unwrapped.override {
+      archiveSupport = true;
+    };
+
     mpv = prev.mpv.override {
       scripts = [ prev.mpvScripts.mpris ];
     };
