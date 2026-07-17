@@ -1380,12 +1380,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			_ = recordWatch(m.selectedShow.ID, m.selectedShow.Name, m.selectedEp)
 			m.refreshHistory()
 			go SyncAllHistory()
-			if m.autoplay {
-				cmd := m.triggerAutoplayAction()
-				if cmd != nil {
-					return m, cmd
-				}
-			}
+			// Autoplay is handled via MPV status ticks and IPC, not on process exit.
 
 			// Trigger background sync to AniList/MAL
 			go func(malID string, epNo string, showID string) {
