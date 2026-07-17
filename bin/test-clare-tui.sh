@@ -202,6 +202,12 @@ echo "------------------------------"
 
 if echo "$s" | grep -qiE "Select Source|Ok|Yt-mp4|Mp4upload|fast4speed"; then
     echo "${GREEN}✔ Streams resolved — source selection visible${RESET}"
+    if echo "$s" | grep -qiE "ALLANIME|GOGO"; then
+        echo "${GREEN}✔ Provider badges (ALLANIME/GOGO) rendered correctly${RESET}"
+    else
+        echo "${RED}✘ Test 3 Failed: provider badges not found in source list${RESET}"
+        exit 1
+    fi
 else
     echo "${RED}✘ Test 3 Failed: stream sources not resolved${RESET}"
     exit 1
