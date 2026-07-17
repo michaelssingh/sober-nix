@@ -47,25 +47,50 @@ end
 
 local current_skipped = {}
 
+local pending_mal_id = nil
+local pending_ep_no = nil
+local pending_duration = nil
+local pending_skip_times_json = nil
+
 mp.register_script_message("update-episode-info", function(new_mal_id, new_ep_no, new_duration, new_skip_times_json)
-    mal_id = new_mal_id
-    ep_no = tonumber(new_ep_no) or ep_no
-    jikan_duration = tonumber(new_duration) or jikan_duration
-    last_time = nil
-    if new_skip_times_json and new_skip_times_json ~= "" then
-        local ok, decoded = pcall(utils.parse_json, new_skip_times_json)
-        if ok and type(decoded) == "table" then
-            skip_intervals = decoded
+    pending_mal_id = new_mal_id
+    pending_ep_no = tonumber(new_ep_no)
+    pending_duration = tonumber(new_duration)
+    pending_skip_times_json = new_skip_times_json
+end)
+
+local function apply_pending_info()
+    if pending_mal_id then
+        mal_id = pending_mal_id
+        pending_mal_id = nil
+    end
+    if pending_ep_no then
+        ep_no = pending_ep_no
+        pending_ep_no = nil
+    end
+    if pending_duration then
+        jikan_duration = pending_duration
+        pending_duration = nil
+    end
+    if pending_skip_times_json then
+        if pending_skip_times_json ~= "" then
+            local ok, decoded = pcall(utils.parse_json, pending_skip_times_json)
+            if ok and type(decoded) == "table" then
+                skip_intervals = decoded
+            else
+                skip_intervals = {}
+            end
         else
             skip_intervals = {}
         end
-    else
-        skip_intervals = {}
+        pending_skip_times_json = nil
     end
+    last_time = nil
     current_skipped = {}
-end)
+end
 
 mp.register_event("start-file", function()
+    apply_pending_info()
     last_time = nil
 end)
 
