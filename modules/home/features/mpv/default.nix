@@ -10,8 +10,8 @@
       pkgs.mpvScripts.mpris
     ];
     config = {
-      hwdec = "auto-safe";
-      vo = "gpu";
+      hwdec = "vaapi";
+      vo = "gpu-next";
       gpu-context = "auto";
       gpu-api = "auto";
       save-position-on-quit = "yes";
