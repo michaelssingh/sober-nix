@@ -1425,3 +1425,60 @@ func TestLiveAPIIntegration(t *testing.T) {
 		}
 	}
 }
+
+func TestTUIProviderBadgesAndPlay(t *testing.T) {
+	m := initialModel("", "sub", "best", false)
+	m.selectedShow = AnimeShow{ID: "frieren-test", Name: "Frieren"}
+	m.selectedEp = "1"
+
+	streams := []ResolvedStream{
+		{Provider: "allanime", SourceName: "Mp4", Quality: "1080p", URL: "http://example.com/allanime-1080.mp4"},
+		{Provider: "gogoanime", SourceName: "Gogo", Quality: "720p", URL: "http://example.com/gogo-720.mp4"},
+	}
+
+	updated, _ := m.Update(allStreamsResultMsg{epNo: "1", streams: streams, err: nil})
+	mUpdated := updated.(model)
+
+	if mUpdated.state != stateSourceSelect {
+		t.Fatalf("expected state to be stateSourceSelect, got %d", mUpdated.state)
+	}
+
+	items := mUpdated.sourceList.Items()
+	if len(items) != 2 {
+		t.Fatalf("expected 2 items, got %d", len(items))
+	}
+
+	// Verify badges are rendered correctly in titles
+	item0 := items[0].(sourceItem)
+	title0 := item0.Title()
+	if !strings.Contains(title0, "[ALLANIME]") {
+		t.Errorf("expected title to contain '[ALLANIME]' badge, got %q", title0)
+	}
+
+	item1 := items[1].(sourceItem)
+	title1 := item1.Title()
+	if !strings.Contains(title1, "[GOGO]") {
+		t.Errorf("expected title to contain '[GOGO]' badge, got %q", title1)
+	}
+
+	// Navigate to item 1 (Gogoanime)
+	mUpdated.sourceList.Select(1)
+
+	// Press Enter to select/play the stream
+	msg := tea.KeyMsg{Type: tea.KeyEnter}
+	updated2, _ := mUpdated.Update(msg)
+	mUpdated2 := updated2.(model)
+
+	if mUpdated2.state != statePlaybackPreparing {
+		t.Fatalf("expected state playback preparing, got %d", mUpdated2.state)
+	}
+
+	cacheKey := fmt.Sprintf("%s-%s-%s-%s", mUpdated2.selectedShow.ID, mUpdated2.mode, mUpdated2.selectedEp, mUpdated2.quality)
+	streamCacheMu.RLock()
+	cachedURL, ok := streamCache[cacheKey]
+	streamCacheMu.RUnlock()
+
+	if !ok || cachedURL != "http://example.com/gogo-720.mp4" {
+		t.Errorf("expected selected URL to be 'http://example.com/gogo-720.mp4', got %q", cachedURL)
+	}
+}
