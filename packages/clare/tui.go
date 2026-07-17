@@ -2400,9 +2400,9 @@ func (m model) View() string {
 
 		if len(m.searchHistory) > 0 {
 			leftBuf.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("#bb9af7")).Bold(true).Render("◆ Recent History ◆") + "\n\n")
-			maxHist := listHeight - 11
-			if maxHist < 3 {
-				maxHist = 3
+			maxHist := listHeight - 9
+			if maxHist < 1 {
+				maxHist = 1
 			}
 			start := 0
 			end := len(m.searchHistory)
@@ -2451,7 +2451,28 @@ func (m model) View() string {
 		} else if len(m.airingSuggestions) == 0 {
 			rightBuf.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("#565f89")).Italic(true).Render("No currently airing anime found.") + "\n")
 		} else {
-			for i, show := range m.airingSuggestions {
+			maxSug := listHeight - 5
+			if maxSug < 1 {
+				maxSug = 1
+			}
+			start := 0
+			end := len(m.airingSuggestions)
+			if end > maxSug {
+				start = m.airingSelIndex - (maxSug / 2)
+				if start < 0 {
+					start = 0
+				}
+				end = start + maxSug
+				if end > len(m.airingSuggestions) {
+					end = len(m.airingSuggestions)
+					start = end - maxSug
+					if start < 0 {
+						start = 0
+					}
+				}
+			}
+			for i := start; i < end; i++ {
+				show := m.airingSuggestions[i]
 				prefix := "  "
 				titleStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#c0caf5"))
 				if m.airingFocused && i == m.airingSelIndex {
@@ -2490,8 +2511,8 @@ func (m model) View() string {
 
 		rightView := rightBuf.String()
 
-		leftPane := lipgloss.NewStyle().Width(35).Render(leftView)
-		rightPane := lipgloss.NewStyle().Width(rightWidth).Render(rightView)
+		leftPane := lipgloss.NewStyle().Width(35).MaxHeight(listHeight).Render(leftView)
+		rightPane := lipgloss.NewStyle().Width(rightWidth).MaxHeight(listHeight).Render(rightView)
 		s.WriteString(bodyStyle.Render(lipgloss.JoinHorizontal(lipgloss.Top, leftPane, "   ", rightPane)))
 
 	case stateSearchRunning:
