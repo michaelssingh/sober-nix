@@ -63,6 +63,7 @@ var (
 
 type AnimeShow struct {
 	ID                      string              `json:"_id"`
+	Provider                string              `json:"provider"`
 	Name                    string              `json:"name"`
 	AvailableEpisodes       any                 `json:"availableEpisodes"`
 	AvailableEpisodesDetail map[string][]string `json:"availableEpisodesDetail"`
@@ -804,115 +805,62 @@ func fetchProviderLinks(sourceURL string) (map[string]string, error) {
 	return links, nil
 }
 
-func searchAnime(query, mode string) ([]AnimeShow, error) {
-	searchGQL := `query( $search: SearchInput $limit: Int $page: Int $translationType: VaildTranslationTypeEnumType $countryOrigin: VaildCountryOriginEnumType ) { shows( search: $search limit: $limit page: $page translationType: $translationType countryOrigin: $countryOrigin ) { edges { _id name availableEpisodes englishName nativeName thumbnail description malId aniListId type score season __typename } }}`
-
-	payload := map[string]any{
-		"variables": map[string]any{
-			"search": map[string]any{
-				"allowAdult":   false,
-				"allowUnknown": false,
-				"query":        query,
-			},
-			"limit":           40,
-			"page":            1,
-			"translationType": mode,
-			"countryOrigin":   "ALL",
-		},
-		"query": searchGQL,
-	}
-	jsonPayload, _ := json.Marshal(payload)
-
-	headers := map[string]string{
-		"Content-Type": "application/json",
-		"User-Agent":   UserAgent,
-		"Referer":      AllAnimeReferer,
-	}
-
-	body, err := doHTTPReqWithRetry("POST", AllAnimeAPI, jsonPayload, headers)
-	if err != nil {
-		return nil, err
-	}
-
-	var result struct {
-		Data struct {
-			Shows struct {
-				Edges []AnimeShow `json:"edges"`
-			} `json:"shows"`
-		} `json:"data"`
-	}
-
-	if err := json.Unmarshal(body, &result); err != nil {
-		snippet := string(body)
-		if len(snippet) > 150 {
-			snippet = snippet[:150]
-		}
-		return nil, fmt.Errorf("search failed to parse API JSON: %w (body: %q)", err, snippet)
-	}
-
-	return result.Data.Shows.Edges, nil
-}
-
-func fetchEpisodeList(showID, mode string) (AnimeShow, []string, error) {
-	if show, eps, found := loadShowCache(showID); found {
-		debugLog("fetchEpisodeList: loaded show %s from cache", showID)
-		return show, eps, nil
-	}
-
-	showGQL := `query ($showId: String!) { show( _id: $showId ) { _id name englishName nativeName thumbnail description malId aniListId type score season availableEpisodes availableEpisodesDetail }}`
-	payload := map[string]any{
-		"variables": map[string]any{
-			"showId": showID,
-		},
-		"query": showGQL,
-	}
-	jsonPayload, _ := json.Marshal(payload)
-
-	headers := map[string]string{
-		"Content-Type": "application/json",
-		"User-Agent":   UserAgent,
-		"Referer":      AllAnimeReferer,
-	}
-
-	body, err := doHTTPReqWithRetry("POST", AllAnimeAPI, jsonPayload, headers)
-	if err != nil {
-		return AnimeShow{}, nil, err
-	}
-
-	var result struct {
-		Data struct {
-			Show AnimeShow `json:"show"`
-		} `json:"data"`
-	}
-
-	if err := json.Unmarshal(body, &result); err != nil {
-		snippet := string(body)
-		if len(snippet) > 150 {
-			snippet = snippet[:150]
-		}
-		return AnimeShow{}, nil, fmt.Errorf("episodes failed to parse API JSON: %w (body: %q)", err, snippet)
-	}
-
-	episodes := result.Data.Show.AvailableEpisodesDetail[mode]
-	if len(episodes) == 0 {
-		for k, v := range result.Data.Show.AvailableEpisodesDetail {
-			if strings.EqualFold(k, mode) {
-				episodes = v
-				break
-			}
-		}
-	}
-
-	_ = saveShowCache(showID, result.Data.Show, episodes)
-	return result.Data.Show, episodes, nil
-}
-
 var (
 	streamCache        = make(map[string]string)
 	streamCacheMu      sync.RWMutex
 	activePrefetches   = make(map[string]bool)
 	activePrefetchesMu sync.Mutex
 )
+
+var providers = []Provider{
+	&AllAnimeProvider{},
+	&GogoanimeProvider{},
+}
+
+func getProvider(name string) Provider {
+	for _, p := range providers {
+		if p.Name() == name {
+			return p
+		}
+	}
+	return &AllAnimeProvider{}
+}
+
+func searchAnime(query, mode string) ([]AnimeShow, error) {
+	var results []AnimeShow
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+
+	for _, p := range providers {
+		wg.Add(1)
+		go func(prov Provider) {
+			defer wg.Done()
+			shows, err := prov.Search(query, mode)
+			if err == nil {
+				mu.Lock()
+				for i := range shows {
+					shows[i].Provider = prov.Name()
+				}
+				results = append(results, shows...)
+				mu.Unlock()
+			}
+		}(p)
+	}
+	wg.Wait()
+	return results, nil
+}
+
+func fetchEpisodeList(showID, mode string) (AnimeShow, []string, error) {
+	provider := ""
+	if cached, _, found := loadShowCache(showID); found {
+		provider = cached.Provider
+	}
+	if provider == "" {
+		provider = "allanime"
+	}
+	p := getProvider(provider)
+	return p.FetchEpisodes(showID, mode)
+}
 
 func prefetchEpisodeStream(showID, mode, epNo, quality string) {
 	if showID == "" || epNo == "" {
@@ -962,76 +910,52 @@ func resolveStreamURL(showID, mode, episodeNo, quality string) (string, error) {
 	}
 	streamCacheMu.RUnlock()
 
-	sources, err := fetchEpisodeSources(showID, mode, episodeNo)
+	provider := ""
+	if cached, _, found := loadShowCache(showID); found {
+		provider = cached.Provider
+	}
+	if provider == "" {
+		provider = "allanime"
+	}
+	p := getProvider(provider)
+	resolved, err := p.ResolveStreams(showID, mode, episodeNo, quality)
 	if err != nil {
 		return "", err
 	}
 
-	for _, prioDomain := range linkPriorities {
-		for _, src := range sources {
-			nameLower := strings.ToLower(src.SourceName)
-			urlLower := strings.ToLower(src.SourceURL)
-			matched := false
-			if prioDomain == "mp4" {
-				matched = (nameLower == "mp4")
-			} else {
-				matched = strings.Contains(nameLower, prioDomain) || strings.Contains(urlLower, prioDomain)
-			}
-			if matched {
-				links, err := fetchProviderLinks(src.SourceURL)
-				if err == nil {
-					best := selectBestLink(links, quality)
-					if best != "" {
-						streamCacheMu.Lock()
-						streamCache[cacheKey] = best
-						streamCacheMu.Unlock()
-						return best, nil
-					}
-				}
-			}
-		}
-	}
-
-	for _, src := range sources {
-		links, err := fetchProviderLinks(src.SourceURL)
-		if err == nil {
-			best := selectBestLink(links, quality)
-			if best != "" {
-				streamCacheMu.Lock()
-				streamCache[cacheKey] = best
-				streamCacheMu.Unlock()
-				return best, nil
-			}
-		}
+	best := selectBestLinkFromResolved(resolved, quality)
+	if best != "" {
+		streamCacheMu.Lock()
+		streamCache[cacheKey] = best
+		streamCacheMu.Unlock()
+		return best, nil
 	}
 
 	return "", fmt.Errorf("no stream links resolved for episode %s (%s)", episodeNo, mode)
 }
 
-func selectBestLink(links map[string]string, requested string) string {
-	if len(links) == 0 {
+func selectBestLinkFromResolved(streams []ResolvedStream, requested string) string {
+	if len(streams) == 0 {
 		return ""
 	}
-
-	priorities := []string{"1080p", "720p", "480p", "360p", "hls"}
+	priorities := []string{"1080p", "720p", "480p", "360p", "hls", "best"}
 	if requested == "worst" {
-		priorities = []string{"360p", "480p", "720p", "1080p", "hls"}
+		priorities = []string{"360p", "480p", "720p", "1080p", "hls", "best"}
 	} else if requested != "best" && requested != "" {
-		if val, exists := links[requested]; exists {
-			return val
+		for _, s := range streams {
+			if strings.EqualFold(s.Quality, requested) {
+				return s.URL
+			}
 		}
 	}
-
 	for _, p := range priorities {
-		if val, exists := links[p]; exists {
-			return val
+		for _, s := range streams {
+			if strings.EqualFold(s.Quality, p) {
+				return s.URL
+			}
 		}
 	}
-
-	for _, val := range links {
-		return val
-	}
-	return ""
+	return streams[0].URL
 }
 
 func doHTTPReqWithRetry(method, url string, payload []byte, headers map[string]string) ([]byte, error) {
