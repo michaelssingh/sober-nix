@@ -177,7 +177,7 @@ verify_all_sources_playable() {
             pass "Source #$((idx + 1)) ([$prov] $name) is streamable & playable (mpv was invoked)"
         fi
         if [ "$idx" -lt $((total_sources - 1)) ]; then
-            if wait_for_screen "$session" "Select Episode" 4; then
+            if wait_for_screen "$session" "Select Episode|EPISODE DETAILS|enter: play" 4; then
                 tmux send-keys -t "$session" Enter
                 wait_for_screen "$session" "Select Source" 8
             else
