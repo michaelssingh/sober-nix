@@ -1289,18 +1289,28 @@ func fetchAllResolvedStreams(showID, mode, episodeNo string) ([]ResolvedStream, 
 	}
 
 	var results []ResolvedStream
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+
 	for _, src := range sources {
-		links, err := fetchProviderLinks(src.SourceURL)
-		if err == nil && len(links) > 0 {
-			for qual, urlVal := range links {
-				results = append(results, ResolvedStream{
-					SourceName: src.SourceName,
-					Quality:    qual,
-					URL:        urlVal,
-				})
+		wg.Add(1)
+		go func(s SourceInfo) {
+			defer wg.Done()
+			links, err := fetchProviderLinks(s.SourceURL)
+			if err == nil && len(links) > 0 {
+				mu.Lock()
+				for qual, urlVal := range links {
+					results = append(results, ResolvedStream{
+						SourceName: s.SourceName,
+						Quality:    qual,
+						URL:        urlVal,
+					})
+				}
+				mu.Unlock()
 			}
-		}
+		}(src)
 	}
+	wg.Wait()
 
 	if len(results) == 0 {
 		return nil, fmt.Errorf("no streams resolved for episode %s (%s)", episodeNo, mode)
