@@ -347,6 +347,8 @@ type model struct {
 	selectedEp              string
 	playingShow             AnimeShow
 	playingEp               string
+	playingMode             string
+	playingEpisodes         []string
 	episodes                []string
 	download                bool
 	quality                 string
@@ -544,6 +546,10 @@ func initialModel(initialSearch, mode, quality string, download bool) model {
 		m.selectedEp = activeEp
 		m.playingShow = activeShow
 		m.playingEp = activeEp
+		m.playingMode = m.mode
+		if _, eps, found := loadShowCache(activeShow.ID); found {
+			m.playingEpisodes = eps
+		}
 		m.mpvStatus = reattachedStatus
 	}
 
@@ -1051,6 +1057,27 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 
+		// Sort episodes in ascending order
+		sort.Slice(msg.episodes, func(i, j int) bool {
+			valI := parseEpisodeNumber(msg.episodes[i])
+			valJ := parseEpisodeNumber(msg.episodes[j])
+			if valI == valJ {
+				return msg.episodes[i] < msg.episodes[j]
+			}
+			return valI < valJ
+		})
+
+		if m.triggerAutoplay {
+			m.triggerAutoplay = false
+			m.playingShow = msg.show
+			m.playingEpisodes = msg.episodes
+			cmd := m.triggerAutoplayAction()
+			if cmd != nil {
+				return m, cmd
+			}
+			return m, nil
+		}
+
 		m.selectedShow = msg.show
 		m.episodes = msg.episodes
 		m.state = stateEpisodeSelect
@@ -1079,16 +1106,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 		}
-
-		// Sort episodes in ascending order
-		sort.Slice(m.episodes, func(i, j int) bool {
-			valI := parseEpisodeNumber(m.episodes[i])
-			valJ := parseEpisodeNumber(m.episodes[j])
-			if valI == valJ {
-				return m.episodes[i] < m.episodes[j]
-			}
-			return valI < valJ
-		})
 
 		// Rebuild the list items with current (empty/fallback) titles
 		m.refreshEpisodeListItems()
@@ -2137,6 +2154,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if ok {
 					m.state = statePlaybackPreparing
 					m.loadingMsg = fmt.Sprintf("Preparing playback from %s (%s)...", selected.stream.SourceName, selected.stream.Quality)
+
+					m.playingShow = m.selectedShow
+					m.playingEp = m.selectedEp
+					m.playingMode = m.mode
+					m.playingEpisodes = make([]string, len(m.episodes))
+					copy(m.playingEpisodes, m.episodes)
 
 					// Seed cache so resolveStreamURL uses this exact URL
 					cacheKey := fmt.Sprintf("%s-%s-%s-%s", m.selectedShow.ID, m.mode, m.selectedEp, m.quality)
@@ -3713,15 +3736,29 @@ func (m *model) refreshLogsViewport() {
 }
 
 func (m *model) triggerAutoplayAction() tea.Cmd {
-	if len(m.episodes) == 0 {
+	playingShow := m.playingShow
+	if playingShow.ID == "" {
+		playingShow = m.selectedShow
+	}
+	playingMode := m.playingMode
+	if playingMode == "" {
+		playingMode = m.mode
+	}
+	playingEpisodes := m.playingEpisodes
+	if len(playingEpisodes) == 0 {
+		playingEpisodes = m.episodes
+	}
+
+	if len(playingEpisodes) == 0 {
 		debugLog("[INFO] Autoplay: episodes list not loaded. Fetching episodes first...")
 		m.state = stateSearchRunning
 		m.loadingMsg = "Autoplay: Fetching episode list..."
-		return doFetchEpisodes(m.selectedShow.ID, m.mode)
+		m.triggerAutoplay = true
+		return doFetchEpisodes(playingShow.ID, playingMode)
 	}
 
 	currIdx := -1
-	for i, ep := range m.episodes {
+	for i, ep := range playingEpisodes {
 		if ep == m.playingEp {
 			currIdx = i
 			break
@@ -3729,12 +3766,12 @@ func (m *model) triggerAutoplayAction() tea.Cmd {
 	}
 
 	var nextEpNo string
-	if currIdx >= 0 && currIdx+1 < len(m.episodes) {
-		nextEpNo = m.episodes[currIdx+1]
+	if currIdx >= 0 && currIdx+1 < len(playingEpisodes) {
+		nextEpNo = playingEpisodes[currIdx+1]
 	} else {
 		// Fallback: try parsing next number if current isn't in list or list is incomplete
 		currEpVal := parseEpisodeNumber(m.playingEp)
-		totalEps := m.selectedShow.EpCount()
+		totalEps := playingShow.EpCount()
 		if totalEps == 0 {
 			totalEps = 1000
 		}
@@ -3754,7 +3791,7 @@ func (m *model) triggerAutoplayAction() tea.Cmd {
 	}
 
 	if m.skipFillers {
-		totalEps := m.selectedShow.EpCount()
+		totalEps := playingShow.EpCount()
 		if totalEps == 0 {
 			totalEps = 1000
 		}
@@ -3762,18 +3799,16 @@ func (m *model) triggerAutoplayAction() tea.Cmd {
 		for {
 			if info, ok := m.episodeDetails[nextEpNo]; ok && info.Filler {
 				debugLog("[INFO] Autoplay: Skipping filler episode %s", nextEpNo)
-				// Find index of nextEpNo
 				nextIdx := -1
-				for i, ep := range m.episodes {
+				for i, ep := range playingEpisodes {
 					if ep == nextEpNo {
 						nextIdx = i
 						break
 					}
 				}
-				if nextIdx >= 0 && nextIdx+1 < len(m.episodes) {
-					nextEpNo = m.episodes[nextIdx+1]
+				if nextIdx >= 0 && nextIdx+1 < len(playingEpisodes) {
+					nextEpNo = playingEpisodes[nextIdx+1]
 				} else {
-					// Fallback increment
 					currVal := parseEpisodeNumber(nextEpNo)
 					nextVal := currVal + 1.0
 					if int(currVal) < totalEps {
@@ -3794,11 +3829,17 @@ func (m *model) triggerAutoplayAction() tea.Cmd {
 	}
 
 	if nextEpNo != "" {
+		m.playingEp = nextEpNo
+		m.selectedShow = playingShow
 		m.selectedEp = nextEpNo
+		m.mode = playingMode
+		m.episodes = playingEpisodes
+
 		m.state = statePlaybackPreparing
 		m.loadingMsg = fmt.Sprintf("Autoplay: Preparing playback for Episode %s...", nextEpNo)
-		return doPreparePlayback(m.selectedShow, nextEpNo, m.mode, m.quality, m.download)
+		return doPreparePlayback(playingShow, nextEpNo, playingMode, m.quality, m.download)
 	}
 
 	return nil
 }
+
