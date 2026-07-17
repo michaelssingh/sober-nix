@@ -118,6 +118,64 @@ capture() {
     tmux capture-pane -p -t "$1"
 }
 
+play_provider_stream() {
+    local target_provider="$1"
+    local session="clare-tui-test"
+    for ((i=0; i<45; i++)); do
+        tmux send-keys -t "$session" Up
+    done
+    sleep 0.5
+    local screen
+    screen=$(capture "$session")
+    local list_started=false
+    local idx=0
+    local target_idx=-1
+    while IFS= read -r line; do
+        if echo "$line" | grep -qiE "Select Source|Episode.*Sources"; then
+            list_started=true
+            continue
+        fi
+        if [ "$list_started" = true ]; then
+            if echo "$line" | grep -qE "^[[:space:]]*$|enter: play"; then
+                continue
+            fi
+            if echo "$line" | grep -qiE "(^│|^[[:space:]]+)\["; then
+                local match_prov="ALLANIME"
+                if [[ "$target_provider" =~ [Gg][Oo][Gg][Oo] ]]; then
+                    match_prov="GOGO"
+                fi
+                if echo "$line" | grep -qi "$match_prov"; then
+                    target_idx=$idx
+                    break
+                fi
+                idx=$((idx + 1))
+            fi
+        fi
+    done <<< "$screen"
+    if [ "$target_idx" -lt 0 ]; then
+        warn "No stream found for provider '$target_provider' on this screen."
+        return 1
+    fi
+    info "Found '$target_provider' stream at index $target_idx. Navigating down..."
+    for ((i=0; i<target_idx; i++)); do
+        tmux send-keys -t "$session" Down
+    done
+    sleep 0.5
+    local before_calls
+    before_calls=$(grep -c "MPV_CALL" "$LOG_FILE" 2>/dev/null || echo "0")
+    tmux send-keys -t "$session" Enter
+    sleep 6
+    local after_calls
+    after_calls=$(grep -c "MPV_CALL" "$LOG_FILE" 2>/dev/null || echo "0")
+    if [ "$after_calls" -gt "$before_calls" ]; then
+        pass "Successfully played '$target_provider' stream via mpv"
+        return 0
+    else
+        fail "Failed to play '$target_provider' stream"
+        return 1
+    fi
+}
+
 # Start a fresh Clare TUI session, always lands on Search input
 start_clare() {
     if tmux has-session -t clare-tui-test 2>/dev/null; then
@@ -290,30 +348,39 @@ for title in "${TITLES[@]}"; do
         continue
     fi
 
-    # ── 5. Select the first source — triggers mpv ──────────────────────────────
-    tmux send-keys -t clare-tui-test Enter
-    info "Launching SUB playback via mpv wrapper..."
+    # ── 5. Select and play streams from BOTH providers ──────────────────────────
+    info "Testing multi-provider playback..."
+    local play_allanime_ok=false
+    local play_gogo_ok=false
 
-    # Wait for playback to start and Clare to return to episode list
-    # (our headless mpv exits immediately after 1 frame, so Clare gets
-    #  playbackFinishedMsg and returns to stateEpisodeSelect)
-    sleep 6
-    if wait_for_screen "clare-tui-test" "Select Episode|EPISODE DETAILS|enter: play" 8; then
-        # Check our wrapper was actually called
-        if grep -q "MPV_CALL" "$LOG_FILE" 2>/dev/null; then
-            R_MPV_SUB["$title"]="PASS"
-            pass "mpv was called; headless decode succeeded"
-            PASS_COUNT+=1
-        else
-            R_MPV_SUB["$title"]="WARN"
-            warn "Back at episode list but mpv call not logged"
-        fi
+    if play_provider_stream "allanime"; then
+        play_allanime_ok=true
+    fi
+
+    # Return to source selection if mpv returned us to episode list
+    if wait_for_screen "clare-tui-test" "Select Episode" 4; then
+        tmux send-keys -t clare-tui-test Enter
+        wait_for_screen "clare-tui-test" "Select Source" 8
+    fi
+
+    if play_provider_stream "gogoanime"; then
+        play_gogo_ok=true
+    fi
+
+    # Ensure clare returns cleanly to the episode list
+    wait_for_screen "clare-tui-test" "Select Episode|EPISODE DETAILS|enter: play" 8
+
+    if [ "$play_allanime_ok" = true ] && [ "$play_gogo_ok" = true ]; then
+        R_MPV_SUB["$title"]="PASS"
+        pass "Successfully verified playability of both providers"
+        PASS_COUNT+=1
+    elif [ "$play_allanime_ok" = true ] || [ "$play_gogo_ok" = true ]; then
+        R_MPV_SUB["$title"]="PARTIAL"
+        warn "Only one provider could be verified"
     else
         R_MPV_SUB["$title"]="FAIL"
-        fail "Clare did not return to episode list after playback"
+        fail "Could not verify stream playback for either provider"
         FAIL_COUNT+=1
-        echo "SCREEN DUMP (mpv fail):" >> "$LOG_FILE"
-        capture "clare-tui-test" >> "$LOG_FILE"
     fi
 
     # ── 6. Press 'd' on Episode 1 to trigger download ─────────────────────────
