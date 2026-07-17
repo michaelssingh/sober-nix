@@ -1444,7 +1444,8 @@ func checkStreamMpvDryRun(urlVal string, headers map[string]string) (bool, error
 	args := []string{
 		"--vo=null",
 		"--ao=null",
-		"--frames=1",
+		"--length=5",
+		"--msg-level=all=status",
 		"--network-timeout=5",
 	}
 	if !useYtdl {
