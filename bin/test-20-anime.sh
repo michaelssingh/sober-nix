@@ -118,9 +118,9 @@ capture() {
     tmux capture-pane -p -t "$1"
 }
 
-play_provider_stream() {
-    local target_provider="$1"
+verify_all_sources_playable() {
     local session="clare-tui-test"
+    local total_sources=0
     for ((i=0; i<45; i++)); do
         tmux send-keys -t "$session" Up
     done
@@ -128,8 +128,8 @@ play_provider_stream() {
     local screen
     screen=$(capture "$session")
     local list_started=false
-    local idx=0
-    local target_idx=-1
+    local source_names=()
+    local source_providers=()
     while IFS= read -r line; do
         if echo "$line" | grep -qiE "Select Source|Episode.*Sources"; then
             list_started=true
@@ -140,38 +140,72 @@ play_provider_stream() {
                 continue
             fi
             if echo "$line" | grep -qiE "(^│|^[[:space:]]+)\["; then
-                local match_prov="ALLANIME"
-                if [[ "$target_provider" =~ [Gg][Oo][Gg][Oo] ]]; then
-                    match_prov="GOGO"
+                local prov="UNKNOWN"
+                if echo "$line" | grep -qi "ALLANIME"; then
+                    prov="ALLANIME"
+                elif echo "$line" | grep -qi "GOGO"; then
+                    prov="GOGO"
                 fi
-                if echo "$line" | grep -qi "$match_prov"; then
-                    target_idx=$idx
-                    break
-                fi
-                idx=$((idx + 1))
+                local name
+                name=$(echo "$line" | sed -E 's/^.*\[(ALLANIME|GOGO)\][[:space:]]+//; s/[[:space:]]*\(.*$//; s/^[^a-zA-Z0-9]*//')
+                source_names+=("$name")
+                source_providers+=("$prov")
+                total_sources=$((total_sources + 1))
             fi
         fi
     done <<< "$screen"
-    if [ "$target_idx" -lt 0 ]; then
-        warn "No stream found for provider '$target_provider' on this screen."
+    if [ "$total_sources" -eq 0 ]; then
+        fail "No stream sources found on this screen to play"
         return 1
     fi
-    info "Found '$target_provider' stream at index $target_idx. Navigating down..."
-    for ((i=0; i<target_idx; i++)); do
-        tmux send-keys -t "$session" Down
+    info "Found $total_sources sources. Verifying playability of every single source..."
+    local all_ok=true
+    for ((idx=0; idx<total_sources; idx++)); do
+        local name="${source_names[idx]}"
+        local prov="${source_providers[idx]}"
+        info "Testing source #$((idx + 1))/$total_sources: [$prov] $name"
+        for ((i=0; i<45; i++)); do
+            tmux send-keys -t "$session" Up
+        done
+        sleep 0.5
+        for ((i=0; i<idx; i++)); do
+            tmux send-keys -t "$session" Down
+        done
+        sleep 0.5
+        local before_calls
+        before_calls=$(grep -h "MPV_CALL" "$LOG_FILE" 2>/dev/null | wc -l)
+        tmux send-keys -t "$session" Enter
+        sleep 6
+        local after_calls
+        after_calls=$(grep -h "MPV_CALL" "$LOG_FILE" 2>/dev/null | wc -l)
+        if [ "$after_calls" -le "$before_calls" ]; then
+            fail "Source #$((idx + 1)) ([$prov] $name) failed: mpv was not invoked"
+            all_ok=false
+        else
+            local last_exit
+            last_exit=$(grep "MPV_EXIT" "$LOG_FILE" 2>/dev/null | tail -n 1)
+            if echo "$last_exit" | grep -q "MPV_EXIT 0"; then
+                pass "Source #$((idx + 1)) ([$prov] $name) is streamable & playable (mpv exited 0)"
+            else
+                local exit_code
+                exit_code=$(echo "$last_exit" | awk '{print $2}')
+                fail "Source #$((idx + 1)) ([$prov] $name) is UNPLAYABLE (mpv exited with code $exit_code)"
+                all_ok=false
+            fi
+        fi
+        if [ "$idx" -lt $((total_sources - 1)) ]; then
+            if wait_for_screen "$session" "Select Episode" 4; then
+                tmux send-keys -t "$session" Enter
+                wait_for_screen "$session" "Select Source" 8
+            else
+                fail "Failed to return to Episode list after playing source #$((idx + 1))"
+                return 1
+            fi
+        fi
     done
-    sleep 0.5
-    local before_calls
-    before_calls=$(grep -h "MPV_CALL" "$LOG_FILE" 2>/dev/null | wc -l)
-    tmux send-keys -t "$session" Enter
-    sleep 6
-    local after_calls
-    after_calls=$(grep -h "MPV_CALL" "$LOG_FILE" 2>/dev/null | wc -l)
-    if [ "$after_calls" -gt "$before_calls" ]; then
-        pass "Successfully played '$target_provider' stream via mpv"
+    if [ "$all_ok" = true ]; then
         return 0
     else
-        fail "Failed to play '$target_provider' stream"
         return 1
     fi
 }
@@ -348,38 +382,15 @@ for title in "${TITLES[@]}"; do
         continue
     fi
 
-    # ── 5. Select and play streams from BOTH providers ──────────────────────────
-    info "Testing multi-provider playback..."
-    play_allanime_ok=false
-    play_gogo_ok=false
-
-    if play_provider_stream "allanime"; then
-        play_allanime_ok=true
-    fi
-
-    # Return to source selection if mpv returned us to episode list
-    if wait_for_screen "clare-tui-test" "Select Episode" 4; then
-        tmux send-keys -t clare-tui-test Enter
-        wait_for_screen "clare-tui-test" "Select Source" 8
-    fi
-
-    if play_provider_stream "gogoanime"; then
-        play_gogo_ok=true
-    fi
-
-    # Ensure clare returns cleanly to the episode list
-    wait_for_screen "clare-tui-test" "Select Episode|EPISODE DETAILS|enter: play" 8
-
-    if [ "$play_allanime_ok" = true ] && [ "$play_gogo_ok" = true ]; then
+    # ── 5. Play and verify all sources are playable ─────────────────────────────
+    info "Testing playability of all resolved sources..."
+    if verify_all_sources_playable; then
         R_MPV_SUB["$title"]="PASS"
-        pass "Successfully verified playability of both providers"
+        pass "Successfully verified playability of all sources"
         PASS_COUNT+=1
-    elif [ "$play_allanime_ok" = true ] || [ "$play_gogo_ok" = true ]; then
-        R_MPV_SUB["$title"]="PARTIAL"
-        warn "Only one provider could be verified"
     else
         R_MPV_SUB["$title"]="FAIL"
-        fail "Could not verify stream playback for either provider"
+        fail "One or more sources were unplayable"
         FAIL_COUNT+=1
     fi
 
