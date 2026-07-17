@@ -274,6 +274,12 @@ for title in "${TITLES[@]}"; do
         R_STREAMS["$title"]="PASS"
         pass "Stream sources resolved (SUB)"
         PASS_COUNT+=1
+        s_sources=$(capture "clare-tui-test")
+        if echo "$s_sources" | grep -qiE "ALLANIME|GOGO"; then
+            pass "Provider badges (ALLANIME/GOGO) detected in SUB source list"
+        else
+            warn "No provider badges (ALLANIME/GOGO) detected in SUB source list"
+        fi
     else
         R_STREAMS["$title"]="FAIL"
         fail "Stream sources did not resolve (SUB)"
@@ -349,6 +355,11 @@ for title in "${TITLES[@]}"; do
                 R_STREAMS_DUB["$title"]="PASS"
                 pass "DUB stream sources resolved"
                 PASS_COUNT+=1
+                if echo "$screen_dub_sources" | grep -qiE "ALLANIME|GOGO"; then
+                    pass "Provider badges (ALLANIME/GOGO) detected in DUB source list"
+                else
+                    warn "No provider badges (ALLANIME/GOGO) detected in DUB source list"
+                fi
 
                 # Play DUB stream
                 tmux send-keys -t clare-tui-test Enter
