@@ -344,6 +344,7 @@ func (p *AllAnimeProvider) fetchAllResolvedStreams(showID, mode, episodeNo strin
 				mu.Lock()
 				for qual, urlVal := range links {
 					results = append(results, ResolvedStream{
+						Provider:   "allanime",
 						SourceName: s.SourceName,
 						Quality:    qual,
 						URL:        urlVal,

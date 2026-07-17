@@ -297,7 +297,21 @@ func (s sourceItem) Title() string {
 	} else if s.status == "dead" {
 		badge = lipgloss.NewStyle().Foreground(lipgloss.Color("#f7768e")).Render("[✗ DEAD]")
 	}
-	return fmt.Sprintf("%s %s (%s)", badge, s.stream.SourceName, s.stream.Quality)
+
+	prov := s.stream.Provider
+	if prov == "" {
+		prov = "allanime"
+	}
+	provBadge := ""
+	if strings.EqualFold(prov, "gogoanime") {
+		provBadge = lipgloss.NewStyle().Foreground(lipgloss.Color("#ff9e64")).Render("[GOGO]")
+	} else if strings.EqualFold(prov, "allanime") {
+		provBadge = lipgloss.NewStyle().Foreground(lipgloss.Color("#7aa2f7")).Render("[ALLANIME]")
+	} else {
+		provBadge = lipgloss.NewStyle().Foreground(lipgloss.Color("#bb9af7")).Render("[" + strings.ToUpper(prov) + "]")
+	}
+
+	return fmt.Sprintf("%s %s %s (%s)", badge, provBadge, s.stream.SourceName, s.stream.Quality)
 }
 func (s sourceItem) Description() string {
 	return s.stream.URL

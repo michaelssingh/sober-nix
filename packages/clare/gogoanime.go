@@ -171,6 +171,7 @@ func (p *GogoanimeProvider) ResolveStreams(showID, mode, episodeNo, quality stri
 			qualityStr = strings.TrimSpace(qualityStr)
 
 			results = append(results, ResolvedStream{
+				Provider:   "gogoanime",
 				SourceName: "Gogo",
 				Quality:    qualityStr,
 				URL:        m[1],

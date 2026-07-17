@@ -1201,6 +1201,7 @@ func newLoggingHttpClient(timeout time.Duration) *http.Client {
 }
 
 type ResolvedStream struct {
+	Provider   string
 	SourceName string
 	Quality    string
 	URL        string
