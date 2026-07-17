@@ -911,9 +911,9 @@ func doHTTPReqWithRetry(method, url string, payload []byte, headers map[string]s
 					debugLog("[API-RESP-SUCCESS] Status 200 on %s", url)
 				}
 
-				isTransientError := resp.StatusCode == 500 || resp.StatusCode == 502 || resp.StatusCode == 503 || resp.StatusCode == 504 || resp.StatusCode == 429
+				isTransientError := (resp.StatusCode >= 500 && resp.StatusCode < 600) || resp.StatusCode == 429
 				bodyStr := string(body)
-				if !isTransientError && (strings.Contains(bodyStr, "error code: 502") || strings.Contains(bodyStr, "error code: 503") || strings.Contains(bodyStr, "error code: 500")) {
+				if !isTransientError && (strings.Contains(bodyStr, "error code: 5")) {
 					isTransientError = true
 				}
 
@@ -1242,12 +1242,25 @@ func fetchAiringAnime() ([]AiringShow, error) {
 }
 
 func checkStreamMpvDryRun(urlVal string, headers map[string]string) (bool, error) {
+	useYtdl := false
+	lowerURL := strings.ToLower(urlVal)
+	if strings.Contains(lowerURL, "ok.ru") ||
+		strings.Contains(lowerURL, "filemoon") ||
+		strings.Contains(lowerURL, "bysekoze") ||
+		strings.Contains(lowerURL, "streamwish") ||
+		strings.Contains(lowerURL, "listeamed") ||
+		strings.Contains(lowerURL, "vidguard") {
+		useYtdl = true
+	}
+
 	args := []string{
 		"--vo=null",
 		"--ao=null",
 		"--frames=1",
-		"--ytdl=no",
-		"--network-timeout=3",
+		"--network-timeout=5",
+	}
+	if !useYtdl {
+		args = append(args, "--ytdl=no")
 	}
 	var headerFields []string
 	for k, v := range headers {

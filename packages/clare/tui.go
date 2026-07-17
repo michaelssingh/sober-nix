@@ -505,9 +505,9 @@ func initialModel(initialSearch, mode, quality string, download bool) model {
 			}
 		}
 	} else {
-		if _, statErr := os.Stat("/tmp/clare-mpv.sock"); statErr == nil {
+		if _, statErr := os.Stat(getMpvSocketPath()); statErr == nil {
 			debugLog("[INFO] Removing stale MPV socket file...")
-			_ = os.Remove("/tmp/clare-mpv.sock")
+			_ = os.Remove(getMpvSocketPath())
 		}
 	}
 
@@ -1188,7 +1188,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 					// Dynamically set new chapters-file in MPV
 					if msg.tempChaptersFile != "" {
-						conn, errIPC := net.DialTimeout("unix", "/tmp/clare-mpv.sock", 100*time.Millisecond)
+						conn, errIPC := net.DialTimeout("unix", getMpvSocketPath(), 100*time.Millisecond)
 						if errIPC == nil {
 							_, _ = sendMpvCommand(conn, []interface{}{"set_property", "chapters-file", msg.tempChaptersFile})
 							conn.Close()
@@ -1490,9 +1490,34 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		cmd := downloadCmd(msg.stream, msg.show.Name, msg.epNo)
-		debugLog("[INFO] Starting background download of %s - Episode %s", msg.show.Name, msg.epNo)
+		toolName := "DOWNLOAD"
+		if strings.Contains(cmd.Path, "yt-dlp") {
+			toolName = "YTDL"
+		} else if strings.Contains(cmd.Path, "ffmpeg") {
+			toolName = "FFMPEG"
+		}
+		stdout, errOut := cmd.StdoutPipe()
+		stderr, errErr := cmd.StderrPipe()
+		if errOut == nil && errErr == nil {
+			go func() {
+				scanner := bufio.NewScanner(stdout)
+				for scanner.Scan() {
+					debugLog("[%s] %s", toolName, scanner.Text())
+				}
+			}()
+			go func() {
+				scanner := bufio.NewScanner(stderr)
+				for scanner.Scan() {
+					debugLog("[%s] %s", toolName, scanner.Text())
+				}
+			}()
+		}
+		debugLog("[INFO] Starting background download of %s - Episode %s using %s", msg.show.Name, msg.epNo, toolName)
 		go func() {
-			err := cmd.Run()
+			err := cmd.Start()
+			if err == nil {
+				err = cmd.Wait()
+			}
 			if err != nil {
 				debugLog("[ERROR] Download of %s - Episode %s failed: %v", msg.show.Name, msg.epNo, err)
 			} else {
@@ -2188,7 +2213,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						cfg.PreferredMode = "sub"
 					}
 				case 5:
-					qualities := []string{"best", "1080p", "720p", "480p", "360p"}
+					qualities := []string{"best", "hls", "1080p", "720p", "480p", "360p"}
 					idx := -1
 					for i, q := range qualities {
 						if q == cfg.PreferredQuality {
@@ -2375,7 +2400,28 @@ func (m model) View() string {
 
 		if len(m.searchHistory) > 0 {
 			leftBuf.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("#bb9af7")).Bold(true).Render("◆ Recent History ◆") + "\n\n")
-			for i, q := range m.searchHistory {
+			maxHist := listHeight - 11
+			if maxHist < 3 {
+				maxHist = 3
+			}
+			start := 0
+			end := len(m.searchHistory)
+			if end > maxHist {
+				start = m.searchHistoryIndex - (maxHist / 2)
+				if start < 0 {
+					start = 0
+				}
+				end = start + maxHist
+				if end > len(m.searchHistory) {
+					end = len(m.searchHistory)
+					start = end - maxHist
+					if start < 0 {
+						start = 0
+					}
+				}
+			}
+			for i := start; i < end; i++ {
+				q := m.searchHistory[i]
 				if !m.airingFocused && i == m.searchHistoryIndex {
 					leftBuf.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("#2ac3de")).Bold(true).Render(fmt.Sprintf(" 👉 %s", q)) + "\n")
 				} else {
@@ -2390,6 +2436,11 @@ func (m model) View() string {
 
 		var rightBuf strings.Builder
 		rightBuf.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("#ff007f")).Bold(true).Render("🔥 CURRENTLY AIRING Suggestions 🔥") + "\n\n")
+
+		rightWidth := m.width - 40
+		if rightWidth < 15 {
+			rightWidth = 15
+		}
 
 		if !m.airingSuggestionsLoaded {
 			if m.airingSuggestionsErr != nil {
@@ -2407,14 +2458,6 @@ func (m model) View() string {
 					prefix = "👉"
 					titleStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#2ac3de")).Bold(true)
 				}
-				
-				title := show.TitleEnglish
-				if title == "" {
-					title = show.TitleRomaji
-				}
-				if len(title) > 35 {
-					title = title[:32] + "..."
-				}
 
 				nextEpStr := ""
 				if show.NextEpisode > 0 {
@@ -2426,6 +2469,19 @@ func (m model) View() string {
 						nextEpStr = fmt.Sprintf(" (Ep %d in %dh)", show.NextEpisode, hours)
 					}
 				}
+
+				maxTitleLen := rightWidth - len(nextEpStr) - 6
+				if maxTitleLen < 12 {
+					maxTitleLen = 12
+				}
+				
+				title := show.TitleEnglish
+				if title == "" {
+					title = show.TitleRomaji
+				}
+				if len(title) > maxTitleLen {
+					title = title[:maxTitleLen-3] + "..."
+				}
 				
 				rightBuf.WriteString(fmt.Sprintf("%s %s%s\n", prefix, titleStyle.Render(title), lipgloss.NewStyle().Foreground(lipgloss.Color("#e0af68")).Render(nextEpStr)))
 			}
@@ -2435,10 +2491,6 @@ func (m model) View() string {
 		rightView := rightBuf.String()
 
 		leftPane := lipgloss.NewStyle().Width(35).Render(leftView)
-		rightWidth := m.width - 40
-		if rightWidth < 15 {
-			rightWidth = 15
-		}
 		rightPane := lipgloss.NewStyle().Width(rightWidth).Render(rightView)
 		s.WriteString(bodyStyle.Render(lipgloss.JoinHorizontal(lipgloss.Top, leftPane, "   ", rightPane)))
 
@@ -3534,6 +3586,20 @@ func formatLogLine(line string) string {
 		content := parts[1]
 		mpvBadge := lipgloss.NewStyle().Foreground(lipgloss.Color("#bb9af7")).Render("[MPV]")
 		return prefix + mpvBadge + lipgloss.NewStyle().Foreground(lipgloss.Color("#a9b1d6")).Render(content)
+	}
+	if strings.Contains(line, "[YTDL]") {
+		parts := strings.SplitN(line, "[YTDL]", 2)
+		prefix := parts[0]
+		content := parts[1]
+		ytdlBadge := lipgloss.NewStyle().Foreground(lipgloss.Color("#e0af68")).Render("[YTDL]")
+		return prefix + ytdlBadge + lipgloss.NewStyle().Foreground(lipgloss.Color("#a9b1d6")).Render(content)
+	}
+	if strings.Contains(line, "[FFMPEG]") {
+		parts := strings.SplitN(line, "[FFMPEG]", 2)
+		prefix := parts[0]
+		content := parts[1]
+		ffmpegBadge := lipgloss.NewStyle().Foreground(lipgloss.Color("#9ece6a")).Render("[FFMPEG]")
+		return prefix + ffmpegBadge + lipgloss.NewStyle().Foreground(lipgloss.Color("#a9b1d6")).Render(content)
 	}
 	if strings.Contains(line, "[INFO]") {
 		return lipgloss.NewStyle().Foreground(lipgloss.Color("#7dcfff")).Render(line)

@@ -369,6 +369,10 @@ func TestMpvProcessLoggingIntegration(t *testing.T) {
 	os.Setenv("CLARE_STATE_DIR", tmpDir)
 	defer os.Setenv("CLARE_STATE_DIR", origStateDir)
 
+	origMpvSock := os.Getenv("CLARE_MPV_SOCK")
+	os.Setenv("CLARE_MPV_SOCK", filepath.Join(tmpDir, "clare-mpv-test.sock"))
+	defer os.Setenv("CLARE_MPV_SOCK", origMpvSock)
+
 	m := initialModel("", "sub", "best", false)
 
 	// Sleep to ensure tailLogFile has finished its startup delay and seeked to EOF

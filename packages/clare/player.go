@@ -252,7 +252,7 @@ local skip_times_json = %q
 		"--force-media-title=" + title + " - Episode " + epNo,
 		"--script=" + tmpFile.Name(),
 		"--http-header-fields=" + headerFields,
-		"--input-ipc-server=/tmp/clare-mpv.sock",
+		"--input-ipc-server=" + getMpvSocketPath(),
 		"--osc=yes",
 		"--keep-open=yes",
 	}
@@ -375,7 +375,7 @@ func queryBoolProperty(conn net.Conn, prop string) (bool, error) {
 }
 
 func queryMpvStatus() (MpvStatus, error) {
-	conn, err := net.DialTimeout("unix", "/tmp/clare-mpv.sock", 100*time.Millisecond)
+	conn, err := net.DialTimeout("unix", getMpvSocketPath(), 100*time.Millisecond)
 	if err != nil {
 		return MpvStatus{}, err
 	}
@@ -407,7 +407,7 @@ func queryMpvStatus() (MpvStatus, error) {
 }
 
 func executeMpvAction(cmd []interface{}) error {
-	conn, err := net.DialTimeout("unix", "/tmp/clare-mpv.sock", 100*time.Millisecond)
+	conn, err := net.DialTimeout("unix", getMpvSocketPath(), 100*time.Millisecond)
 	if err != nil {
 		return err
 	}
@@ -417,7 +417,7 @@ func executeMpvAction(cmd []interface{}) error {
 }
 
 func queryMediaTitle() (string, error) {
-	conn, err := net.DialTimeout("unix", "/tmp/clare-mpv.sock", 100*time.Millisecond)
+	conn, err := net.DialTimeout("unix", getMpvSocketPath(), 100*time.Millisecond)
 	if err != nil {
 		return "", err
 	}
@@ -436,7 +436,7 @@ func queryMediaTitle() (string, error) {
 }
 
 func loadFileInMpv(streamURL, title, epNo, malID string, extraArgs []string, durationSeconds float64, skipTimesJSON string) error {
-	conn, err := net.DialTimeout("unix", "/tmp/clare-mpv.sock", 100*time.Millisecond)
+	conn, err := net.DialTimeout("unix", getMpvSocketPath(), 100*time.Millisecond)
 	if err != nil {
 		return err
 	}
@@ -480,4 +480,11 @@ func loadFileInMpv(streamURL, title, epNo, malID string, extraArgs []string, dur
 	_, _ = sendMpvCommand(conn, []interface{}{"set_property", "pause", false})
 
 	return nil
+}
+
+func getMpvSocketPath() string {
+	if path := os.Getenv("CLARE_MPV_SOCK"); path != "" {
+		return path
+	}
+	return "/tmp/clare-mpv.sock"
 }
