@@ -90,9 +90,12 @@ if command -v notify-send >/dev/null 2>&1; then
         diff_section="\n\nPackage Changes: None"
     fi
 
+    body="System successfully built, copied, and activated.\n\nGeneration: #$gen_id\nSystem ID: $system_id ($sys_size)\nDuration: $duration_str\nCommit: $commit_hash - $commit_msg\nPath: $out_path\nUser: $(whoami)\nDate: $(date)$diff_section"
+    body_escaped=$(echo -e "$body" | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g')
+
     notify-send -t 0 -a "System Deploy" -u normal \
         "Deployment Successful (Generation #$gen_id)" \
-        "System successfully built, copied, and activated.\n\nGeneration: #$gen_id\nSystem ID: $system_id ($sys_size)\nDuration: $duration_str\nCommit: $commit_hash - $commit_msg\nPath: $out_path\nUser: $(whoami)\nDate: $(date)$diff_section" || true
+        "$body_escaped" || true
 fi
 
 echo -e "\n${BOLD}${GREEN}✔ Deployment completed successfully!${RESET}"
