@@ -57,6 +57,13 @@ sudo "$out_path/bin/switch-to-configuration" switch
 
 # Send detailed notification on success if notify-send is available
 if command -v notify-send >/dev/null 2>&1; then
+    # Auto-detect DBUS session bus address if not set (e.g. over SSH)
+    if [[ -z "${DBUS_SESSION_BUS_ADDRESS:-}" ]]; then
+        user_id=$(id -u)
+        if [[ -S "/run/user/$user_id/bus" ]]; then
+            export DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$user_id/bus"
+        fi
+    fi
     end_time=$(date +%s)
     duration=$((end_time - start_time))
     if [[ $duration -ge 60 ]]; then
