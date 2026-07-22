@@ -621,7 +621,7 @@ type mockTransport struct {
 }
 
 func (m *mockTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	if strings.Contains(req.URL.Host, "api.allanime.day") || strings.Contains(req.URL.Host, "api.aniskip.com") {
+	if strings.Contains(req.URL.Host, "api.allanime.day") || strings.Contains(req.URL.Host, "api.aniskip.com") || strings.Contains(req.URL.Host, "gogoanime.by") {
 		mockURL, err := url.Parse(m.mockServerURL)
 		if err != nil {
 			return nil, err
@@ -1406,9 +1406,9 @@ func TestLiveAPIIntegration(t *testing.T) {
 	os.Setenv("CLARE_STATE_DIR", tmpDir)
 	defer os.Setenv("CLARE_STATE_DIR", origStateDir)
 
-	showID := "zNbh9DKcawQbwnApG"
-	mode := "dub"
-	episodeNo := "11"
+	showID := "caSCmQepJo2pbKzq9"
+	mode := "sub"
+	episodeNo := "1"
 
 	sources, err := fetchEpisodeSources(showID, mode, episodeNo)
 	if err != nil {
@@ -1480,5 +1480,57 @@ func TestTUIProviderBadgesAndPlay(t *testing.T) {
 
 	if !ok || cachedURL != "http://example.com/gogo-720.mp4" {
 		t.Errorf("expected selected URL to be 'http://example.com/gogo-720.mp4', got %q", cachedURL)
+	}
+}
+
+func TestFetchBuildID(t *testing.T) {
+	epoch, key, buildID, err := getDerivedKey()
+	if err != nil {
+		t.Fatalf("getDerivedKey failed: %v", err)
+	}
+	t.Logf("Epoch: %d", epoch)
+	t.Logf("Key: %x", key)
+	t.Logf("BuildID: %q", buildID)
+}
+func TestFlikhubProvider(t *testing.T) {
+	p := &FlikhubProvider{}
+	shows, err := p.Search("Frieren", "sub")
+	if err != nil {
+		t.Fatalf("Search failed: %v", err)
+	}
+	if len(shows) == 0 {
+		t.Fatalf("No shows found for Frieren")
+	}
+	t.Logf("Search found %d shows. First: %s (MAL ID: %s)", len(shows), shows[0].Name, shows[0].MALID)
+
+	showID := ""
+	for _, s := range shows {
+		if strings.Contains(s.ID, "c6fbj") {
+			showID = s.ID
+			break
+		}
+	}
+	if showID == "" {
+		showID = shows[0].ID
+	}
+	show, episodes, err := p.FetchEpisodes(showID, "sub")
+	if err != nil {
+		t.Fatalf("FetchEpisodes failed: %v", err)
+	}
+	_ = saveShowCache(showID, show, episodes)
+	if len(episodes) == 0 {
+		t.Fatalf("No episodes found for Frieren")
+	}
+	t.Logf("FetchEpisodes found %d episodes. First: %s, Details Name: %s", len(episodes), episodes[0], show.Name)
+
+	streams, err := p.ResolveStreams(showID, "sub", "1", "best")
+	if err != nil {
+		t.Fatalf("ResolveStreams failed: %v", err)
+	}
+	if len(streams) == 0 {
+		t.Fatalf("No streams resolved")
+	}
+	for i, stream := range streams {
+		t.Logf("Stream %d: Source=%s, URL=%s", i, stream.SourceName, stream.URL)
 	}
 }

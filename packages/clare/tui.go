@@ -3208,7 +3208,29 @@ func (m model) renderShowDetailsPanel(show AnimeShow, coverArtANSI string, width
 	// We calculate remaining lines in the container to truncate description gracefully
 	// Header is 1 line, title wraps (assume 1-2 lines), separator/margins/spacing is ~6 lines.
 	// That's roughly 8 lines of overhead.
-	overhead := 13
+	var metaLines []string
+	metaLines = append(metaLines, fmt.Sprintf("%s %s", metaKeyStyle.Render("Score:   "), scoreStr))
+	if show.Rating != "" {
+		ratingStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#f7768e")).Background(lipgloss.Color("#2d2030")).Padding(0, 1)
+		metaLines = append(metaLines, fmt.Sprintf("%s %s", metaKeyStyle.Render("Rating:  "), ratingStyle.Render(show.Rating)))
+	}
+	metaLines = append(metaLines, fmt.Sprintf("%s %s", metaKeyStyle.Render("Format:  "), metaValStyle.Render(typeStr)))
+	metaLines = append(metaLines, fmt.Sprintf("%s %s", metaKeyStyle.Render("Release: "), metaValStyle.Render(seasonStr)))
+	metaLines = append(metaLines, fmt.Sprintf("%s %s", metaKeyStyle.Render("Length:  "), metaValStyle.Render(epsStr)))
+	if len(show.Genres) > 0 {
+		var genreBadges []string
+		genreStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#7dcfff")).Background(lipgloss.Color("#1f2335")).Padding(0, 1)
+		for _, g := range show.Genres {
+			genreBadges = append(genreBadges, genreStyle.Render(g))
+		}
+		metaLines = append(metaLines, fmt.Sprintf("%s %s", metaKeyStyle.Render("Genres:  "), strings.Join(genreBadges, " ")))
+	}
+	metaSection := strings.Join(metaLines, "\n")
+
+	// We calculate remaining lines in the container to truncate description gracefully
+	// Header is 1 line, title wraps (assume 1-2 lines), separator/margins/spacing is ~6 lines.
+	// That's roughly 8-10 lines of static overhead plus meta lines.
+	overhead := 9 + len(metaLines)
 	descMaxHeight := height - overhead - 2 // padding
 	if descMaxHeight < 3 {
 		descMaxHeight = 3
@@ -3246,12 +3268,9 @@ func (m model) renderShowDetailsPanel(show AnimeShow, coverArtANSI string, width
 	}
 
 	rightPanelContent := fmt.Sprintf(
-		"%s\n\n%s\n%s\n%s\n%s\n\n%s\n%s",
+		"%s\n\n%s\n\n%s\n%s",
 		titleStyle.Render(show.Name),
-		fmt.Sprintf("%s %s", metaKeyStyle.Render("Rating:  "), scoreStr),
-		fmt.Sprintf("%s %s", metaKeyStyle.Render("Format:  "), metaValStyle.Render(typeStr)),
-		fmt.Sprintf("%s %s", metaKeyStyle.Render("Release: "), metaValStyle.Render(seasonStr)),
-		fmt.Sprintf("%s %s", metaKeyStyle.Render("Length:  "), metaValStyle.Render(epsStr)),
+		metaSection,
 		headerStyle.Render(synopsisHeader),
 		truncatedDesc,
 	)

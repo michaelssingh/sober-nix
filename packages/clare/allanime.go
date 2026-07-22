@@ -141,11 +141,19 @@ func (p *AllAnimeProvider) fetchEpisodeSources(showID, mode, episodeNo string) (
 	queryExt := fmt.Sprintf(`{"persistedQuery":{"version":1,"sha256Hash":"%s"},"aaReq":"%s"}`, allAnimeQueryHash, aareq)
 	reqURL := fmt.Sprintf("%s?variables=%s&extensions=%s", AllAnimeAPI, url.QueryEscape(queryVars), url.QueryEscape(queryExt))
 
+	_, _, buildID, err := getDerivedKey()
+	if err != nil {
+		buildID = "64"
+	}
+	if buildID == "" {
+		buildID = "64"
+	}
+
 	headers := map[string]string{
 		"User-Agent": UserAgent,
 		"Referer":    AllAnimeReferer,
 		"Origin":     allAnimeQueryOrigin,
-		"x-build-id": "11",
+		"x-build-id": buildID,
 	}
 
 	body, err := doHTTPReqWithRetry("GET", reqURL, nil, headers)

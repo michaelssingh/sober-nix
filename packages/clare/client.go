@@ -61,7 +61,17 @@ var (
 	// linkPriorities = []string{"wixmp", "sharepoint", "mpv", "youtube"}
 )
 
-type AnimeShow struct {
+type MediaType string
+
+const (
+	MediaTypeAnime  MediaType = "anime"
+	MediaTypeMovie  MediaType = "movie"
+	MediaTypeTV     MediaType = "tv"
+	MediaTypeManga  MediaType = "manga"
+	MediaTypeSports MediaType = "sports"
+)
+
+type MediaItem struct {
 	ID                      string              `json:"_id"`
 	Provider                string              `json:"provider"`
 	Name                    string              `json:"name"`
@@ -80,7 +90,15 @@ type AnimeShow struct {
 		Year    FlexInt `json:"year"`
 	} `json:"season"`
 	Duration string `json:"duration"`
+
+	// Unified Media extension fields
+	MediaType MediaType `json:"media_type"`
+	TMDBID    string    `json:"tmdb_id,omitempty"`
+	Genres    []string  `json:"genres,omitempty"`
+	Rating    string    `json:"rating,omitempty"`
 }
+
+type AnimeShow = MediaItem
 
 func (s AnimeShow) EpCount() int {
 	if s.AvailableEpisodesDetail != nil {
@@ -322,7 +340,7 @@ func decryptGCM(data, nonce []byte) ([]byte, error) {
 	}
 
 	// Key 2: Derived Key from Key Manager (fallback)
-	_, derivedKey, errDK := getDerivedKey()
+	_, derivedKey, _, errDK := getDerivedKey()
 	if errDK == nil {
 		block, err = aes.NewCipher(derivedKey)
 		if err == nil {
@@ -416,30 +434,32 @@ func parseSourcePlaintext(plaintext []byte) ([]SourceInfo, error) {
 var (
 	cachedEpoch      int64
 	cachedDerivedKey []byte
+	cachedBuildID    string
 	cachedFetchedAt  time.Time
 	cachedMutex      sync.Mutex
 )
 
-func getDerivedKey() (int64, []byte, error) {
+func getDerivedKey() (int64, []byte, string, error) {
 	cachedMutex.Lock()
 	defer cachedMutex.Unlock()
 
 	if cachedEpoch > 0 && time.Since(cachedFetchedAt) < 30*time.Minute {
-		return cachedEpoch, cachedDerivedKey, nil
+		return cachedEpoch, cachedDerivedKey, cachedBuildID, nil
 	}
 
-	epoch, key, err := fetchAllAnimeCryptoMaterial()
+	epoch, key, buildID, err := fetchAllAnimeCryptoMaterial()
 	if err != nil {
-		return 0, nil, err
+		return 0, nil, "", err
 	}
 
 	cachedEpoch = epoch
 	cachedDerivedKey = key
+	cachedBuildID = buildID
 	cachedFetchedAt = time.Now()
-	return epoch, key, nil
+	return epoch, key, buildID, nil
 }
 
-func fetchAllAnimeCryptoMaterial() (int64, []byte, error) {
+func fetchAllAnimeCryptoMaterial() (int64, []byte, string, error) {
 	headers := map[string]string{
 		"User-Agent": UserAgent,
 		"Referer":    "https://mkissa.to/",
@@ -448,7 +468,7 @@ func fetchAllAnimeCryptoMaterial() (int64, []byte, error) {
 	// 1. Fetch homepage
 	htmlBytes, err := doHTTPReqWithRetry("GET", "https://mkissa.to/", nil, headers)
 	if err != nil {
-		return 0, nil, fmt.Errorf("failed to fetch mkissa homepage: %w", err)
+		return 0, nil, "", fmt.Errorf("failed to fetch mkissa homepage: %w", err)
 	}
 	html := string(htmlBytes)
 
@@ -456,7 +476,7 @@ func fetchAllAnimeCryptoMaterial() (int64, []byte, error) {
 	reCrypto := regexp.MustCompile(`window\.__aaCrypto\s*=\s*(\{[^{}]*\})`)
 	matchCrypto := reCrypto.FindStringSubmatch(html)
 	if len(matchCrypto) < 2 {
-		return 0, nil, fmt.Errorf("unable to find __aaCrypto in homepage")
+		return 0, nil, "", fmt.Errorf("unable to find __aaCrypto in homepage")
 	}
 
 	var bootstrap struct {
@@ -464,29 +484,29 @@ func fetchAllAnimeCryptoMaterial() (int64, []byte, error) {
 		PartB string `json:"partB"`
 	}
 	if err := json.Unmarshal([]byte(matchCrypto[1]), &bootstrap); err != nil {
-		return 0, nil, fmt.Errorf("failed to parse __aaCrypto JSON: %w", err)
+		return 0, nil, "", fmt.Errorf("failed to parse __aaCrypto JSON: %w", err)
 	}
 
 	partB, err := base64.StdEncoding.DecodeString(bootstrap.PartB)
 	if err != nil {
-		return 0, nil, fmt.Errorf("failed to decode partB: %w", err)
+		return 0, nil, "", fmt.Errorf("failed to decode partB: %w", err)
 	}
 	if len(partB) < 32 {
-		return 0, nil, fmt.Errorf("partB too short: %d bytes", len(partB))
+		return 0, nil, "", fmt.Errorf("partB too short: %d bytes", len(partB))
 	}
 
 	// 3. Find app entry JS
 	reApp := regexp.MustCompile(`import\("([^"]*/entry/app\.[^"]*\.js)"\)`)
 	matchApp := reApp.FindStringSubmatch(html)
 	if len(matchApp) < 2 {
-		return 0, nil, fmt.Errorf("unable to find SvelteKit app entry JS")
+		return 0, nil, "", fmt.Errorf("unable to find SvelteKit app entry JS")
 	}
 	appURL := matchApp[1]
 
 	// 4. Fetch app entry JS
 	appJSBytes, err := doHTTPReqWithRetry("GET", appURL, nil, headers)
 	if err != nil {
-		return 0, nil, fmt.Errorf("failed to fetch app entry JS: %w", err)
+		return 0, nil, "", fmt.Errorf("failed to fetch app entry JS: %w", err)
 	}
 	appJS := string(appJSBytes)
 
@@ -494,18 +514,19 @@ func fetchAllAnimeCryptoMaterial() (int64, []byte, error) {
 	reChunks := regexp.MustCompile(`\.\./chunks/([A-Za-z0-9_-]+\.js)`)
 	matchesChunks := reChunks.FindAllStringSubmatch(appJS, -1)
 	if len(matchesChunks) == 0 {
-		return 0, nil, fmt.Errorf("no chunk references found in app entry JS")
+		return 0, nil, "", fmt.Errorf("no chunk references found in app entry JS")
 	}
 
 	// Get base URL for chunks
 	lastEntryIdx := strings.LastIndex(appURL, "/entry/")
 	if lastEntryIdx == -1 {
-		return 0, nil, fmt.Errorf("invalid app entry URL structure: %q", appURL)
+		return 0, nil, "", fmt.Errorf("invalid app entry URL structure: %q", appURL)
 	}
 	chunkBaseURL := appURL[:lastEntryIdx] + "/chunks/"
 
 	// 6. Find the crypto chunk containing "aaReq"
 	var maskHex string
+	var buildID string
 	maxChunks := 40
 	if len(matchesChunks) < maxChunks {
 		maxChunks = len(matchesChunks)
@@ -542,6 +563,19 @@ func fetchAllAnimeCryptoMaterial() (int64, []byte, error) {
 					break
 				}
 			}
+
+			// Extract buildId dynamically
+			reBuildVar := regexp.MustCompile(`buildId=\\?"\+encodeURIComponent\(([a-zA-Z0-9_]+)\)`)
+			matchBuildVar := reBuildVar.FindStringSubmatch(chunkContent)
+			if len(matchBuildVar) >= 2 {
+				varName := matchBuildVar[1]
+				reBuildVal := regexp.MustCompile(fmt.Sprintf(`\b%s\s*=\s*"([^"]+)"`, varName))
+				matchBuildVal := reBuildVal.FindStringSubmatch(chunkContent)
+				if len(matchBuildVal) >= 2 {
+					buildID = matchBuildVal[1]
+				}
+			}
+
 			if maskHex != "" {
 				break
 			}
@@ -549,12 +583,16 @@ func fetchAllAnimeCryptoMaterial() (int64, []byte, error) {
 	}
 
 	if maskHex == "" {
-		return 0, nil, fmt.Errorf("unable to find client mask in SvelteKit chunks")
+		return 0, nil, "", fmt.Errorf("unable to find client mask in SvelteKit chunks")
+	}
+
+	if buildID == "" {
+		buildID = "64" // fallback to current known buildID
 	}
 
 	mask, err := hex.DecodeString(maskHex)
 	if err != nil {
-		return 0, nil, fmt.Errorf("failed to decode client mask hex: %w", err)
+		return 0, nil, "", fmt.Errorf("failed to decode client mask hex: %w", err)
 	}
 
 	derivedKey := make([]byte, 32)
@@ -562,18 +600,21 @@ func fetchAllAnimeCryptoMaterial() (int64, []byte, error) {
 		derivedKey[i] = partB[i] ^ mask[i%len(mask)]
 	}
 
-	return bootstrap.Epoch, derivedKey, nil
+	return bootstrap.Epoch, derivedKey, buildID, nil
 }
 
 func generateAAReq(qh string) (string, error) {
-	epoch, key, err := getDerivedKey()
+	epoch, key, buildID, err := getDerivedKey()
 	if err != nil {
 		// Fallback to legacy static key and epoch if fetching fails
 		epoch = 4128
 		key = allAnimeKey
+		buildID = "64"
+	}
+	if buildID == "" {
+		buildID = "64"
 	}
 
-	buildID := "11"
 	ts := (time.Now().Unix() / 300) * 300 * 1000
 
 	payload := fmt.Sprintf(`{"v":1,"ts":%d,"epoch":%d,"buildId":"%s","qh":"%s"}`, ts, epoch, buildID, qh)
@@ -603,6 +644,14 @@ func generateAAReq(qh string) (string, error) {
 }
 
 func fetchEpisodeSources(showID, mode, episodeNo string) ([]SourceInfo, error) {
+	_, _, buildID, err := getDerivedKey()
+	if err != nil {
+		buildID = "64"
+	}
+	if buildID == "" {
+		buildID = "64"
+	}
+
 	queryVars := fmt.Sprintf(`{"showId":"%s","translationType":"%s","episodeString":"%s"}`, showID, mode, episodeNo)
 
 	aareq, err := generateAAReq(allAnimeQueryHash)
@@ -617,7 +666,7 @@ func fetchEpisodeSources(showID, mode, episodeNo string) ([]SourceInfo, error) {
 		"User-Agent": UserAgent,
 		"Referer":    AllAnimeReferer,
 		"Origin":     allAnimeQueryOrigin,
-		"x-build-id": "11",
+		"x-build-id": buildID,
 	}
 
 	body, err := doHTTPReqWithRetry("GET", reqURL, nil, headers)
@@ -813,6 +862,7 @@ var (
 )
 
 var providers = []Provider{
+	&FlikhubProvider{},
 	&AllAnimeProvider{},
 	&GogoanimeProvider{},
 }
@@ -988,7 +1038,18 @@ func doHTTPReqWithRetry(method, url string, payload []byte, headers map[string]s
 			// CRITICAL: x-build-id, Origin, and Cookie are ONLY sent to the GraphQL API endpoint (/api).
 			// We check req.URL.Path strictly to prevent matching "/apivtwo/clock.json" which contains the substring "api".
 			if req.URL.Path == "/api" || req.URL.Path == "/api/" {
-				req.Header.Set("x-build-id", "11")
+				buildID := "64"
+				if cachedBuildID != "" {
+					buildID = cachedBuildID
+				} else {
+					if !strings.Contains(url, "chunks") && !strings.Contains(url, "entry") && !strings.Contains(url, "mkissa.to") {
+						_, _, bid, err := getDerivedKey()
+						if err == nil && bid != "" {
+							buildID = bid
+						}
+					}
+				}
+				req.Header.Set("x-build-id", buildID)
 				if req.Header.Get("Origin") == "" {
 					req.Header.Set("Origin", "https://youtu-chan.com")
 				}
@@ -1200,11 +1261,17 @@ func newLoggingHttpClient(timeout time.Duration) *http.Client {
 	}
 }
 
+type SubtitleTrack struct {
+	Label string `json:"label"`
+	URL   string `json:"url"`
+}
+
 type ResolvedStream struct {
 	Provider   string
 	SourceName string
 	Quality    string
 	URL        string
+	Subtitles  []SubtitleTrack
 }
 
 func fetchAllResolvedStreams(showID, mode, episodeNo string) ([]ResolvedStream, error) {
