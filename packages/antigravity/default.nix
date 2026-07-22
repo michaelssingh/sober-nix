@@ -6,11 +6,11 @@
 
 stdenv.mkDerivation rec {
   pname = "antigravity";
-  version = "1.0.8";
+  version = "1.1.5";
 
   src = fetchurl {
-    url = "https://storage.googleapis.com/antigravity-public/antigravity-cli/1.0.8-5963827121094656/linux-x64/cli_linux_x64.tar.gz";
-    sha512 = "78426a61f9295d75285d9cdd39e9b9dc2736346468c92ce86a6fde1bcc7a9d6dd32c7bed1903a5deacd874a05d75babf5b907e991a117ad63f33548113c61bc2";
+    url = "https://storage.googleapis.com/antigravity-public/antigravity-cli/1.1.5-5958982624477184/linux-x64/cli_linux_x64.tar.gz";
+    sha512 = "906bff59c73bed630274f67efc77e3fa2064fe126f4d7521c7e58dc6773d8d1f3ce8688f1178f7ef65776728f782a8ebc211189617cfbb42e7df48f5614ad1f5";
   };
 
   nativeBuildInputs = [ autoPatchelfHook ];
