@@ -960,20 +960,12 @@ func resolveStreamURL(showID, mode, episodeNo, quality string) (string, error) {
 	}
 	streamCacheMu.RUnlock()
 
-	provider := ""
-	if cached, _, found := loadShowCache(showID); found {
-		provider = cached.Provider
-	}
-	if provider == "" {
-		provider = "allanime"
-	}
-	p := getProvider(provider)
-	resolved, err := p.ResolveStreams(showID, mode, episodeNo, quality)
+	streams, err := fetchAllResolvedStreams(showID, mode, episodeNo)
 	if err != nil {
 		return "", err
 	}
 
-	best := selectBestLinkFromResolved(resolved, quality)
+	best := selectBestLinkFromResolved(streams, quality)
 	if best != "" {
 		streamCacheMu.Lock()
 		streamCache[cacheKey] = best
@@ -1275,32 +1267,26 @@ type ResolvedStream struct {
 }
 
 func fetchAllResolvedStreams(showID, mode, episodeNo string) ([]ResolvedStream, error) {
-	sources, err := fetchEpisodeSources(showID, mode, episodeNo)
-	if err != nil {
-		return nil, err
-	}
-
 	var results []ResolvedStream
 	var mu sync.Mutex
 	var wg sync.WaitGroup
 
-	for _, src := range sources {
+	for _, p := range providers {
 		wg.Add(1)
-		go func(s SourceInfo) {
+		go func(prov Provider) {
 			defer wg.Done()
-			links, err := fetchProviderLinks(s.SourceURL)
-			if err == nil && len(links) > 0 {
+			streams, err := prov.ResolveStreams(showID, mode, episodeNo, "best")
+			if err == nil && len(streams) > 0 {
 				mu.Lock()
-				for qual, urlVal := range links {
-					results = append(results, ResolvedStream{
-						SourceName: s.SourceName,
-						Quality:    qual,
-						URL:        urlVal,
-					})
+				for _, s := range streams {
+					if s.Provider == "" {
+						s.Provider = prov.Name()
+					}
+					results = append(results, s)
 				}
 				mu.Unlock()
 			}
-		}(src)
+		}(p)
 	}
 	wg.Wait()
 
