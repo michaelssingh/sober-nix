@@ -1589,6 +1589,7 @@ func TestPlayEpisodesOnOtus(t *testing.T) {
 
 		t.Logf("Selected Stream: %s (%s)", stream.SourceName, stream.URL)
 
+		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		cmd, luaFile, chapFile, _, _, err := getMpvCmd(
 			stream.URL, targetShow.Name, epNo, targetShow.MALID,
 			"24 min", []string{
@@ -1599,9 +1600,12 @@ func TestPlayEpisodesOnOtus(t *testing.T) {
 			},
 		)
 		if err != nil {
+			cancel()
 			t.Fatalf("Failed to generate mpv command: %v", err)
 		}
+		cmd = exec.CommandContext(ctx, cmd.Path, cmd.Args[1:]...)
 		defer func() {
+			cancel()
 			if luaFile != "" {
 				os.Remove(luaFile)
 			}
