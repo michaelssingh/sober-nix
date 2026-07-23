@@ -45,9 +45,15 @@ func PreflightStreamURL(streamURL string, headers map[string]string) error {
 	n, _ := resp.Body.Read(buf)
 	content := string(buf[:n])
 
-	// Filter out Cloudflare challenge pages and HLS playlists corrupted with PNG ad inserts (e.g. ibyteimg)
+	// Filter out Cloudflare challenge pages, HTML web pages, and HLS playlists corrupted with PNG ad inserts
 	if strings.Contains(content, "Cloudflare") || strings.Contains(content, "Attention Required!") || strings.Contains(content, "cf-mitigated") || strings.Contains(content, ".png") || strings.Contains(content, "ibyteimg") || strings.Contains(content, "ad-site") {
 		return fmt.Errorf("preflight rejected stream: Cloudflare challenge page or PNG ad detected")
+	}
+
+	if strings.Contains(content, "<html") || strings.Contains(content, "<!DOCTYPE") || strings.Contains(content, "<iframe") {
+		if !strings.Contains(content, "#EXTM3U") {
+			return fmt.Errorf("preflight rejected stream: URL is an HTML webpage, not a direct HLS/MP4 stream")
+		}
 	}
 
 	// If master playlist, fetch the first sub-playlist to check for corrupted PNG ad segments
