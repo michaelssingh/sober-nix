@@ -1595,7 +1595,8 @@ func TestPlayEpisodesOnOtus(t *testing.T) {
 		cmd, luaFile, chapFile, _, _, err := getMpvCmd(
 			stream.URL, targetShow.Name, epNo, targetShow.MALID,
 			"24 min", []string{
-				"--length=8",
+				"--start=60",
+				"--length=10",
 				"--keep-open=no",
 				"--no-terminal",
 				"--idle=no",
@@ -1620,7 +1621,7 @@ func TestPlayEpisodesOnOtus(t *testing.T) {
 			)
 		}
 
-		LogEventInfo(DomainMpvIPC, fmt.Sprintf("Automated Test Playback Started: %s (Ep %s)", targetShow.Name, epNo))
+		LogEventInfo(DomainMpvIPC, fmt.Sprintf("Automated Test Playback & Seek Started: %s (Ep %s)", targetShow.Name, epNo))
 
 		done := make(chan error, 1)
 		var outBuf []byte
@@ -1628,6 +1629,16 @@ func TestPlayEpisodesOnOtus(t *testing.T) {
 			out, err := cmd.CombinedOutput()
 			outBuf = out
 			done <- err
+		}()
+
+		// Perform IPC seek command 2 seconds after launch
+		go func() {
+			time.Sleep(2 * time.Second)
+			ipc := NewMPVIPCClient(getMpvSocketPath())
+			if err := ipc.Seek(30.0); err == nil {
+				LogEventInfo(DomainMpvIPC, "Automated IPC Seek Success (+30s)")
+				t.Logf("✓ MPV IPC live seek (+30s) succeeded!")
+			}
 		}()
 
 		select {
