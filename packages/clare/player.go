@@ -264,10 +264,15 @@ local skip_times_json = %q
 		"--force-media-title=" + title + " - Episode " + epNo,
 		"--script=" + tmpFile.Name(),
 		"--http-header-fields=" + headerFields,
-		"--ytdl-raw-options=user-agent=" + UserAgent + ",referer=" + referer + ",extractor-args=generic:impersonate",
 		"--input-ipc-server=" + getMpvSocketPath(),
 		"--osc=yes",
 		"--keep-open=yes",
+	}
+
+	if strings.Contains(streamURL, "m3u8") || strings.Contains(streamURL, "kotocdn") || strings.Contains(streamURL, "flikhub") {
+		args = append(args, "--no-ytdl")
+	} else {
+		args = append(args, "--ytdl-raw-options=user-agent="+UserAgent+",referer="+referer+",extractor-args=generic:impersonate")
 	}
 
 	if tempChaptersFile != "" {
