@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -18,8 +19,11 @@ type Provider interface {
 
 // PreflightStreamURL checks if a stream URL responds with 200 OK and valid video content
 func PreflightStreamURL(streamURL string, headers map[string]string) error {
-	client := &http.Client{Timeout: 2 * time.Second}
-	req, err := http.NewRequest("GET", streamURL, nil)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	client := &http.Client{}
+	req, err := http.NewRequestWithContext(ctx, "GET", streamURL, nil)
 	if err != nil {
 		return err
 	}
