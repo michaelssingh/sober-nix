@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 type FlikhubProvider struct{}
@@ -55,16 +56,27 @@ func (p *FlikhubProvider) Search(query string, mode string) ([]AnimeShow, error)
 	}
 
 	var shows []AnimeShow
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+
 	for _, item := range items {
-		cleanTitle := cleanFlikhubTitle(item.Title)
-		shows = append(shows, AnimeShow{
-			ID:          item.ID,
-			Provider:    "flikhub",
-			Name:        cleanTitle,
-			EnglishName: cleanTitle,
-			Thumbnail:   item.Image,
-		})
+		wg.Add(1)
+		go func(it FlikhubSearchItem) {
+			defer wg.Done()
+			cleanTitle := cleanFlikhubTitle(it.Title)
+			// Check if episodes exist for this show ID
+			showObj, eps, err := p.FetchEpisodes(it.ID, mode)
+			if err == nil && len(eps) > 0 {
+				showObj.Name = cleanTitle
+				showObj.EnglishName = cleanTitle
+				showObj.Thumbnail = it.Image
+				mu.Lock()
+				shows = append(shows, showObj)
+				mu.Unlock()
+			}
+		}(item)
 	}
+	wg.Wait()
 
 	return shows, nil
 }

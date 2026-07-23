@@ -72,7 +72,14 @@ func (p *AllAnimeProvider) searchAnime(query, mode string) ([]AnimeShow, error) 
 		return nil, fmt.Errorf("search failed to parse API JSON: %w (body: %q)", err, snippet)
 	}
 
-	return result.Data.Shows.Edges, nil
+	var validShows []AnimeShow
+	for _, s := range result.Data.Shows.Edges {
+		if s.EpCount() > 0 {
+			validShows = append(validShows, s)
+		}
+	}
+
+	return validShows, nil
 }
 
 func (p *AllAnimeProvider) fetchEpisodeList(showID, mode string) (AnimeShow, []string, error) {
