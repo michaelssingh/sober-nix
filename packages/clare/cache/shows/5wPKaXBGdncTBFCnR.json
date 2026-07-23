@@ -1,0 +1,73 @@
+{
+  "show": {
+    "_id": "5wPKaXBGdncTBFCnR",
+    "name": "Dragon Ball Heroes",
+    "availableEpisodes": {
+      "dub": 0,
+      "raw": 0,
+      "sub": 20
+    },
+    "availableEpisodesDetail": {
+      "dub": [],
+      "raw": [],
+      "sub": [
+        "20",
+        "19",
+        "18",
+        "17",
+        "16",
+        "15",
+        "14",
+        "13",
+        "12",
+        "11",
+        "10",
+        "9",
+        "8",
+        "7",
+        "6",
+        "5",
+        "4",
+        "3",
+        "2",
+        "1"
+      ]
+    },
+    "englishName": "",
+    "nativeName": "スーパードラゴンボールヒーローズ",
+    "thumbnail": "https://cdn.myanimelist.net/images/anime/1748/100674.jpg",
+    "description": "In May 2018, V-Jump announced a promotional anime for \u003ci\u003eDragon Ball Heroes\u003c/i\u003e, a Japanese arcade and trading card game that has never been released in the West. The anime is expected to be short and it is not expected to broadcast on TV. It will adapt the game\u0026apos;s Prison Planet Arc, fully detailed in the Heroes manga published in Saikyou Jump, which has never been published in English. The first episode will debut July 1, 2018 at Aeon Lake Town.",
+    "malId": "37885",
+    "aniListId": "102352",
+    "type": "ONA",
+    "score": 5.28,
+    "season": {
+      "quarter": "Summer",
+      "year": 2018
+    },
+    "duration": ""
+  },
+  "episodes": [
+    "20",
+    "19",
+    "18",
+    "17",
+    "16",
+    "15",
+    "14",
+    "13",
+    "12",
+    "11",
+    "10",
+    "9",
+    "8",
+    "7",
+    "6",
+    "5",
+    "4",
+    "3",
+    "2",
+    "1"
+  ],
+  "timestamp": 1783629061
+}

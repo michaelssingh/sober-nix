@@ -1,0 +1,70 @@
+{
+  "show": {
+    "_id": "caSCmQepJo2pbKzq9",
+    "name": "Akudama Drive",
+    "availableEpisodes": {
+      "dub": 12,
+      "raw": 0,
+      "sub": 12
+    },
+    "availableEpisodesDetail": {
+      "dub": [
+        "12",
+        "11",
+        "10",
+        "9",
+        "8",
+        "7",
+        "6",
+        "5",
+        "4",
+        "3",
+        "2",
+        "1"
+      ],
+      "raw": [],
+      "sub": [
+        "12",
+        "11",
+        "10",
+        "9",
+        "8",
+        "7",
+        "6",
+        "5",
+        "4",
+        "3",
+        "2",
+        "1"
+      ]
+    },
+    "englishName": "Akudama Drive",
+    "nativeName": "アクダマドライブ",
+    "thumbnail": "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx116566-PPIVQt359vQY.jpg",
+    "description": "The bustling metropolis of Kansai, where cybernetic screens litter the neon landscape, may seem like a technological utopia at first glance. But in the dark alleys around the brightly-lit buildings, an unforgiving criminal underbelly still exists in the form of fugitives known as \u0026quot;Akudama.\u0026quot; \u003cbr\u003e\n\u003cbr\u003e\nNo stranger to these individuals, Kansai police begin the countdown to the public execution of an infamous Akudama \u0026quot;Cutthroat,\u0026quot; guilty of killing 999 people. However, a mysterious message is sent to several elite Akudama, enlisting them to free Cutthroat for a substantial amount of money. An invisible hand seeks to gather these dangerous personas in one place, ensuring that the execution is well underway to becoming a full-blown bloodbath.\u003cbr\u003e\n\u003cbr\u003e\n[Written by MAL Rewrite]",
+    "malId": "41433",
+    "aniListId": "116566",
+    "type": "TV",
+    "score": 7.57,
+    "season": {
+      "quarter": "Fall",
+      "year": 2020
+    },
+    "duration": ""
+  },
+  "episodes": [
+    "12",
+    "11",
+    "10",
+    "9",
+    "8",
+    "7",
+    "6",
+    "5",
+    "4",
+    "3",
+    "2",
+    "1"
+  ],
+  "timestamp": 1783631644
+}

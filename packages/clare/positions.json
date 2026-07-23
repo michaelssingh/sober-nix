@@ -1,0 +1,67 @@
+{
+  "22319": {
+    "resume_state": null,
+    "completed_episodes": [
+      12
+    ],
+    "last_synced_ep": 12
+  },
+  "269": {
+    "resume_state": null,
+    "completed_episodes": [
+      1
+    ],
+    "last_synced_ep": 1
+  },
+  "27899": {
+    "resume_state": null,
+    "completed_episodes": [
+      12
+    ],
+    "last_synced_ep": 12
+  },
+  "41433": {
+    "resume_state": {
+      "episode": 5,
+      "position_seconds": 203.0482,
+      "total_seconds": 1427.177
+    },
+    "completed_episodes": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "last_synced_ep": 5
+  },
+  "42310": {
+    "resume_state": null,
+    "completed_episodes": [
+      10
+    ],
+    "last_synced_ep": 10
+  },
+  "5114": {
+    "resume_state": null,
+    "completed_episodes": [
+      64
+    ],
+    "last_synced_ep": 64
+  },
+  "889": {
+    "resume_state": {
+      "episode": 7,
+      "position_seconds": 138.125,
+      "total_seconds": 1408.583
+    },
+    "completed_episodes": []
+  },
+  "9260": {
+    "resume_state": null,
+    "completed_episodes": [
+      999
+    ],
+    "last_synced_ep": 999
+  }
+}

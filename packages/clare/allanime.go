@@ -74,6 +74,7 @@ func (p *AllAnimeProvider) searchAnime(query, mode string) ([]AnimeShow, error) 
 
 	var validShows []AnimeShow
 	for _, s := range result.Data.Shows.Edges {
+		s.Provider = "allanime"
 		if s.EpCount() > 0 {
 			validShows = append(validShows, s)
 		}

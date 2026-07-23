@@ -22,14 +22,14 @@ import (
 )
 
 const (
-	AllAnimeReferer     = "https://youtu-chan.com"
-	StreamReferer       = "https://allanimenews.com/" // Required for Wixmp/HLS CDN and Clock Handshakes
-	AllAnimeBase        = "allanime.day"
-	AllAnimeAPI         = "https://api.allanime.day/api"
-	UserAgent           = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/121.0"
+	AllAnimeReferer     = "https://mkissa.to"
+	StreamReferer       = "https://mkissa.to/" // Required for Wixmp/HLS CDN and Clock Handshakes
+	AllAnimeBase        = "mkissa.net"
+	AllAnimeAPI         = "https://api.mkissa.net/api"
+	UserAgent           = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:150.0) Gecko/20100101 Firefox/150.0"
 	allAnimeKeyPhrase   = "Xot36i3lK3:v1"
-	allAnimeQueryHash   = "d405d0edd690624b66baba3068e0edc3ac90f1597d898a1ec8db4e5c43c00fec"
-	allAnimeQueryOrigin = "https://youtu-chan.com"
+	allAnimeQueryHash   = "f4662f4b7510b26795dd53ef824a0bf1740fbbc5d1273fab18222ac831bca8d0"
+	allAnimeQueryOrigin = "https://mkissa.to"
 )
 
 var (
@@ -917,17 +917,40 @@ func searchAnime(query, mode string) ([]AnimeShow, error) {
 	}
 	wg.Wait()
 
+	var filtered []AnimeShow
+	queryWords := strings.Fields(strings.ToLower(query))
+	for _, show := range results {
+		rank := rankSearchRelevance(show.Name, query)
+		if rank < 3 {
+			filtered = append(filtered, show)
+		} else {
+			// Check if at least one query word matches
+			titleLower := strings.ToLower(show.Name)
+			matched := false
+			for _, qw := range queryWords {
+				if len(qw) > 2 && strings.Contains(titleLower, qw) {
+					matched = true
+					break
+				}
+			}
+			if matched {
+				filtered = append(filtered, show)
+			}
+		}
+	}
+	results = filtered
+
 	sort.SliceStable(results, func(i, j int) bool {
+		rankI := rankSearchRelevance(results[i].Name, query)
+		rankJ := rankSearchRelevance(results[j].Name, query)
+		if rankI != rankJ {
+			return rankI < rankJ
+		}
 		provOrder := map[string]int{"flikhub": 0, "allanime": 1, "gogoanime": 2}
 		pi := provOrder[strings.ToLower(results[i].Provider)]
 		pj := provOrder[strings.ToLower(results[j].Provider)]
 		if pi != pj {
 			return pi < pj
-		}
-		rankI := rankSearchRelevance(results[i].Name, query)
-		rankJ := rankSearchRelevance(results[j].Name, query)
-		if rankI != rankJ {
-			return rankI < rankJ
 		}
 		return results[i].Name < results[j].Name
 	})

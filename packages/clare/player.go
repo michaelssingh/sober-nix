@@ -305,14 +305,14 @@ local skip_times_json = %q
 	playURL := streamURL
 	if sanitizedFile, err := SanitizeM3U8Playlist(streamURL, map[string]string{"Referer": referer, "User-Agent": UserAgent}); err == nil && sanitizedFile != "" {
 		playURL = sanitizedFile
-		args = append(args, "--demuxer-lavf-o=protocol_whitelist=file,http,https,tcp,tls,crypto,discard_corrupt=1,reorder_queue_size=100")
-		debugLog("getMpvCmd: using sanitized local m3u8 playlist file: %s", playURL)
+		debugLog("getMpvCmd: using sanitized local m3u8 playlist file/URL: %s", playURL)
 	}
 
 	args = append(args, extraArgs...)
 	args = append(args, playURL)
 
 	cmd := exec.Command("mpv", args...)
+	cmd.Env = append(os.Environ(), "FFMPEG_PROTOCOL_WHITELIST=file,http,https,tcp,tls,crypto,data,concat")
 	return cmd, tmpFile.Name(), tempChaptersFile, durationSeconds, string(skipTimesJSON), nil
 }
 
@@ -395,6 +395,10 @@ func SanitizeM3U8Playlist(streamURL string, headers map[string]string) (string, 
 		}
 
 		sanitizedLines = append(sanitizedLines, line)
+	}
+
+	if strings.HasPrefix(streamURL, "http") && len(sanitizedLines) == len(lines) {
+		return streamURL, nil
 	}
 
 	tmpFile, err := os.CreateTemp("", "clare-sanitized-*.m3u8")
