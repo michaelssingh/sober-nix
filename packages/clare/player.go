@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 )
@@ -170,7 +171,7 @@ func getMpvCmd(streamURL string, title string, epNo string, malID string, durati
 			}
 
 			if edStart > 0 {
-				if len(chaps) > 0 {
+				if len(chaps) > 0 && chaps[len(chaps)-1].start < int64(edStart*1000) {
 					chaps[len(chaps)-1].end = int64(edStart * 1000)
 				}
 				chaps = append(chaps, chap{title: "Ending", start: int64(edStart * 1000), end: int64(edEnd * 1000)})
@@ -178,6 +179,11 @@ func getMpvCmd(streamURL string, title string, epNo string, malID string, durati
 					chaps = append(chaps, chap{title: "Outro", start: int64(edEnd * 1000), end: int64(durationSeconds * 1000)})
 				}
 			}
+
+			// Sort chapters by start time
+			sort.Slice(chaps, func(i, j int) bool {
+				return chaps[i].start < chaps[j].start
+			})
 
 			for _, c := range chaps {
 				if c.end > c.start {
