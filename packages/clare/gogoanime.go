@@ -117,7 +117,34 @@ func (p *GogoanimeProvider) ResolveStreams(showID, mode, episodeNo, quality stri
 		return nil, err
 	}
 
-	// 3. Extract the embed_url from the script tag or iframe src
+	// 3. Extract player links (data-plain-url or embed_url)
+	var results []ResolvedStream
+	rePlain := regexp.MustCompile(`data-plain-url=['"]([^'"]+)['"]`)
+	plainMatches := rePlain.FindAllStringSubmatch(string(epBody), -1)
+	for _, m := range plainMatches {
+		if len(m) >= 2 && m[1] != "" {
+			url := m[1]
+			sourceName := "Gogo-Embed"
+			if strings.Contains(url, "awish") {
+				sourceName = "Gogo-Awish"
+			} else if strings.Contains(url, "dood") {
+				sourceName = "Gogo-Dood"
+			} else if strings.Contains(url, "alions") {
+				sourceName = "Gogo-Alions"
+			}
+			results = append(results, ResolvedStream{
+				Provider:   "gogoanime",
+				SourceName: sourceName,
+				Quality:    "best",
+				URL:        url,
+			})
+		}
+	}
+
+	if len(results) > 0 {
+		return results, nil
+	}
+
 	reEmbed := regexp.MustCompile(`var embed_url = "([^"]+)"`)
 	embedMatch := reEmbed.FindStringSubmatch(string(epBody))
 	
@@ -125,7 +152,6 @@ func (p *GogoanimeProvider) ResolveStreams(showID, mode, episodeNo, quality stri
 	if len(embedMatch) >= 2 {
 		embedURL = embedMatch[1]
 	} else {
-		// Fallback to iframe src search
 		reIframe := regexp.MustCompile(`<iframe class="gov-embed-iframe" src="([^"]+)"`)
 		iframeMatch := reIframe.FindStringSubmatch(string(epBody))
 		if len(iframeMatch) < 2 {
@@ -156,7 +182,7 @@ func (p *GogoanimeProvider) ResolveStreams(showID, mode, episodeNo, quality stri
 	}
 
 	// 6. Scrape direct MP4 download links from the page
-	var results []ResolvedStream
+	var dlResults []ResolvedStream
 	reDirect := regexp.MustCompile(`<a href="([^"]+)"[^>]*>Download\s*\(([^)]+)\)`)
 	matches := reDirect.FindAllStringSubmatch(string(dlBody), -1)
 
@@ -167,7 +193,7 @@ func (p *GogoanimeProvider) ResolveStreams(showID, mode, episodeNo, quality stri
 			qualityStr = strings.ReplaceAll(qualityStr, " - hls", "")
 			qualityStr = strings.TrimSpace(qualityStr)
 
-			results = append(results, ResolvedStream{
+			dlResults = append(dlResults, ResolvedStream{
 				Provider:   "gogoanime",
 				SourceName: "Gogo",
 				Quality:    qualityStr,
@@ -176,9 +202,9 @@ func (p *GogoanimeProvider) ResolveStreams(showID, mode, episodeNo, quality stri
 		}
 	}
 
-	if len(results) == 0 {
+	if len(dlResults) == 0 {
 		return nil, fmt.Errorf("no streams resolved on Gogoanime download page")
 	}
 
-	return results, nil
+	return dlResults, nil
 }

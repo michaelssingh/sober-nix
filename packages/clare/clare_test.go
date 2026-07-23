@@ -1523,3 +1523,85 @@ func TestFlikhubProvider(t *testing.T) {
 		t.Logf("Stream %d: Source=%s, URL=%s", i, stream.SourceName, stream.URL)
 	}
 }
+
+func TestGogoanimeProvider(t *testing.T) {
+	p := &GogoanimeProvider{}
+	shows, err := p.Search("Frieren", "sub")
+	if err != nil || len(shows) == 0 {
+		t.Skipf("Gogoanime search returned no results: %v", err)
+	}
+	t.Logf("Gogoanime search found %d shows. First: %s (ID: %s)", len(shows), shows[0].Name, shows[0].ID)
+
+	show, eps, err := p.FetchEpisodes(shows[0].ID, "sub")
+	if err != nil {
+		t.Skipf("Gogoanime FetchEpisodes failed: %v", err)
+	}
+	t.Logf("Gogoanime FetchEpisodes found %d episodes for %s", len(eps), show.Name)
+
+	if len(eps) > 0 {
+		streams, err := p.ResolveStreams(shows[0].ID, "sub", "1", "best")
+		if err != nil {
+			t.Logf("Gogoanime ResolveStreams note: %v", err)
+		} else {
+			for i, st := range streams {
+				t.Logf("Gogoanime Stream %d: Source=%s, Quality=%s, URL=%s", i, st.SourceName, st.Quality, st.URL)
+			}
+		}
+	}
+}
+
+func TestPlayEpisodesOnOtus(t *testing.T) {
+	if os.Getenv("TEST_PLAYBACK") == "" {
+		t.Skip("Skipping playback test unless TEST_PLAYBACK=1 is set")
+	}
+
+	provider := &AllAnimeProvider{}
+	shows, err := provider.Search("Frieren", "sub")
+	if err != nil || len(shows) == 0 {
+		t.Fatalf("Failed to search show: %v", err)
+	}
+
+	show, eps, err := provider.FetchEpisodes(shows[0].ID, "sub")
+	if err != nil || len(eps) < 3 {
+		t.Fatalf("Failed to fetch episodes: %v", err)
+	}
+
+	episodesToTest := []string{"1", "2", "3"}
+	for _, epNo := range episodesToTest {
+		t.Logf("=== Testing Playback for %s Episode %s ===", show.Name, epNo)
+		streams, err := provider.ResolveStreams(shows[0].ID, "sub", epNo, "best")
+		if err != nil || len(streams) == 0 {
+			t.Fatalf("Failed to resolve streams for ep %s: %v", epNo, err)
+		}
+
+		selectedStream := streams[0]
+		t.Logf("Selected Stream: %s (%s)", selectedStream.SourceName, selectedStream.URL)
+
+		cmd, luaFile, chapFile, _, _, err := getMpvCmd(selectedStream.URL, show.Name, epNo, show.MALID, "24 min", []string{"--length=5", "--really-quiet"})
+		if err != nil {
+			t.Fatalf("Failed to generate mpv command: %v", err)
+		}
+		defer func() {
+			if luaFile != "" { os.Remove(luaFile) }
+			if chapFile != "" { os.Remove(chapFile) }
+		}()
+
+		// Set display environment variables for otus Sway desktop session
+		if os.Getenv("WAYLAND_DISPLAY") == "" {
+			cmd.Env = append(os.Environ(),
+				"WAYLAND_DISPLAY=wayland-1",
+				"XDG_RUNTIME_DIR=/run/user/1001",
+				"SWAYIPC=/run/user/1001/sway-ipc.1001.1465.sock",
+			)
+		}
+
+		debugLog("[INFO] --- Automated Test Playback Started: %s (Ep %s) ---", show.Name, epNo)
+		out, err := cmd.CombinedOutput()
+		t.Logf("MPV Output (Ep %s):\n%s", epNo, string(out))
+		if err != nil {
+			t.Fatalf("MPV playback failed for Episode %s: %v", epNo, err)
+		}
+		debugLog("[INFO] --- Automated Test Playback Completed: %s (Ep %s) ---", show.Name, epNo)
+		t.Logf("✓ Episode %s played successfully on otus!", epNo)
+	}
+}
