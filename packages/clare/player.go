@@ -324,6 +324,33 @@ func SanitizeM3U8Playlist(streamURL string, headers map[string]string) (string, 
 	}
 
 	lines := strings.Split(content, "\n")
+
+	// If master playlist, resolve and fetch variant playlist
+	if strings.Contains(content, "#EXT-X-STREAM-INF") {
+		var variantURL string
+		for _, line := range lines {
+			trimmed := strings.TrimSpace(line)
+			if trimmed != "" && !strings.HasPrefix(trimmed, "#") {
+				variantURL = trimmed
+				break
+			}
+		}
+		if variantURL != "" {
+			if !strings.HasPrefix(variantURL, "http") {
+				lastIdx := strings.LastIndex(streamURL, "/")
+				if lastIdx != -1 {
+					variantURL = streamURL[:lastIdx+1] + variantURL
+				}
+			}
+			variantBody, err := doHTTPReqWithRetry("GET", variantURL, nil, headers)
+			if err == nil && strings.Contains(string(variantBody), "#EXTM3U") {
+				content = string(variantBody)
+				lines = strings.Split(content, "\n")
+				streamURL = variantURL
+			}
+		}
+	}
+
 	var sanitizedLines []string
 	skipNextSegment := false
 
@@ -345,6 +372,14 @@ func SanitizeM3U8Playlist(streamURL string, headers map[string]string) (string, 
 		if skipNextSegment && !strings.HasPrefix(trimmed, "#") && trimmed != "" {
 			skipNextSegment = false
 			continue
+		}
+
+		// Ensure relative segment URLs are resolved to full HTTPS URLs for local file playback
+		if !strings.HasPrefix(trimmed, "#") && trimmed != "" && !strings.HasPrefix(trimmed, "http") {
+			lastIdx := strings.LastIndex(streamURL, "/")
+			if lastIdx != -1 {
+				line = streamURL[:lastIdx+1] + trimmed
+			}
 		}
 
 		sanitizedLines = append(sanitizedLines, line)
