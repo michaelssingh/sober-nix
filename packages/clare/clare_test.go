@@ -1561,18 +1561,29 @@ func TestPlayEpisodesOnOtus(t *testing.T) {
 		t.Fatalf("Failed to search show: %v", err)
 	}
 
+	// Pick the show with the most episodes (main 28-ep series, not a Part N spinoff)
 	var targetShow AnimeShow
 	var targetEps []string
+	bestEpCount := 0
 	for _, s := range shows {
-		_, eps, err := provider.FetchEpisodes(s.ID, "sub")
-		if err == nil && len(eps) >= 3 {
+		_, eps, fetchErr := provider.FetchEpisodes(s.ID, "sub")
+		if fetchErr != nil || len(eps) < 3 {
+			continue
+		}
+		if len(eps) > bestEpCount {
+			// Also verify that streams actually resolve for ep 1 before committing
+			streams, streamErr := provider.ResolveStreams(s.ID, "sub", "1", "best")
+			if streamErr != nil || len(streams) == 0 {
+				t.Logf("Show %s (ID: %s, %d eps) — streams failed: %v, skipping", s.Name, s.ID, len(eps), streamErr)
+				continue
+			}
+			bestEpCount = len(eps)
 			targetShow = s
 			targetEps = eps
-			break
 		}
 	}
 	if targetShow.ID == "" {
-		t.Fatalf("No show with at least 3 episodes found")
+		t.Fatalf("No show with working streams and >= 3 episodes found across %d search results", len(shows))
 	}
 
 	t.Logf("Selected Main Show: %s (ID: %s, Total Eps: %d)", targetShow.Name, targetShow.ID, len(targetEps))
