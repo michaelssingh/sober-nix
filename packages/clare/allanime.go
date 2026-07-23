@@ -150,10 +150,6 @@ func (p *AllAnimeProvider) fetchEpisodeSources(showID, mode, episodeNo string) (
 			"episodeString":   episodeNo,
 		},
 		"extensions": map[string]any{
-			"persistedQuery": map[string]any{
-				"version":    1,
-				"sha256Hash": allAnimeQueryHash,
-			},
 			"aaReq": aareq,
 		},
 		"query": queryGQL,
