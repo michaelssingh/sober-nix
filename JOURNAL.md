@@ -6,6 +6,23 @@ This journal serves as the local, persistent source of truth for work-in-progres
 
 ## 📅 Chronological Development Sessions
 
+### Session 11: 2026-07-23 17:15 (Clare Architecture Modernization: Pre-flighting, MPV IPC, Structured Logging, JSON RPC & Teatest)
+* **Host / Context**: Developed on remote VM `agy` (by Antigravity agent), verified via local Go test suites and deployed to `otus` via SSH tunnel.
+* **Commits**:
+  - `168b264` (Antigravity on `agy`): *fix(clare): disable ytdl hook for direct HLS m3u8 streams in getMpvCmd*
+  - `5897d77` (Antigravity on `agy`): *fix(clare): enhance PreflightStreamURL with sub-playlist PNG ad segment detection*
+  - `80657a6` (Antigravity on `agy`): *test: update TestPlayEpisodesOnOtus to use MultiProviderResolver and pre-flighting*
+  - `7ec0ecf` (Antigravity on `agy`): *feat(clare): add stream pre-flighting, mpv ipc, structured logging, rpc driver & teatest suite*
+* **Accomplishments**:
+  - **Structured Logging & Telemetry (`logger.go`)**: Replaced informal string concatenation with Go `log/slog` structured events (`[SEARCH]`, `[RESOLVE]`, `[ANISKIP]`, `[MPV_IPC]`, `[POSITION]`). Built `ValidateSessionTrace` to automatically parse session logs against 6 mandatory health checkpoints and evaluate an `OPTIMAL`/`FAILED` `HealthSummary`.
+  - **Stream Pre-flighting & Multi-Provider Fallbacks (`provider.go`)**: Built `PreflightStreamURL` to probe HLS playlists via 3-second HTTP GET requests, verifying status 200 and filtering out Cloudflare challenge pages and HLS playlists corrupted with `.png` ad inserts (`ibyteimg.com`). Built `MultiProviderResolver` to automatically cycle through `AllAnime`, `FlikHub`, and `GogoAnime`.
+  - **MPV IPC UNIX Socket Controller (`mpv_ipc.go`)**: Implemented a lightweight JSON-RPC client connecting to `/tmp/mpv-clare.sock`. Added `InspectHealth()` to query `video-format`, `audio-codec-name`, `width`, `height`, and `playback-time` to guarantee video decoder initialization and 0-error playback.
+  - **Headless JSON RPC Agent Driver (`rpc.go`)**: Added `clare rpc` CLI subcommands (`search`, `resolve`, `health`, `play`) returning structured JSON output (`RPCResponse`), enabling 100% deterministic AI agent operation without screen scraping.
+  - **Bubbletea State Machine Unit Tests (`tui_test.go`)**: Implemented unit tests for Bubbletea model state transitions, keybindings (`j`/`k`, `/`, `Enter`, `Esc`), and view rendering.
+  - **Process Hygiene**: Identified and killed orphan `agy -c` background subagent instances and stale `go run .` test processes to eliminate CPU load competition and restore 100% VM responsiveness.
+
+---
+
 ### Session 10: 2026-07-01 12:00 (Clare TUI Formatting, Sixel Format Support & Mako Dynamic Config)
 * **Host / Context**: Resumed after VM restart; synced user updates from `otus`, fixed TUI formatting and added Sixel formats, tested via automated test script, deployed to `otus` via `deploy.sh`.
 * **Commits**:

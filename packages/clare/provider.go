@@ -44,12 +44,17 @@ func PreflightStreamURL(streamURL string, headers map[string]string) error {
 	n, _ := resp.Body.Read(buf)
 	content := string(buf[:n])
 
+	// Filter out Cloudflare challenge pages and HLS playlists corrupted with PNG ad inserts (e.g. ibyteimg)
+	if strings.Contains(content, "Cloudflare") || strings.Contains(content, "Attention Required!") || strings.Contains(content, "cf-mitigated") || strings.Contains(content, ".png") || strings.Contains(content, "ibyteimg") || strings.Contains(content, "ad-site") {
+		return fmt.Errorf("preflight rejected stream: Cloudflare challenge page or PNG ad detected")
+	}
+
 	// If master playlist, fetch the first sub-playlist to check for corrupted PNG ad segments
-	if strings.Contains(content, "#EXTM3U") && strings.Contains(content, ".m3u8") {
+	if strings.Contains(content, "#EXTM3U") {
 		lines := strings.Split(content, "\n")
 		for _, line := range lines {
 			line = strings.TrimSpace(line)
-			if line != "" && !strings.HasPrefix(line, "#") && strings.HasSuffix(line, ".m3u8") {
+			if line != "" && !strings.HasPrefix(line, "#") {
 				subURL := line
 				if !strings.HasPrefix(subURL, "http") {
 					lastIdx := strings.LastIndex(streamURL, "/")
@@ -68,8 +73,8 @@ func PreflightStreamURL(streamURL string, headers map[string]string) error {
 						sn, _ := subResp.Body.Read(subBuf)
 						subResp.Body.Close()
 						subContent := string(subBuf[:sn])
-						if strings.Contains(subContent, ".png") || strings.Contains(subContent, "ibyteimg") {
-							return fmt.Errorf("preflight rejected stream: sub-playlist contains PNG ad segments")
+						if strings.Contains(subContent, "Cloudflare") || strings.Contains(subContent, "Attention Required!") || strings.Contains(subContent, ".png") || strings.Contains(subContent, "ibyteimg") || strings.Contains(subContent, "ad-site") {
+							return fmt.Errorf("preflight rejected stream: Cloudflare challenge or PNG ad in sub-playlist")
 						}
 					}
 				}
