@@ -202,3 +202,11 @@ To prevent work-in-progress data loss on the remote VM, developers and agents mu
    ```bash
    /.sprite/bin/sprite-env checkpoints create "Comment describing the milestone"
    ```
+
+## Clare Media TUI Architecture & Streaming Protocol
+- **Search & Provider Tagging**: Search results are sorted by relevance rank first, then provider second. Show IDs are provider-namespaced (`allanime:<id>`, `flikhub:<id>`) and stripped via `stripProviderPrefix` before provider API requests.
+- **AllAnime GraphQL Protocol**: Endpoint `https://api.mkissa.net/api` (Referer: `https://mkissa.to`). Episode queries use `GET` with URL-encoded `variables` and `extensions` containing `persistedQuery` sha256 `f4662f4b7510b26795dd53ef824a0bf1740fbbc5d1273fab18222ac831bca8d0` and `aaReq` AES-256-GCM token generated from `__aaCrypto` and SvelteKit chunk `DB0rFWAa.js` client mask hex `70bb5e6260e19a806b3609dc0b6eb718899b09edbd0c23703a5de00e544de128`.
+- **MPV / FFmpeg HLS Demuxer Settings**:
+  - MPV flags: `--demuxer-lavf-o-add=protocol_whitelist=file,http,https,tcp,tls,crypto,data,concat`, `--demuxer-lavf-o-add=allowed_segment_extensions=ALL`, `--demuxer-lavf-o-add=probesize=10000000`, and `--demuxer-lavf-o-add=analyzeduration=10000000`.
+  - PNG ad segment inserts (`ibyteimg.com`, `.png`) are automatically stripped from `.m3u8` playlists in `SanitizeM3U8Playlist`.
+
