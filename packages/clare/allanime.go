@@ -201,7 +201,11 @@ func (p *AllAnimeProvider) fetchEpisodeSources(showID, mode, episodeNo string) (
 		return sources, nil
 	}
 
-	return nil, fmt.Errorf("no source urls found in response")
+	snippet := string(body)
+	if len(snippet) > 200 {
+		snippet = snippet[:200]
+	}
+	return nil, fmt.Errorf("no source urls found in response (body snippet: %s)", snippet)
 }
 
 func (p *AllAnimeProvider) fetchProviderLinks(sourceURL string) (map[string]string, error) {
