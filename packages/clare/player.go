@@ -279,10 +279,6 @@ local skip_times_json = %q
 
 	if strings.Contains(streamURL, "m3u8") || strings.Contains(streamURL, "kotocdn") || strings.Contains(streamURL, "flikhub") {
 		args = append(args, "--no-ytdl")
-		args = append(args, "--stream-lavf-o=protocol_whitelist=file,http,https,tcp,tls,crypto")
-		args = append(args, "--demuxer-lavf-o=allowed_segment_extensions=ALL")
-		args = append(args, "--demuxer-lavf-o=discard_corrupt=1")
-		args = append(args, "--demuxer-lavf-o=reorder_queue_size=100")
 	} else {
 		args = append(args, "--ytdl-raw-options=user-agent="+UserAgent+",referer="+referer+",extractor-args=generic:impersonate")
 	}
@@ -356,6 +352,10 @@ func SanitizeM3U8Playlist(streamURL string, headers map[string]string) (string, 
 			}
 			variantBody, err := doHTTPReqWithRetry("GET", variantURL, nil, headers)
 			if err == nil && strings.Contains(string(variantBody), "#EXTM3U") {
+				// If variant playlist contains no image ad inserts, return the direct variant HTTPS URL
+				if !strings.Contains(string(variantBody), ".png") && !strings.Contains(string(variantBody), "ibyteimg") {
+					return variantURL, nil
+				}
 				content = string(variantBody)
 				lines = strings.Split(content, "\n")
 				streamURL = variantURL
