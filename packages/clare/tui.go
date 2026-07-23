@@ -1472,7 +1472,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			items = append(items, sourceItem{stream: s, status: status})
 		}
 		m.sourceList.SetItems(items)
-		m.sourceList.Title = fmt.Sprintf("Episode %s Sources", msg.epNo)
+		provLabel := strings.ToUpper(m.selectedShow.Provider)
+		if provLabel == "" {
+			provLabel = "ALL"
+		}
+		m.sourceList.Title = fmt.Sprintf("Episode %s Sources [%s]", msg.epNo, provLabel)
 		m.state = stateSourceSelect
 
 		// Launch dry-run checks in parallel if enabled
@@ -2068,7 +2072,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.selectedEp = selected.epNo
 					m.state = stateSearchRunning
 					m.loadingMsg = fmt.Sprintf("Resolving stream sources for Episode %s...", selected.epNo)
-					return m, doFetchAllStreams(m.selectedShow.ID, m.mode, selected.epNo)
+					return m, doFetchAllStreams(m.selectedShow.ID, m.mode, selected.epNo, m.selectedShow.Provider)
 				}
 			case "esc":
 				// If we came from history, go back to history. Else, show selection.
@@ -3133,9 +3137,9 @@ func doFetchAndDownloadCmd(selectedShow AnimeShow, epNo, mode, quality string) t
 	}
 }
 
-func doFetchAllStreams(showID, mode, epNo string) tea.Cmd {
+func doFetchAllStreams(showID, mode, epNo, providerName string) tea.Cmd {
 	return func() tea.Msg {
-		streams, err := fetchAllResolvedStreams(showID, mode, epNo)
+		streams, err := fetchAllResolvedStreams(showID, mode, epNo, providerName)
 		return allStreamsResultMsg{epNo: epNo, streams: streams, err: err}
 	}
 }

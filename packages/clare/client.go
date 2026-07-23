@@ -918,6 +918,12 @@ func searchAnime(query, mode string) ([]AnimeShow, error) {
 	wg.Wait()
 
 	sort.SliceStable(results, func(i, j int) bool {
+		provOrder := map[string]int{"flikhub": 0, "allanime": 1, "gogoanime": 2}
+		pi := provOrder[strings.ToLower(results[i].Provider)]
+		pj := provOrder[strings.ToLower(results[j].Provider)]
+		if pi != pj {
+			return pi < pj
+		}
 		rankI := rankSearchRelevance(results[i].Name, query)
 		rankJ := rankSearchRelevance(results[j].Name, query)
 		if rankI != rankJ {
@@ -996,7 +1002,7 @@ func resolveStreamURL(showID, mode, episodeNo, quality string) (string, error) {
 	}
 	streamCacheMu.RUnlock()
 
-	streams, err := fetchAllResolvedStreams(showID, mode, episodeNo)
+	streams, err := fetchAllResolvedStreams(showID, mode, episodeNo, "")
 	if err != nil {
 		return "", err
 	}
@@ -1302,12 +1308,22 @@ type ResolvedStream struct {
 	Subtitles  []SubtitleTrack
 }
 
-func fetchAllResolvedStreams(showID, mode, episodeNo string) ([]ResolvedStream, error) {
+func fetchAllResolvedStreams(showID, mode, episodeNo, providerName string) ([]ResolvedStream, error) {
 	var results []ResolvedStream
 	var mu sync.Mutex
 	var wg sync.WaitGroup
 
-	for _, p := range providers {
+	targetProviders := providers
+	if providerName != "" {
+		for _, p := range providers {
+			if strings.EqualFold(p.Name(), providerName) {
+				targetProviders = []Provider{p}
+				break
+			}
+		}
+	}
+
+	for _, p := range targetProviders {
 		wg.Add(1)
 		go func(prov Provider) {
 			defer wg.Done()
