@@ -127,7 +127,14 @@ func (p *FlikhubProvider) FetchEpisodes(showID string, mode string) (AnimeShow, 
 
 	var episodesList []FlikhubEpisodeItem
 	if err := json.Unmarshal(episodesBody, &episodesList); err != nil {
-		return AnimeShow{}, nil, fmt.Errorf("failed to parse Flikhub episodes list JSON: %w", err)
+		var wrapper struct {
+			Episodes []FlikhubEpisodeItem `json:"episodes"`
+		}
+		if err2 := json.Unmarshal(episodesBody, &wrapper); err2 == nil && len(wrapper.Episodes) > 0 {
+			episodesList = wrapper.Episodes
+		} else {
+			return AnimeShow{}, nil, fmt.Errorf("failed to parse Flikhub episodes list JSON: %w", err)
+		}
 	}
 
 	// Find the MAL ID from the episode items
