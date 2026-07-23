@@ -931,11 +931,18 @@ func searchAnime(query, mode string) ([]AnimeShow, error) {
 
 func fetchEpisodeList(showID, mode string) (AnimeShow, []string, error) {
 	provider := ""
-	if cached, _, found := loadShowCache(showID); found {
+	if cached, _, found := loadShowCache(showID); found && cached.Provider != "" {
 		provider = cached.Provider
 	}
 	if provider == "" {
-		provider = "allanime"
+		// Infer provider by showID format
+		if strings.HasSuffix(showID, "-online") || strings.Contains(showID, "-1") {
+			provider = "gogoanime"
+		} else if strings.Contains(showID, "-") {
+			provider = "flikhub"
+		} else {
+			provider = "allanime"
+		}
 	}
 	p := getProvider(provider)
 	return p.FetchEpisodes(showID, mode)
