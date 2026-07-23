@@ -1634,10 +1634,13 @@ func TestPlayEpisodesOnOtus(t *testing.T) {
 		// Perform IPC seek command 2 seconds after launch
 		go func() {
 			time.Sleep(2 * time.Second)
-			ipc := NewMPVIPCClient(getMpvSocketPath())
-			if err := ipc.Seek(30.0); err == nil {
-				LogEventInfo(DomainMpvIPC, "Automated IPC Seek Success (+30s)")
-				t.Logf("✓ MPV IPC live seek (+30s) succeeded!")
+			ipc, err := NewMPVIPCClient(getMpvSocketPath())
+			if err == nil {
+				if err := ipc.Seek(30.0); err == nil {
+					LogEventInfo(DomainMpvIPC, "Automated IPC Seek Success (+30s)")
+					t.Logf("✓ MPV IPC live seek (+30s) succeeded!")
+				}
+				ipc.Close()
 			}
 		}()
 

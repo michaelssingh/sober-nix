@@ -74,6 +74,22 @@ func (c *MPVIPCClient) GetProperty(prop string) (any, error) {
 	}
 }
 
+func (c *MPVIPCClient) Seek(seconds float64) error {
+	c.requestID++
+	req := MPVIPCRequest{
+		Command:   []any{"seek", seconds, "relative"},
+		RequestID: c.requestID,
+	}
+	payload, _ := json.Marshal(req)
+	payload = append(payload, '\n')
+
+	_ = c.conn.SetDeadline(time.Now().Add(2 * time.Second))
+	if _, err := c.conn.Write(payload); err != nil {
+		return err
+	}
+	return nil
+}
+
 type VideoHealthStats struct {
 	VideoCodec  string  `json:"video_codec"`
 	AudioCodec  string  `json:"audio_codec"`
