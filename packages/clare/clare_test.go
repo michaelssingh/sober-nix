@@ -1555,43 +1555,50 @@ func TestPlayEpisodesOnOtus(t *testing.T) {
 		t.Skip("Skipping playback test unless TEST_PLAYBACK=1 is set")
 	}
 
-	provider := &AllAnimeProvider{}
-	shows, err := provider.Search("Frieren: Beyond Journey's End", "sub")
-	if err != nil || len(shows) == 0 {
-		t.Fatalf("Failed to search show: %v", err)
-	}
+	// Use FlikHub as it proved reliable in integration tests
+	flikhub := &FlikhubProvider{}
 
-	// Pick the show with the most episodes (main 28-ep series, not a Part N spinoff)
+	// Try multiple well-known shows until we find one with working streams
+	queries := []string{"Sakamoto Days", "Gachiakuta", "Ghost in the Shell", "Bleach"}
+
 	var targetShow AnimeShow
 	var targetEps []string
-	bestEpCount := 0
-	for _, s := range shows {
-		_, eps, fetchErr := provider.FetchEpisodes(s.ID, "sub")
-		if fetchErr != nil || len(eps) < 3 {
+
+	for _, query := range queries {
+		shows, err := flikhub.Search(query, "sub")
+		if err != nil || len(shows) == 0 {
+			t.Logf("Search for %q returned no results: %v", query, err)
 			continue
 		}
-		if len(eps) > bestEpCount {
-			// Also verify that streams actually resolve for ep 1 before committing
-			streams, streamErr := provider.ResolveStreams(s.ID, "sub", "1", "best")
-			if streamErr != nil || len(streams) == 0 {
-				t.Logf("Show %s (ID: %s, %d eps) — streams failed: %v, skipping", s.Name, s.ID, len(eps), streamErr)
+		for _, s := range shows {
+			_, eps, fetchErr := flikhub.FetchEpisodes(s.ID, "sub")
+			if fetchErr != nil || len(eps) < 3 {
 				continue
 			}
-			bestEpCount = len(eps)
+			streams, streamErr := flikhub.ResolveStreams(s.ID, "sub", "1", "best")
+			if streamErr != nil || len(streams) == 0 {
+				t.Logf("Show %s (ID: %s) — streams failed: %v, skipping", s.Name, s.ID, streamErr)
+				continue
+			}
 			targetShow = s
 			targetEps = eps
+			break
+		}
+		if targetShow.ID != "" {
+			break
 		}
 	}
+
 	if targetShow.ID == "" {
-		t.Fatalf("No show with working streams and >= 3 episodes found across %d search results", len(shows))
+		t.Fatalf("No working show found across all queries")
 	}
 
-	t.Logf("Selected Main Show: %s (ID: %s, Total Eps: %d)", targetShow.Name, targetShow.ID, len(targetEps))
+	t.Logf("Selected Show: %s (ID: %s, Total Eps: %d)", targetShow.Name, targetShow.ID, len(targetEps))
 
 	episodesToTest := []string{"1", "2", "3"}
 	for _, epNo := range episodesToTest {
 		t.Logf("=== Testing Playback for %s Episode %s ===", targetShow.Name, epNo)
-		streams, err := provider.ResolveStreams(targetShow.ID, "sub", epNo, "best")
+		streams, err := flikhub.ResolveStreams(targetShow.ID, "sub", epNo, "best")
 		if err != nil || len(streams) == 0 {
 			t.Fatalf("Failed to resolve streams for ep %s: %v", epNo, err)
 		}
@@ -1599,7 +1606,10 @@ func TestPlayEpisodesOnOtus(t *testing.T) {
 		selectedStream := streams[0]
 		t.Logf("Selected Stream: %s (%s)", selectedStream.SourceName, selectedStream.URL)
 
-		cmd, luaFile, chapFile, _, _, err := getMpvCmd(selectedStream.URL, targetShow.Name, epNo, targetShow.MALID, "24 min", []string{"--length=5", "--really-quiet"})
+		cmd, luaFile, chapFile, _, _, err := getMpvCmd(
+			selectedStream.URL, targetShow.Name, epNo, targetShow.MALID,
+			"24 min", []string{"--length=5", "--really-quiet"},
+		)
 		if err != nil {
 			t.Fatalf("Failed to generate mpv command: %v", err)
 		}
@@ -1612,7 +1622,7 @@ func TestPlayEpisodesOnOtus(t *testing.T) {
 			}
 		}()
 
-		// Set display environment variables for otus Sway desktop session
+		// Set Wayland env for otus Sway desktop session if not already set
 		if os.Getenv("WAYLAND_DISPLAY") == "" {
 			cmd.Env = append(os.Environ(),
 				"WAYLAND_DISPLAY=wayland-1",
@@ -1627,6 +1637,7 @@ func TestPlayEpisodesOnOtus(t *testing.T) {
 			t.Fatalf("MPV playback failed for Episode %s: %v", epNo, err)
 		}
 		debugLog("[INFO] --- Automated Test Playback Completed: %s (Ep %s) ---", targetShow.Name, epNo)
-		t.Logf("✓ Episode %s played successfully on otus!", epNo)
+		t.Logf("✓ Episode %s played successfully!", epNo)
 	}
+	t.Logf("✓✓ All 3 episodes of %s played successfully on otus!", targetShow.Name)
 }
