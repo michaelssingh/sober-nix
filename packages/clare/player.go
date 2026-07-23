@@ -350,9 +350,11 @@ func SanitizeM3U8Playlist(streamURL string, headers map[string]string) (string, 
 					variantURL = streamURL[:lastIdx+1] + variantURL
 				}
 			}
-			// Always return the direct remote HTTPS variant URL so MPV streams natively without local file whitelist restrictions
-			if strings.HasPrefix(variantURL, "http") {
-				return variantURL, nil
+			variantBody, err := doHTTPReqWithRetry("GET", variantURL, nil, headers)
+			if err == nil && strings.Contains(string(variantBody), "#EXTM3U") {
+				content = string(variantBody)
+				lines = strings.Split(content, "\n")
+				streamURL = variantURL
 			}
 		}
 	}
@@ -389,10 +391,6 @@ func SanitizeM3U8Playlist(streamURL string, headers map[string]string) (string, 
 		}
 
 		sanitizedLines = append(sanitizedLines, line)
-	}
-
-	if strings.HasPrefix(streamURL, "http") && len(sanitizedLines) == len(lines) {
-		return streamURL, nil
 	}
 
 	tmpFile, err := os.CreateTemp("", "clare-sanitized-*.m3u8")
