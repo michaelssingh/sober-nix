@@ -242,6 +242,8 @@ local skip_times_json = %q
 		referer = ""
 	} else if strings.Contains(streamURL, "flikhub") || strings.Contains(streamURL, "kotocdn") || strings.Contains(streamURL, "megap") {
 		referer = "https://megaplay.buzz/"
+	} else if strings.Contains(streamURL, "allanime") || strings.Contains(streamURL, "alltropic") || strings.Contains(streamURL, "ok.ru") {
+		referer = "https://youtu-chan.com/"
 	}
 
 	headerFields := "User-Agent: " + UserAgent
@@ -254,6 +256,7 @@ local skip_times_json = %q
 		"--force-media-title=" + title + " - Episode " + epNo,
 		"--script=" + tmpFile.Name(),
 		"--http-header-fields=" + headerFields,
+		"--ytdl-raw-options=user-agent=" + UserAgent + ",referer=" + referer + ",extractor-args=generic:impersonate",
 		"--input-ipc-server=" + getMpvSocketPath(),
 		"--osc=yes",
 		"--keep-open=yes",
@@ -303,7 +306,10 @@ func downloadCmd(streamURL, title, epNo string) *exec.Cmd {
 
 	var cmd *exec.Cmd
 	if _, err := exec.LookPath("yt-dlp"); err == nil {
-		args := []string{}
+		args := []string{
+			"--extractor-args", "generic:impersonate",
+			"--user-agent", UserAgent,
+		}
 		if referer != "" {
 			args = append(args, "--referer", referer)
 		}
