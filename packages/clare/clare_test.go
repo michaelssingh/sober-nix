@@ -1556,20 +1556,31 @@ func TestPlayEpisodesOnOtus(t *testing.T) {
 	}
 
 	provider := &AllAnimeProvider{}
-	shows, err := provider.Search("Frieren", "sub")
+	shows, err := provider.Search("Frieren: Beyond Journey's End", "sub")
 	if err != nil || len(shows) == 0 {
 		t.Fatalf("Failed to search show: %v", err)
 	}
 
-	show, eps, err := provider.FetchEpisodes(shows[0].ID, "sub")
-	if err != nil || len(eps) < 3 {
-		t.Fatalf("Failed to fetch episodes: %v", err)
+	var targetShow *ShowItem
+	var targetEps []EpisodeItem
+	for i, s := range shows {
+		_, eps, err := provider.FetchEpisodes(s.ID, "sub")
+		if err == nil && len(eps) >= 3 {
+			targetShow = &shows[i]
+			targetEps = eps
+			break
+		}
 	}
+	if targetShow == nil {
+		t.Fatalf("No show with at least 3 episodes found")
+	}
+
+	t.Logf("Selected Main Show: %s (ID: %s, Total Eps: %d)", targetShow.Name, targetShow.ID, len(targetEps))
 
 	episodesToTest := []string{"1", "2", "3"}
 	for _, epNo := range episodesToTest {
-		t.Logf("=== Testing Playback for %s Episode %s ===", show.Name, epNo)
-		streams, err := provider.ResolveStreams(shows[0].ID, "sub", epNo, "best")
+		t.Logf("=== Testing Playback for %s Episode %s ===", targetShow.Name, epNo)
+		streams, err := provider.ResolveStreams(targetShow.ID, "sub", epNo, "best")
 		if err != nil || len(streams) == 0 {
 			t.Fatalf("Failed to resolve streams for ep %s: %v", epNo, err)
 		}
@@ -1577,7 +1588,7 @@ func TestPlayEpisodesOnOtus(t *testing.T) {
 		selectedStream := streams[0]
 		t.Logf("Selected Stream: %s (%s)", selectedStream.SourceName, selectedStream.URL)
 
-		cmd, luaFile, chapFile, _, _, err := getMpvCmd(selectedStream.URL, show.Name, epNo, show.MALID, "24 min", []string{"--length=5", "--really-quiet"})
+		cmd, luaFile, chapFile, _, _, err := getMpvCmd(selectedStream.URL, targetShow.Name, epNo, targetShow.MALID, "24 min", []string{"--length=5", "--really-quiet"})
 		if err != nil {
 			t.Fatalf("Failed to generate mpv command: %v", err)
 		}
@@ -1595,13 +1606,13 @@ func TestPlayEpisodesOnOtus(t *testing.T) {
 			)
 		}
 
-		debugLog("[INFO] --- Automated Test Playback Started: %s (Ep %s) ---", show.Name, epNo)
+		debugLog("[INFO] --- Automated Test Playback Started: %s (Ep %s) ---", targetShow.Name, epNo)
 		out, err := cmd.CombinedOutput()
 		t.Logf("MPV Output (Ep %s):\n%s", epNo, string(out))
 		if err != nil {
 			t.Fatalf("MPV playback failed for Episode %s: %v", epNo, err)
 		}
-		debugLog("[INFO] --- Automated Test Playback Completed: %s (Ep %s) ---", show.Name, epNo)
+		debugLog("[INFO] --- Automated Test Playback Completed: %s (Ep %s) ---", targetShow.Name, epNo)
 		t.Logf("✓ Episode %s played successfully on otus!", epNo)
 	}
 }
