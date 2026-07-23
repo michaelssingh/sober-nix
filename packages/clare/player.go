@@ -271,6 +271,7 @@ local skip_times_json = %q
 
 	if strings.Contains(streamURL, "m3u8") || strings.Contains(streamURL, "kotocdn") || strings.Contains(streamURL, "flikhub") {
 		args = append(args, "--no-ytdl")
+		args = append(args, "--demuxer-lavf-o=discard_corrupt=1,reorder_queue_size=100")
 	} else {
 		args = append(args, "--ytdl-raw-options=user-agent="+UserAgent+",referer="+referer+",extractor-args=generic:impersonate")
 	}
@@ -294,11 +295,73 @@ local skip_times_json = %q
 		debugLog("getMpvCmd: resuming episode %s at position %f seconds", epNo, startSeconds)
 	}
 
+	playURL := streamURL
+	if sanitizedFile, err := SanitizeM3U8Playlist(streamURL, map[string]string{"Referer": referer, "User-Agent": UserAgent}); err == nil && sanitizedFile != "" {
+		playURL = sanitizedFile
+		debugLog("getMpvCmd: using sanitized local m3u8 playlist file: %s", playURL)
+	}
+
 	args = append(args, extraArgs...)
-	args = append(args, streamURL)
+	args = append(args, playURL)
 
 	cmd := exec.Command("mpv", args...)
 	return cmd, tmpFile.Name(), tempChaptersFile, durationSeconds, string(skipTimesJSON), nil
+}
+
+func SanitizeM3U8Playlist(streamURL string, headers map[string]string) (string, error) {
+	if !strings.Contains(streamURL, "m3u8") && !strings.Contains(streamURL, "kotocdn") && !strings.Contains(streamURL, "flikhub") {
+		return "", fmt.Errorf("not an m3u8 playlist URL")
+	}
+
+	body, err := doHTTPReqWithRetry("GET", streamURL, nil, headers)
+	if err != nil {
+		return "", err
+	}
+
+	content := string(body)
+	if !strings.Contains(content, "#EXTM3U") {
+		return "", fmt.Errorf("invalid m3u8 playlist body")
+	}
+
+	lines := strings.Split(content, "\n")
+	var sanitizedLines []string
+	skipNextSegment := false
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "#EXTINF:") {
+			skipNextSegment = false
+		}
+
+		if strings.Contains(trimmed, "ibyteimg.com") ||
+			strings.Contains(trimmed, "ad-site") ||
+			strings.Contains(trimmed, ".png") ||
+			strings.Contains(trimmed, "doubleclick") ||
+			strings.Contains(trimmed, "googleadservices") {
+			skipNextSegment = true
+			continue
+		}
+
+		if skipNextSegment && !strings.HasPrefix(trimmed, "#") && trimmed != "" {
+			skipNextSegment = false
+			continue
+		}
+
+		sanitizedLines = append(sanitizedLines, line)
+	}
+
+	tmpFile, err := os.CreateTemp("", "clare-sanitized-*.m3u8")
+	if err != nil {
+		return "", err
+	}
+	defer tmpFile.Close()
+
+	if _, err := tmpFile.WriteString(strings.Join(sanitizedLines, "\n")); err != nil {
+		os.Remove(tmpFile.Name())
+		return "", err
+	}
+
+	return tmpFile.Name(), nil
 }
 
 func playSingleCmd(streamURL, title, epNo, malID, durationStr string) (*exec.Cmd, string, string, float64, string, error) {
