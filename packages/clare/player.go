@@ -298,6 +298,7 @@ local skip_times_json = %q
 	playURL := streamURL
 	if sanitizedFile, err := SanitizeM3U8Playlist(streamURL, map[string]string{"Referer": referer, "User-Agent": UserAgent}); err == nil && sanitizedFile != "" {
 		playURL = sanitizedFile
+		args = append(args, "--demuxer-lavf-o=protocol_whitelist=file,http,https,tcp,tls,crypto,discard_corrupt=1,reorder_queue_size=100")
 		debugLog("getMpvCmd: using sanitized local m3u8 playlist file: %s", playURL)
 	}
 
