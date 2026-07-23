@@ -15,17 +15,14 @@ type Provider interface {
 	ResolveStreams(showID, mode, episodeNo, quality string) ([]ResolvedStream, error)
 }
 
-// PreflightStreamURL checks if a stream URL responds with 200 OK or 206 Partial Content
+// PreflightStreamURL checks if a stream URL responds with 200 OK and valid video content
 func PreflightStreamURL(streamURL string, headers map[string]string) error {
-	client := &http.Client{Timeout: 3 * time.Second}
-	req, err := http.NewRequest("HEAD", streamURL, nil)
+	client := &http.Client{Timeout: 4 * time.Second}
+	req, err := http.NewRequest("GET", streamURL, nil)
 	if err != nil {
-		req, err = http.NewRequest("GET", streamURL, nil)
-		if err != nil {
-			return err
-		}
-		req.Header.Set("Range", "bytes=0-1024")
+		return err
 	}
+	req.Header.Set("Range", "bytes=0-4096")
 	for k, v := range headers {
 		req.Header.Set(k, v)
 	}
@@ -42,6 +39,45 @@ func PreflightStreamURL(streamURL string, headers map[string]string) error {
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusPartialContent {
 		return fmt.Errorf("preflight returned status %d", resp.StatusCode)
 	}
+
+	buf := make([]byte, 4096)
+	n, _ := resp.Body.Read(buf)
+	content := string(buf[:n])
+
+	// If master playlist, fetch the first sub-playlist to check for corrupted PNG ad segments
+	if strings.Contains(content, "#EXTM3U") && strings.Contains(content, ".m3u8") {
+		lines := strings.Split(content, "\n")
+		for _, line := range lines {
+			line = strings.TrimSpace(line)
+			if line != "" && !strings.HasPrefix(line, "#") && strings.HasSuffix(line, ".m3u8") {
+				subURL := line
+				if !strings.HasPrefix(subURL, "http") {
+					lastIdx := strings.LastIndex(streamURL, "/")
+					if lastIdx != -1 {
+						subURL = streamURL[:lastIdx+1] + subURL
+					}
+				}
+				subReq, err := http.NewRequest("GET", subURL, nil)
+				if err == nil {
+					for k, v := range headers {
+						subReq.Header.Set(k, v)
+					}
+					subResp, err := client.Do(subReq)
+					if err == nil {
+						subBuf := make([]byte, 4096)
+						sn, _ := subResp.Body.Read(subBuf)
+						subResp.Body.Close()
+						subContent := string(subBuf[:sn])
+						if strings.Contains(subContent, ".png") || strings.Contains(subContent, "ibyteimg") {
+							return fmt.Errorf("preflight rejected stream: sub-playlist contains PNG ad segments")
+						}
+					}
+				}
+				break
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -63,8 +99,8 @@ type MultiProviderResolver struct {
 func NewMultiProviderResolver() *MultiProviderResolver {
 	return &MultiProviderResolver{
 		providers: []Provider{
-			&FlikhubProvider{},
 			&AllAnimeProvider{},
+			&FlikhubProvider{},
 			&GogoanimeProvider{},
 		},
 	}
