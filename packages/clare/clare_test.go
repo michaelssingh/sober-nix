@@ -1555,65 +1555,47 @@ func TestPlayEpisodesOnOtus(t *testing.T) {
 		t.Skip("Skipping playback test unless TEST_PLAYBACK=1 is set")
 	}
 
-	// Use FlikHub as it proved reliable in integration tests
-	flikhub := &FlikhubProvider{}
-
-	// Try multiple well-known shows until we find one with working streams
+	_ = InitLogger("")
+	resolver := NewMultiProviderResolver()
 	queries := []string{"Sakamoto Days", "Gachiakuta", "Ghost in the Shell", "Bleach"}
 
 	var targetShow AnimeShow
-	var targetEps []string
+	var targetStream ResolvedStream
 
 	for _, query := range queries {
-		shows, err := flikhub.Search(query, "sub")
-		if err != nil || len(shows) == 0 {
-			t.Logf("Search for %q returned no results: %v", query, err)
-			continue
-		}
-		for _, s := range shows {
-			_, eps, fetchErr := flikhub.FetchEpisodes(s.ID, "sub")
-			if fetchErr != nil || len(eps) < 3 {
-				continue
-			}
-			streams, streamErr := flikhub.ResolveStreams(s.ID, "sub", "1", "best")
-			if streamErr != nil || len(streams) == 0 {
-				t.Logf("Show %s (ID: %s) — streams failed: %v, skipping", s.Name, s.ID, streamErr)
-				continue
-			}
-			targetShow = s
-			targetEps = eps
+		show, stream, err := resolver.ResolveWithFallback(query, "sub", "1", "best")
+		if err == nil && stream.URL != "" {
+			targetShow = show
+			targetStream = stream
 			break
-		}
-		if targetShow.ID != "" {
-			break
+		} else {
+			t.Logf("MultiProviderResolver query %q did not yield a pre-flighted stream: %v", query, err)
 		}
 	}
 
-	if targetShow.ID == "" {
-		t.Fatalf("No working show found across all queries")
+	if targetShow.ID == "" || targetStream.URL == "" {
+		t.Fatalf("No working pre-flighted stream found across queries")
 	}
 
-	t.Logf("Selected Show: %s (ID: %s, Total Eps: %d)", targetShow.Name, targetShow.ID, len(targetEps))
+	t.Logf("Selected Pre-flighted Show: %s (Provider: %s, URL: %s)", targetShow.Name, targetStream.Provider, targetStream.URL)
 
 	episodesToTest := []string{"1", "2", "3"}
 	for _, epNo := range episodesToTest {
 		t.Logf("=== Testing Playback for %s Episode %s ===", targetShow.Name, epNo)
-		streams, err := flikhub.ResolveStreams(targetShow.ID, "sub", epNo, "best")
-		if err != nil || len(streams) == 0 {
-			t.Fatalf("Failed to resolve streams for ep %s: %v", epNo, err)
+		_, stream, err := resolver.ResolveWithFallback(targetShow.Name, "sub", epNo, "best")
+		if err != nil || stream.URL == "" {
+			t.Fatalf("Failed to resolve pre-flighted stream for ep %s: %v", epNo, err)
 		}
 
-		selectedStream := streams[0]
-		t.Logf("Selected Stream: %s (%s)", selectedStream.SourceName, selectedStream.URL)
+		t.Logf("Selected Stream: %s (%s)", stream.SourceName, stream.URL)
 
 		cmd, luaFile, chapFile, _, _, err := getMpvCmd(
-			selectedStream.URL, targetShow.Name, epNo, targetShow.MALID,
+			stream.URL, targetShow.Name, epNo, targetShow.MALID,
 			"24 min", []string{
-				"--length=5",
-				"--really-quiet",
-				"--keep-open=no",  // override getMpvCmd default --keep-open=yes so mpv exits after playback
-				"--no-terminal",   // don't read stdin, prevents blocking in test environment
-				"--idle=no",       // ensure mpv quits when done rather than idling
+				"--length=8",
+				"--keep-open=no",
+				"--no-terminal",
+				"--idle=no",
 			},
 		)
 		if err != nil {
@@ -1628,7 +1610,6 @@ func TestPlayEpisodesOnOtus(t *testing.T) {
 			}
 		}()
 
-		// Set Wayland env for otus Sway desktop session if not already set
 		if os.Getenv("WAYLAND_DISPLAY") == "" {
 			cmd.Env = append(os.Environ(),
 				"WAYLAND_DISPLAY=wayland-1",
@@ -1636,14 +1617,20 @@ func TestPlayEpisodesOnOtus(t *testing.T) {
 			)
 		}
 
-		debugLog("[INFO] --- Automated Test Playback Started: %s (Ep %s) ---", targetShow.Name, epNo)
+		LogEventInfo(DomainMpvIPC, fmt.Sprintf("Automated Test Playback Started: %s (Ep %s)", targetShow.Name, epNo))
 		out, err := cmd.CombinedOutput()
 		t.Logf("MPV Output (Ep %s):\n%s", epNo, string(out))
 		if err != nil {
 			t.Fatalf("MPV playback failed for Episode %s: %v", epNo, err)
 		}
-		debugLog("[INFO] --- Automated Test Playback Completed: %s (Ep %s) ---", targetShow.Name, epNo)
-		t.Logf("✓ Episode %s played successfully!", epNo)
+		LogEventInfo(DomainMpvIPC, fmt.Sprintf("Automated Test Playback Completed: %s (Ep %s)", targetShow.Name, epNo))
+		t.Logf("✓ Episode %s played successfully on otus!", epNo)
+	}
+
+	summary, err := ValidateSessionTrace("")
+	if err == nil {
+		t.Logf("Session Health Trace Summary: Status=%s (SearchOK=%t, PreflightOK=%t, VideoOK=%t, Errors=%d)",
+			summary.OverallStatus, summary.SearchSuccess, summary.PreflightOK, summary.VideoCodecOK, len(summary.PlaybackErrors))
 	}
 	t.Logf("✓✓ All 3 episodes of %s played successfully on otus!", targetShow.Name)
 }
