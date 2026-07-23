@@ -182,19 +182,33 @@ func (r *MultiProviderResolver) ResolveWithFallback(query, mode, episodeNo, qual
 			if err != nil || len(streams) == 0 {
 				continue
 			}
+
+			type preflightRes struct {
+				stream ResolvedStream
+				err    error
+			}
+			resChan := make(chan preflightRes, len(streams))
 			for _, st := range streams {
-				headers := map[string]string{"Referer": getRefererForURL(st.URL)}
-				if err := PreflightStreamURL(st.URL, headers); err == nil {
+				go func(candidate ResolvedStream) {
+					headers := map[string]string{"Referer": getRefererForURL(candidate.URL)}
+					err := PreflightStreamURL(candidate.URL, headers)
+					resChan <- preflightRes{stream: candidate, err: err}
+				}(st)
+			}
+
+			for i := 0; i < len(streams); i++ {
+				res := <-resChan
+				if res.err == nil {
 					LogEventInfo(DomainResolve, "preflight success",
 						slog.String("provider", p.Name()),
 						slog.String("show", s.Name),
-						slog.String("url", st.URL),
+						slog.String("url", res.stream.URL),
 					)
-					return s, st, nil
+					return s, res.stream, nil
 				} else {
-					LogEventError(DomainResolve, "preflight failed for stream candidate", err,
+					LogEventError(DomainResolve, "preflight failed for stream candidate", res.err,
 						slog.String("provider", p.Name()),
-						slog.String("url", st.URL),
+						slog.String("url", res.stream.URL),
 					)
 				}
 			}
