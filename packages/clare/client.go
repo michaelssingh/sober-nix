@@ -16,6 +16,7 @@ import (
 	"os/exec"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -1075,8 +1076,8 @@ func doHTTPReqWithRetry(method, url string, payload []byte, headers map[string]s
 	if cookieVal == "" {
 		cookieVal = os.Getenv("ALLANIME_COOKIE")
 	}
-
-	for attempt := 1; attempt <= 3; attempt++ {
+	maxAttempts := 5
+	for attempt := 1; attempt <= maxAttempts; attempt++ {
 		var req *http.Request
 		if len(payload) > 0 {
 			req, err = http.NewRequest(method, url, bytes.NewReader(payload))
@@ -1109,7 +1110,7 @@ func doHTTPReqWithRetry(method, url string, payload []byte, headers map[string]s
 				}
 				req.Header.Set("x-build-id", buildID)
 				if req.Header.Get("Origin") == "" {
-					req.Header.Set("Origin", "https://youtu-chan.com")
+					req.Header.Set("Origin", "https://mkissa.to")
 				}
 				if cookieVal != "" {
 					req.Header.Set("Cookie", cookieVal)
@@ -1117,7 +1118,7 @@ func doHTTPReqWithRetry(method, url string, payload []byte, headers map[string]s
 			}
 
 			if req.Header.Get("Referer") == "" {
-				req.Header.Set("Referer", "https://youtu-chan.com")
+				req.Header.Set("Referer", "https://mkissa.to")
 			}
 		}
 
@@ -1126,7 +1127,7 @@ func doHTTPReqWithRetry(method, url string, payload []byte, headers map[string]s
 		for k, v := range req.Header {
 			headerLogs = append(headerLogs, fmt.Sprintf("%s: %s", k, strings.Join(v, ",")))
 		}
-		debugLog("[API-REQ] Attempt %d: %s %s | Headers: %s", attempt, method, url, strings.Join(headerLogs, "; "))
+		debugLog("[API-REQ] Attempt %d/%d: %s %s | Headers: %s", attempt, maxAttempts, method, url, strings.Join(headerLogs, "; "))
 
 		var resp *http.Response
 		resp, err = client.Do(req)
@@ -1149,7 +1150,15 @@ func doHTTPReqWithRetry(method, url string, payload []byte, headers map[string]s
 				bodyStr := string(body)
 				if !isTransientError && (strings.Contains(bodyStr, "error code: 5") || strings.Contains(bodyStr, "Too many requests")) {
 					isTransientError = true
-					time.Sleep(2 * time.Second)
+					sleepSec := 5
+					reSec := regexp.MustCompile(`try again in (\d+) second`)
+					if m := reSec.FindStringSubmatch(bodyStr); len(m) >= 2 {
+						if parsedSec, err := strconv.Atoi(m[1]); err == nil && parsedSec > 0 {
+							sleepSec = parsedSec + 1
+						}
+					}
+					debugLog("[API-RATE-LIMIT] Rate limit on %s. Sleeping %d seconds before retry (attempt %d/%d)...", url, sleepSec, attempt, maxAttempts)
+					time.Sleep(time.Duration(sleepSec) * time.Second)
 				}
 
 				if !isTransientError {
@@ -1159,8 +1168,8 @@ func doHTTPReqWithRetry(method, url string, payload []byte, headers map[string]s
 			}
 		}
 
-		debugLog("HTTP request attempt %d failed for %s: %v", attempt, url, err)
-		if attempt < 3 {
+		debugLog("HTTP request attempt %d/%d failed for %s: %v", attempt, maxAttempts, url, err)
+		if attempt < maxAttempts {
 			time.Sleep(time.Duration(attempt) * time.Second)
 		}
 	}
