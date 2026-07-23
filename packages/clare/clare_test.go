@@ -1608,7 +1608,13 @@ func TestPlayEpisodesOnOtus(t *testing.T) {
 
 		cmd, luaFile, chapFile, _, _, err := getMpvCmd(
 			selectedStream.URL, targetShow.Name, epNo, targetShow.MALID,
-			"24 min", []string{"--length=5", "--really-quiet"},
+			"24 min", []string{
+				"--length=5",
+				"--really-quiet",
+				"--keep-open=no",  // override getMpvCmd default --keep-open=yes so mpv exits after playback
+				"--no-terminal",   // don't read stdin, prevents blocking in test environment
+				"--idle=no",       // ensure mpv quits when done rather than idling
+			},
 		)
 		if err != nil {
 			t.Fatalf("Failed to generate mpv command: %v", err)
