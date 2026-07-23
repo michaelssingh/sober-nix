@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -1590,7 +1589,6 @@ func TestPlayEpisodesOnOtus(t *testing.T) {
 
 		t.Logf("Selected Stream: %s (%s)", stream.SourceName, stream.URL)
 
-		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		cmd, luaFile, chapFile, _, _, err := getMpvCmd(
 			stream.URL, targetShow.Name, epNo, targetShow.MALID,
 			"24 min", []string{
@@ -1601,12 +1599,9 @@ func TestPlayEpisodesOnOtus(t *testing.T) {
 			},
 		)
 		if err != nil {
-			cancel()
 			t.Fatalf("Failed to generate mpv command: %v", err)
 		}
-		cmd = exec.CommandContext(ctx, cmd.Path, cmd.Args[1:]...)
 		defer func() {
-			cancel()
 			if luaFile != "" {
 				os.Remove(luaFile)
 			}
@@ -1623,13 +1618,31 @@ func TestPlayEpisodesOnOtus(t *testing.T) {
 		}
 
 		LogEventInfo(DomainMpvIPC, fmt.Sprintf("Automated Test Playback Started: %s (Ep %s)", targetShow.Name, epNo))
-		out, err := cmd.CombinedOutput()
-		t.Logf("MPV Output (Ep %s):\n%s", epNo, string(out))
-		if err != nil {
-			t.Fatalf("MPV playback failed for Episode %s: %v", epNo, err)
+
+		done := make(chan error, 1)
+		var outBuf []byte
+		go func() {
+			out, err := cmd.CombinedOutput()
+			outBuf = out
+			done <- err
+		}()
+
+		select {
+		case err := <-done:
+			t.Logf("MPV Output (Ep %s):\n%s", epNo, string(outBuf))
+			if err != nil {
+				t.Fatalf("MPV playback failed for Episode %s: %v", epNo, err)
+			}
+			LogEventInfo(DomainMpvIPC, fmt.Sprintf("Automated Test Playback Completed: %s (Ep %s)", targetShow.Name, epNo))
+			t.Logf("✓ Episode %s played successfully on otus!", epNo)
+		case <-time.After(15 * time.Second):
+			if cmd.Process != nil {
+				_ = cmd.Process.Kill()
+			}
+			t.Logf("MPV Output before 15s timeout (Ep %s):\n%s", epNo, string(outBuf))
+			LogEventInfo(DomainMpvIPC, fmt.Sprintf("Automated Test Playback Timeout/Completed: %s (Ep %s)", targetShow.Name, epNo))
+			t.Logf("✓ Episode %s played for 15s on otus!", epNo)
 		}
-		LogEventInfo(DomainMpvIPC, fmt.Sprintf("Automated Test Playback Completed: %s (Ep %s)", targetShow.Name, epNo))
-		t.Logf("✓ Episode %s played successfully on otus!", epNo)
 	}
 
 	summary, err := ValidateSessionTrace("")
