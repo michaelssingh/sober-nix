@@ -15,6 +15,7 @@ import (
 	"os"
 	"os/exec"
 	"regexp"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -876,6 +877,21 @@ func getProvider(name string) Provider {
 	return &AllAnimeProvider{}
 }
 
+func rankSearchRelevance(name, query string) int {
+	nameLower := strings.ToLower(name)
+	queryLower := strings.ToLower(query)
+	if nameLower == queryLower {
+		return 0
+	}
+	if strings.HasPrefix(nameLower, queryLower) {
+		return 1
+	}
+	if strings.Contains(nameLower, queryLower) {
+		return 2
+	}
+	return 3
+}
+
 func searchAnime(query, mode string) ([]AnimeShow, error) {
 	var results []AnimeShow
 	var mu sync.Mutex
@@ -890,6 +906,7 @@ func searchAnime(query, mode string) ([]AnimeShow, error) {
 				mu.Lock()
 				for i := range shows {
 					shows[i].Provider = prov.Name()
+					_ = saveShowCache(shows[i].ID, shows[i], nil)
 				}
 				results = append(results, shows...)
 				mu.Unlock()
@@ -897,6 +914,16 @@ func searchAnime(query, mode string) ([]AnimeShow, error) {
 		}(p)
 	}
 	wg.Wait()
+
+	sort.SliceStable(results, func(i, j int) bool {
+		rankI := rankSearchRelevance(results[i].Name, query)
+		rankJ := rankSearchRelevance(results[j].Name, query)
+		if rankI != rankJ {
+			return rankI < rankJ
+		}
+		return results[i].Name < results[j].Name
+	})
+
 	return results, nil
 }
 

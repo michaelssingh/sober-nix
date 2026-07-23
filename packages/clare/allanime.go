@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"net/url"
 	"regexp"
 	"strings"
 	"sync"
@@ -131,32 +130,43 @@ func (p *AllAnimeProvider) fetchEpisodeList(showID, mode string) (AnimeShow, []s
 }
 
 func (p *AllAnimeProvider) fetchEpisodeSources(showID, mode, episodeNo string) ([]SourceInfo, error) {
-	queryVars := fmt.Sprintf(`{"showId":"%s","translationType":"%s","episodeString":"%s"}`, showID, mode, episodeNo)
-
 	aareq, err := generateAAReq(allAnimeQueryHash)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate aaReq: %w", err)
 	}
 
-	queryExt := fmt.Sprintf(`{"persistedQuery":{"version":1,"sha256Hash":"%s"},"aaReq":"%s"}`, allAnimeQueryHash, aareq)
-	reqURL := fmt.Sprintf("%s?variables=%s&extensions=%s", AllAnimeAPI, url.QueryEscape(queryVars), url.QueryEscape(queryExt))
+	queryGQL := `query ($showId: String!, $translationType: VaildTranslationTypeEnumType!, $episodeString: String!) { episode(showId: $showId, translationType: $translationType, episodeString: $episodeString) { sourceUrls } }`
+	payload := map[string]any{
+		"variables": map[string]any{
+			"showId":          showID,
+			"translationType": mode,
+			"episodeString":   episodeNo,
+		},
+		"extensions": map[string]any{
+			"persistedQuery": map[string]any{
+				"version":    1,
+				"sha256Hash": allAnimeQueryHash,
+			},
+			"aaReq": aareq,
+		},
+		"query": queryGQL,
+	}
+	jsonPayload, _ := json.Marshal(payload)
 
 	_, _, buildID, err := getDerivedKey()
-	if err != nil {
-		buildID = "64"
-	}
-	if buildID == "" {
+	if err != nil || buildID == "" {
 		buildID = "64"
 	}
 
 	headers := map[string]string{
-		"User-Agent": UserAgent,
-		"Referer":    AllAnimeReferer,
-		"Origin":     allAnimeQueryOrigin,
-		"x-build-id": buildID,
+		"Content-Type": "application/json",
+		"User-Agent":   UserAgent,
+		"Referer":      AllAnimeReferer,
+		"Origin":       allAnimeQueryOrigin,
+		"x-build-id":   buildID,
 	}
 
-	body, err := doHTTPReqWithRetry("GET", reqURL, nil, headers)
+	body, err := doHTTPReqWithRetry("POST", AllAnimeAPI, jsonPayload, headers)
 	if err != nil {
 		return nil, err
 	}

@@ -173,7 +173,18 @@ type showItem struct {
 	show AnimeShow
 }
 
-func (s showItem) Title() string { return s.show.Name }
+func (s showItem) Title() string {
+	prov := s.show.Provider
+	provBadge := ""
+	if strings.EqualFold(prov, "gogoanime") {
+		provBadge = lipgloss.NewStyle().Foreground(lipgloss.Color("#ff9e64")).Render("[GOGO]") + " "
+	} else if strings.EqualFold(prov, "allanime") {
+		provBadge = lipgloss.NewStyle().Foreground(lipgloss.Color("#7aa2f7")).Render("[ALLANIME]") + " "
+	} else if prov != "" {
+		provBadge = lipgloss.NewStyle().Foreground(lipgloss.Color("#bb9af7")).Render("[" + strings.ToUpper(prov) + "]") + " "
+	}
+	return provBadge + s.show.Name
+}
 func (s showItem) Description() string {
 	var parts []string
 	if s.show.Type != "" {

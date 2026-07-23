@@ -3,13 +3,32 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"net/url"
+	"regexp"
 	"strconv"
+	"strings"
 )
 
 type FlikhubProvider struct{}
 
 func (p *FlikhubProvider) Name() string {
 	return "flikhub"
+}
+
+func cleanFlikhubTitle(raw string) string {
+	if raw == "" {
+		return raw
+	}
+	reHash := regexp.MustCompile(`-[a-z0-9]{5}$`)
+	cleaned := reHash.ReplaceAllString(raw, "")
+	cleaned = strings.ReplaceAll(cleaned, "-", " ")
+	words := strings.Fields(cleaned)
+	for i, w := range words {
+		if len(w) > 0 {
+			words[i] = strings.ToUpper(w[:1]) + w[1:]
+		}
+	}
+	return strings.Join(words, " ")
 }
 
 type FlikhubSearchItem struct {
@@ -19,8 +38,8 @@ type FlikhubSearchItem struct {
 }
 
 func (p *FlikhubProvider) Search(query string, mode string) ([]AnimeShow, error) {
-	// Query Flikhub search API directly
-	searchURL := fmt.Sprintf("https://api.flikhub.net/search?q=%s", query)
+	// Query Flikhub search API directly with URL-encoded query
+	searchURL := fmt.Sprintf("https://api.flikhub.net/search?q=%s", url.QueryEscape(query))
 	headers := map[string]string{
 		"User-Agent": UserAgent,
 	}
@@ -37,11 +56,12 @@ func (p *FlikhubProvider) Search(query string, mode string) ([]AnimeShow, error)
 
 	var shows []AnimeShow
 	for _, item := range items {
+		cleanTitle := cleanFlikhubTitle(item.Title)
 		shows = append(shows, AnimeShow{
 			ID:          item.ID,
 			Provider:    "flikhub",
-			Name:        item.Title,
-			EnglishName: item.Title,
+			Name:        cleanTitle,
+			EnglishName: cleanTitle,
 			Thumbnail:   item.Image,
 		})
 	}
@@ -156,17 +176,46 @@ type FlikhubMegaplayResponse struct {
 }
 
 func (p *FlikhubProvider) ResolveStreams(showID, mode, episodeNo, quality string) ([]ResolvedStream, error) {
-	// Resolve MAL ID from showID
+	// Resolve MAL ID from showID or cached show details
 	malID := showID
-	if cachedShow, _, found := loadShowCache(showID); found && cachedShow.MALID != "" {
-		malID = cachedShow.MALID
+	showName := ""
+	if cachedShow, _, found := loadShowCache(showID); found {
+		if cachedShow.MALID != "" {
+			malID = cachedShow.MALID
+		}
+		if cachedShow.Name != "" {
+			showName = cachedShow.Name
+		} else if cachedShow.EnglishName != "" {
+			showName = cachedShow.EnglishName
+		}
 	} else {
 		// Fallback to fetch episodes to populate cache
 		show, eps, err := p.FetchEpisodes(showID, mode)
 		if err == nil {
 			_ = saveShowCache(showID, show, eps)
-			malID = show.MALID
+			if show.MALID != "" {
+				malID = show.MALID
+			}
+			if show.Name != "" {
+				showName = show.Name
+			}
 		}
+	}
+
+	// If malID is not numeric (e.g. it's an AllAnime ID), perform a Flikhub title lookup to resolve the MAL ID
+	if _, err := strconv.Atoi(malID); err != nil && showName != "" {
+		if shows, err := p.Search(showName, mode); err == nil && len(shows) > 0 {
+			for _, s := range shows {
+				if flikShow, eps, err := p.FetchEpisodes(s.ID, mode); err == nil && len(eps) > 0 && flikShow.MALID != "" {
+					malID = flikShow.MALID
+					break
+				}
+			}
+		}
+	}
+
+	if _, err := strconv.Atoi(malID); err != nil {
+		return nil, fmt.Errorf("Flikhub requires a numeric MAL ID, unable to resolve from: %s", showID)
 	}
 
 	flikhubURL := fmt.Sprintf("https://api.flikhub.net/megaplay?mal=%s&ep=%s&type=%s", malID, episodeNo, mode)

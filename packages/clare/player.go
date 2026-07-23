@@ -240,6 +240,8 @@ local skip_times_json = %q
 		referer = "https://www.mp4upload.com/"
 	} else if strings.Contains(streamURL, "fast4speed") {
 		referer = ""
+	} else if strings.Contains(streamURL, "flikhub") || strings.Contains(streamURL, "kotocdn") || strings.Contains(streamURL, "megap") {
+		referer = "https://megaplay.buzz/"
 	}
 
 	headerFields := "User-Agent: " + UserAgent

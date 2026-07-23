@@ -141,9 +141,11 @@ verify_all_sources_playable() {
                     prov="ALLANIME"
                 elif echo "$line" | grep -qi "GOGO"; then
                     prov="GOGO"
+                elif echo "$line" | grep -qi "FLIKHUB"; then
+                    prov="FLIKHUB"
                 fi
                 local name
-                name=$(echo "$line" | sed -E 's/^.*\[(ALLANIME|GOGO)\][[:space:]]+//; s/[[:space:]]*\(.*$//; s/^[^a-zA-Z0-9]*//')
+                name=$(echo "$line" | sed -E 's/^.*\[(ALLANIME|GOGO|FLIKHUB)\][[:space:]]+//; s/[[:space:]]*\(.*$//; s/^[^a-zA-Z0-9]*//')
                 source_names+=("$name")
                 source_providers+=("$prov")
                 total_sources=$((total_sources + 1))
@@ -216,7 +218,11 @@ start_clare() {
 }
 
 pass() { echo "${GREEN}  ✔ $*${RESET}"; }
-fail() { echo "${RED}  ✘ $*${RESET}"; }
+fail() { 
+    echo "${RED}  ✘ $*${RESET}"
+    echo "FATAL TEST FAILURE: $*" >> "$LOG_FILE"
+    exit 1
+}
 warn() { echo "${YELLOW}  ⚠ $*${RESET}"; }
 info() { echo "${DIM}    $*${RESET}"; }
 
@@ -345,15 +351,15 @@ for title in "${TITLES[@]}"; do
     tmux send-keys -t clare-tui-test Enter
     info "Resolving SUB streams for Episode 1..."
 
-    if wait_for_screen "clare-tui-test" "Select Source|Ok|Yt-mp4|Mp4upload|fast4speed|DEAD|Episode 1 Sources" 35; then
+    if wait_for_screen "clare-tui-test" "Select Source|Ok|Yt-mp4|Mp4upload|fast4speed|Flikhub|FLIKHUB|DEAD|Episode 1 Sources" 35; then
         R_STREAMS["$title"]="PASS"
         pass "Stream sources resolved (SUB)"
         PASS_COUNT+=1
         s_sources=$(capture "clare-tui-test")
-        if echo "$s_sources" | grep -qiE "ALLANIME|GOGO"; then
-            pass "Provider badges (ALLANIME/GOGO) detected in SUB source list"
+        if echo "$s_sources" | grep -qiE "ALLANIME|GOGO|FLIKHUB"; then
+            pass "Provider badges (ALLANIME/GOGO/FLIKHUB) detected in SUB source list"
         else
-            warn "No provider badges (ALLANIME/GOGO) detected in SUB source list"
+            warn "No provider badges (ALLANIME/GOGO/FLIKHUB) detected in SUB source list"
         fi
     else
         R_STREAMS["$title"]="FAIL"
@@ -412,14 +418,14 @@ for title in "${TITLES[@]}"; do
             sleep 6
 
             screen_dub_sources=$(capture "clare-tui-test")
-            if echo "$screen_dub_sources" | grep -qiE "Select Source|Ok|Yt-mp4|Mp4upload|fast4speed"; then
+            if echo "$screen_dub_sources" | grep -qiE "Select Source|Ok|Yt-mp4|Mp4upload|fast4speed|Flikhub|FLIKHUB"; then
                 R_STREAMS_DUB["$title"]="PASS"
                 pass "DUB stream sources resolved"
                 PASS_COUNT+=1
-                if echo "$screen_dub_sources" | grep -qiE "ALLANIME|GOGO"; then
-                    pass "Provider badges (ALLANIME/GOGO) detected in DUB source list"
+                if echo "$screen_dub_sources" | grep -qiE "ALLANIME|GOGO|FLIKHUB"; then
+                    pass "Provider badges (ALLANIME/GOGO/FLIKHUB) detected in DUB source list"
                 else
-                    warn "No provider badges (ALLANIME/GOGO) detected in DUB source list"
+                    warn "No provider badges (ALLANIME/GOGO/FLIKHUB) detected in DUB source list"
                 fi
 
                 # Play DUB stream
@@ -549,3 +555,8 @@ echo '```' >> "$REPORT_FILE"
 
 echo ""
 echo "${BOLD}${GREEN}✔ Report written to: $REPORT_FILE${RESET}"
+
+if [ "$FAIL_COUNT" -gt 0 ]; then
+    echo "${BOLD}${RED}✘ Test suite failed with $FAIL_COUNT failures.${RESET}"
+    exit 1
+fi
