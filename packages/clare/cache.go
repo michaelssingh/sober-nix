@@ -94,8 +94,8 @@ func loadShowCache(showID string) (AnimeShow, []string, bool) {
 		return AnimeShow{}, nil, false
 	}
 
-	// Invalidate show cache if it is older than 24 hours
-	if time.Now().Unix()-entry.Timestamp > 24*60*60 {
+	// Invalidate show cache if it is older than 24 hours or has no episodes cached
+	if time.Now().Unix()-entry.Timestamp > 24*60*60 || len(entry.Episodes) == 0 {
 		return AnimeShow{}, nil, false
 	}
 

@@ -906,7 +906,9 @@ func searchAnime(query, mode string) ([]AnimeShow, error) {
 				mu.Lock()
 				for i := range shows {
 					shows[i].Provider = prov.Name()
-					_ = saveShowCache(shows[i].ID, shows[i], nil)
+					if shows[i].ID != "" && (shows[i].MALID != "" || len(shows[i].AvailableEpisodesDetail) > 0) {
+						_ = saveShowCache(shows[i].ID, shows[i], nil)
+					}
 				}
 				results = append(results, shows...)
 				mu.Unlock()
