@@ -123,20 +123,32 @@ func (p *GogoanimeProvider) ResolveStreams(showID, mode, episodeNo, quality stri
 	plainMatches := rePlain.FindAllStringSubmatch(string(epBody), -1)
 	for _, m := range plainMatches {
 		if len(m) >= 2 && m[1] != "" {
-			url := m[1]
+			rawEmbedURL := m[1]
+			if !strings.HasPrefix(rawEmbedURL, "http") {
+				if strings.HasPrefix(rawEmbedURL, "//") {
+					rawEmbedURL = "https:" + rawEmbedURL
+				} else {
+					rawEmbedURL = "https://" + rawEmbedURL
+				}
+			}
+
 			sourceName := "Gogo-Embed"
-			if strings.Contains(url, "awish") {
+			if strings.Contains(rawEmbedURL, "awish") || strings.Contains(rawEmbedURL, "streamwish") {
 				sourceName = "Gogo-Awish"
-			} else if strings.Contains(url, "dood") {
+			} else if strings.Contains(rawEmbedURL, "dood") {
 				sourceName = "Gogo-Dood"
-			} else if strings.Contains(url, "alions") {
+			} else if strings.Contains(rawEmbedURL, "alions") {
 				sourceName = "Gogo-Alions"
 			}
+
+			// Reverse engineer the embed HTML page into a direct stream URL
+			streamURL := unpackGogoEmbed(rawEmbedURL, headers)
+
 			results = append(results, ResolvedStream{
 				Provider:   "gogoanime",
 				SourceName: sourceName,
 				Quality:    "best",
-				URL:        url,
+				URL:        streamURL,
 			})
 		}
 	}
@@ -207,4 +219,48 @@ func (p *GogoanimeProvider) ResolveStreams(showID, mode, episodeNo, quality stri
 	}
 
 	return dlResults, nil
+}
+
+func unpackGogoEmbed(embedURL string, headers map[string]string) string {
+	debugLog("[UNPACK] Reverse engineering embed URL: %s", embedURL)
+	body, err := doHTTPReqWithRetry("GET", embedURL, nil, headers)
+	if err != nil {
+		debugLog("[UNPACK] Failed to fetch embed URL %s: %v", embedURL, err)
+		return embedURL
+	}
+
+	htmlContent := string(body)
+
+	// 1. Direct regex match for HLS .m3u8 playlist or MP4 link inside javascript
+	reM3U8 := regexp.MustCompile(`file\s*:\s*["'](https?://[^"']+\.m3u8[^"']*)["']`)
+	if m := reM3U8.FindStringSubmatch(htmlContent); len(m) >= 2 {
+		debugLog("[UNPACK] Direct HLS regex matched: %s", m[1])
+		return m[1]
+	}
+
+	reMP4 := regexp.MustCompile(`file\s*:\s*["'](https?://[^"']+\.mp4[^"']*)["']`)
+	if m := reMP4.FindStringSubmatch(htmlContent); len(m) >= 2 {
+		debugLog("[UNPACK] Direct MP4 regex matched: %s", m[1])
+		return m[1]
+	}
+
+	// 2. Look for sources array [{file:"..."}]
+	reSources := regexp.MustCompile(`sources\s*:\s*\[\s*\{\s*file\s*:\s*["'](https?://[^"']+)["']`)
+	if m := reSources.FindStringSubmatch(htmlContent); len(m) >= 2 {
+		debugLog("[UNPACK] Sources array match: %s", m[1])
+		return m[1]
+	}
+
+	// 3. Look for JWPlayer setup objects
+	reJW := regexp.MustCompile(`["'](https?://[^"']+\.(m3u8|mp4)[^"']*)["']`)
+	matches := reJW.FindAllStringSubmatch(htmlContent, -1)
+	for _, m := range matches {
+		if len(m) >= 2 && !strings.Contains(m[1], "preview") && !strings.Contains(m[1], "poster") {
+			debugLog("[UNPACK] JWPlayer match: %s", m[1])
+			return m[1]
+		}
+	}
+
+	debugLog("[UNPACK] Fallback to raw embed URL: %s", embedURL)
+	return embedURL
 }
