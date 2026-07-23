@@ -18,12 +18,12 @@ type Provider interface {
 
 // PreflightStreamURL checks if a stream URL responds with 200 OK and valid video content
 func PreflightStreamURL(streamURL string, headers map[string]string) error {
-	client := &http.Client{Timeout: 4 * time.Second}
+	client := &http.Client{Timeout: 2 * time.Second}
 	req, err := http.NewRequest("GET", streamURL, nil)
 	if err != nil {
 		return err
 	}
-	req.Header.Set("Range", "bytes=0-4096")
+	req.Header.Set("Range", "bytes=0-2048")
 	for k, v := range headers {
 		req.Header.Set(k, v)
 	}
@@ -65,6 +65,7 @@ func PreflightStreamURL(streamURL string, headers map[string]string) error {
 				}
 				subReq, err := http.NewRequest("GET", subURL, nil)
 				if err == nil {
+					subReq.Header.Set("Range", "bytes=0-2048")
 					for k, v := range headers {
 						subReq.Header.Set(k, v)
 					}
@@ -92,6 +93,7 @@ func PreflightStreamURL(streamURL string, headers map[string]string) error {
 								}
 								segReq, err := http.NewRequest("GET", segURL, nil)
 								if err == nil {
+									segReq.Header.Set("Range", "bytes=0-511")
 									for k, v := range headers {
 										segReq.Header.Set(k, v)
 									}
