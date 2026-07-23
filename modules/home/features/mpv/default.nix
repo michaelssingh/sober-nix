@@ -11,7 +11,7 @@
     ];
     config = {
       hwdec = "vaapi";
-      vo = "gpu-next";
+      vo = "gpu";
       gpu-context = "auto";
       gpu-api = "auto";
       save-position-on-quit = "yes";
