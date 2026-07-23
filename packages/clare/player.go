@@ -364,25 +364,19 @@ func SanitizeM3U8Playlist(streamURL string, headers map[string]string) (string, 
 	}
 
 	var sanitizedLines []string
-	skipNextSegment := false
 
 	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)
-		if strings.HasPrefix(trimmed, "#EXTINF:") {
-			skipNextSegment = false
-		}
 
 		if strings.Contains(trimmed, "ibyteimg.com") ||
 			strings.Contains(trimmed, "ad-site") ||
 			strings.Contains(trimmed, ".png") ||
 			strings.Contains(trimmed, "doubleclick") ||
 			strings.Contains(trimmed, "googleadservices") {
-			skipNextSegment = true
-			continue
-		}
-
-		if skipNextSegment && !strings.HasPrefix(trimmed, "#") && trimmed != "" {
-			skipNextSegment = false
+			// Strip preceding #EXTINF tag if present in sanitizedLines
+			if len(sanitizedLines) > 0 && strings.HasPrefix(sanitizedLines[len(sanitizedLines)-1], "#EXTINF:") {
+				sanitizedLines = sanitizedLines[:len(sanitizedLines)-1]
+			}
 			continue
 		}
 
