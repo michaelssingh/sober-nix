@@ -1655,9 +1655,9 @@ func TestProviderAllAnime(t *testing.T) {
 		}
 	}
 
-	// Known-good fallback ID for AllAnime (Bleach)
+	// Known-good fallback ID for AllAnime (SAKAMOTO DAYS)
 	if len(streams) == 0 {
-		knownID := "caSCmQepJo2pbKzq9"
+		knownID := "dqNHFbAsJeFfX4oHX"
 		show, eps, err := prov.FetchEpisodes(knownID, "sub")
 		if err == nil && len(eps) > 0 {
 			resolved, err := prov.ResolveStreams(knownID, "sub", eps[0], "best")

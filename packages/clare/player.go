@@ -350,15 +350,9 @@ func SanitizeM3U8Playlist(streamURL string, headers map[string]string) (string, 
 					variantURL = streamURL[:lastIdx+1] + variantURL
 				}
 			}
-			variantBody, err := doHTTPReqWithRetry("GET", variantURL, nil, headers)
-			if err == nil && strings.Contains(string(variantBody), "#EXTM3U") {
-				// If variant playlist contains no image ad inserts, return the direct variant HTTPS URL
-				if !strings.Contains(string(variantBody), ".png") && !strings.Contains(string(variantBody), "ibyteimg") {
-					return variantURL, nil
-				}
-				content = string(variantBody)
-				lines = strings.Split(content, "\n")
-				streamURL = variantURL
+			// Always return the direct remote HTTPS variant URL so MPV streams natively without local file whitelist restrictions
+			if strings.HasPrefix(variantURL, "http") {
+				return variantURL, nil
 			}
 		}
 	}

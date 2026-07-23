@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"regexp"
 	"strings"
 	"sync"
@@ -84,6 +85,7 @@ func (p *AllAnimeProvider) searchAnime(query, mode string) ([]AnimeShow, error) 
 }
 
 func (p *AllAnimeProvider) fetchEpisodeList(showID, mode string) (AnimeShow, []string, error) {
+	showID = stripProviderPrefix(showID)
 	if show, eps, found := loadShowCache(showID); found {
 		debugLog("fetchEpisodeList: loaded show %s from cache", showID)
 		return show, eps, nil
@@ -138,42 +140,35 @@ func (p *AllAnimeProvider) fetchEpisodeList(showID, mode string) (AnimeShow, []s
 }
 
 func (p *AllAnimeProvider) fetchEpisodeSources(showID, mode, episodeNo string) ([]SourceInfo, error) {
+	showID = stripProviderPrefix(showID)
 	aareq, err := generateAAReq(allAnimeQueryHash)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate aaReq: %w", err)
 	}
 
-	queryGQL := `query ($showId: String!, $translationType: VaildTranslationTypeEnumType!, $episodeString: String!) { episode(showId: $showId, translationType: $translationType, episodeString: $episodeString) { sourceUrls } }`
-	payload := map[string]any{
-		"variables": map[string]any{
-			"showId":          showID,
-			"translationType": mode,
-			"episodeString":   episodeNo,
-		},
-		"extensions": map[string]any{
-			"aaReq": aareq,
-		},
-		"query": queryGQL,
-	}
-	jsonPayload, _ := json.Marshal(payload)
+	queryVars := fmt.Sprintf(`{"showId":"%s","translationType":"%s","episodeString":"%s"}`, showID, mode, episodeNo)
+	queryExt := fmt.Sprintf(`{"persistedQuery":{"version":1,"sha256Hash":"%s"},"aaReq":"%s"}`, allAnimeQueryHash, aareq)
+
+	reqURL := fmt.Sprintf("%s?variables=%s&extensions=%s", AllAnimeAPI, url.QueryEscape(queryVars), url.QueryEscape(queryExt))
 
 	_, _, buildID, err := getDerivedKey()
 	if err != nil || buildID == "" {
 		buildID = "64"
 	}
+	debugLog("[ALLANIME] Generated aaReq length %d, buildID: %s, err: %v", len(aareq), buildID, err)
 
 	headers := map[string]string{
-		"Content-Type": "application/json",
-		"User-Agent":   UserAgent,
-		"Referer":      AllAnimeReferer,
-		"Origin":       allAnimeQueryOrigin,
-		"x-build-id":   buildID,
+		"User-Agent": UserAgent,
+		"Referer":    AllAnimeReferer,
+		"Origin":     allAnimeQueryOrigin,
+		"x-build-id": buildID,
 	}
 
-	body, err := doHTTPReqWithRetry("POST", AllAnimeAPI, jsonPayload, headers)
+	body, err := doHTTPReqWithRetry("GET", reqURL, nil, headers)
 	if err != nil {
 		return nil, err
 	}
+	debugLog("[ALLANIME] Episode sources response body snippet: %s", string(body)[:min(150, len(body))])
 
 	re := regexp.MustCompile(`"tobeparsed"\s*:\s*"([^"]*)"`)
 	match := re.FindStringSubmatch(string(body))

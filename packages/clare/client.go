@@ -474,7 +474,7 @@ func fetchAllAnimeCryptoMaterial() (int64, []byte, string, error) {
 	html := string(htmlBytes)
 
 	// 2. Parse __aaCrypto JSON
-	reCrypto := regexp.MustCompile(`window\.__aaCrypto\s*=\s*(\{[^{}]*\})`)
+	reCrypto := regexp.MustCompile(`(?:window\.)?__aaCrypto\s*=\s*(\{[^{}]*\})`)
 	matchCrypto := reCrypto.FindStringSubmatch(html)
 	if len(matchCrypto) < 2 {
 		return 0, nil, "", fmt.Errorf("unable to find __aaCrypto in homepage")
@@ -559,7 +559,7 @@ func fetchAllAnimeCryptoMaterial() (int64, []byte, string, error) {
 			reHex := regexp.MustCompile(`\b[0-9a-fA-F]{64}\b`)
 			matchesHex := reHex.FindAllString(chunkContent, -1)
 			for _, hexStr := range matchesHex {
-				if !strings.EqualFold(hexStr, "d405d0edd690624b66baba3068e0edc3ac90f1597d898a1ec8db4e5c43c00fec") {
+				if !strings.EqualFold(hexStr, allAnimeQueryHash) {
 					maskHex = hexStr
 					break
 				}
@@ -906,9 +906,10 @@ func searchAnime(query, mode string) ([]AnimeShow, error) {
 				mu.Lock()
 				for i := range shows {
 					shows[i].Provider = prov.Name()
-					if shows[i].ID != "" && (shows[i].MALID != "" || len(shows[i].AvailableEpisodesDetail) > 0) {
-						_ = saveShowCache(shows[i].ID, shows[i], nil)
+					if !strings.HasPrefix(shows[i].ID, prov.Name()+":") {
+						shows[i].ID = prov.Name() + ":" + shows[i].ID
 					}
+					_ = saveShowCache(shows[i].ID, shows[i], nil)
 				}
 				results = append(results, shows...)
 				mu.Unlock()
@@ -1146,8 +1147,9 @@ func doHTTPReqWithRetry(method, url string, payload []byte, headers map[string]s
 
 				isTransientError := (resp.StatusCode >= 500 && resp.StatusCode < 600) || resp.StatusCode == 429
 				bodyStr := string(body)
-				if !isTransientError && (strings.Contains(bodyStr, "error code: 5")) {
+				if !isTransientError && (strings.Contains(bodyStr, "error code: 5") || strings.Contains(bodyStr, "Too many requests")) {
 					isTransientError = true
+					time.Sleep(2 * time.Second)
 				}
 
 				if !isTransientError {
@@ -1196,7 +1198,7 @@ func getHumanReadableRequestLog(method, urlStr string, body []byte) string {
 		return fmt.Sprintf("HTTP Request: %s %s", method, urlStr)
 	}
 
-	if u.Host == "api.allanime.day" && u.Path == "/api" && method == "POST" {
+	if (strings.Contains(u.Host, "allanime") || strings.Contains(u.Host, "mkissa")) && strings.HasSuffix(u.Path, "/api") && method == "POST" {
 		var payload struct {
 			Query     string                 `json:"query"`
 			Variables map[string]interface{} `json:"variables"`
@@ -1225,7 +1227,7 @@ func getHumanReadableRequestLog(method, urlStr string, body []byte) string {
 		}
 	}
 
-	if u.Host == "api.allanime.day" && u.Path == "/api" && method == "GET" {
+	if (strings.Contains(u.Host, "allanime") || strings.Contains(u.Host, "mkissa")) && strings.HasSuffix(u.Path, "/api") && method == "GET" {
 		q := u.Query()
 		if varsStr := q.Get("variables"); varsStr != "" {
 			var vars map[string]interface{}
@@ -1245,7 +1247,7 @@ func getHumanReadableRequestLog(method, urlStr string, body []byte) string {
 		}
 	}
 
-	if u.Host == "allanime.day" && u.Path == "/apivtwo/clock.json" {
+	if (strings.Contains(u.Host, "allanime") || strings.Contains(u.Host, "mkissa")) && strings.Contains(u.Path, "clock") {
 		return "[API] Fetch Server Clock"
 	}
 
@@ -1331,10 +1333,21 @@ type ResolvedStream struct {
 	Subtitles  []SubtitleTrack
 }
 
+func stripProviderPrefix(id string) string {
+	if idx := strings.Index(id, ":"); idx != -1 {
+		return id[idx+1:]
+	}
+	return id
+}
+
 func fetchAllResolvedStreams(showID, mode, episodeNo, providerName string) ([]ResolvedStream, error) {
 	var results []ResolvedStream
 	var mu sync.Mutex
 	var wg sync.WaitGroup
+
+	if providerName == "" && strings.Contains(showID, ":") {
+		providerName = strings.SplitN(showID, ":", 2)[0]
+	}
 
 	targetProviders := providers
 	if providerName != "" {
@@ -1346,11 +1359,13 @@ func fetchAllResolvedStreams(showID, mode, episodeNo, providerName string) ([]Re
 		}
 	}
 
+	cleanID := stripProviderPrefix(showID)
+
 	for _, p := range targetProviders {
 		wg.Add(1)
 		go func(prov Provider) {
 			defer wg.Done()
-			streams, err := prov.ResolveStreams(showID, mode, episodeNo, "best")
+			streams, err := prov.ResolveStreams(cleanID, mode, episodeNo, "best")
 			if err == nil && len(streams) > 0 {
 				mu.Lock()
 				for _, s := range streams {
