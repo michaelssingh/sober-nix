@@ -156,6 +156,9 @@
       in
       [
         keys.fly
+        keys.nixbuild
+        keys.forge
+        keys.agy
       ];
   };
 
