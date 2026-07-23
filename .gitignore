@@ -26,3 +26,5 @@ bin/init
 
 # Node modules
 node_modules/
+packages/clare/clare
+packages/clare/clare-bin
