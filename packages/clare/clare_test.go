@@ -1561,17 +1561,17 @@ func TestPlayEpisodesOnOtus(t *testing.T) {
 		t.Fatalf("Failed to search show: %v", err)
 	}
 
-	var targetShow *ShowItem
-	var targetEps []EpisodeItem
-	for i, s := range shows {
+	var targetShow AnimeShow
+	var targetEps []string
+	for _, s := range shows {
 		_, eps, err := provider.FetchEpisodes(s.ID, "sub")
 		if err == nil && len(eps) >= 3 {
-			targetShow = &shows[i]
+			targetShow = s
 			targetEps = eps
 			break
 		}
 	}
-	if targetShow == nil {
+	if targetShow.ID == "" {
 		t.Fatalf("No show with at least 3 episodes found")
 	}
 
@@ -1593,8 +1593,12 @@ func TestPlayEpisodesOnOtus(t *testing.T) {
 			t.Fatalf("Failed to generate mpv command: %v", err)
 		}
 		defer func() {
-			if luaFile != "" { os.Remove(luaFile) }
-			if chapFile != "" { os.Remove(chapFile) }
+			if luaFile != "" {
+				os.Remove(luaFile)
+			}
+			if chapFile != "" {
+				os.Remove(chapFile)
+			}
 		}()
 
 		// Set display environment variables for otus Sway desktop session
@@ -1602,7 +1606,6 @@ func TestPlayEpisodesOnOtus(t *testing.T) {
 			cmd.Env = append(os.Environ(),
 				"WAYLAND_DISPLAY=wayland-1",
 				"XDG_RUNTIME_DIR=/run/user/1001",
-				"SWAYIPC=/run/user/1001/sway-ipc.1001.1465.sock",
 			)
 		}
 
