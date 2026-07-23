@@ -180,11 +180,13 @@ func getMpvCmd(streamURL string, title string, epNo string, malID string, durati
 			}
 
 			for _, c := range chaps {
-				ffmetadata.WriteString("[CHAPTER]\n")
-				ffmetadata.WriteString("TIMEBASE=1/1000\n")
-				fmt.Fprintf(&ffmetadata, "START=%d\n", c.start)
-				fmt.Fprintf(&ffmetadata, "END=%d\n", c.end)
-				fmt.Fprintf(&ffmetadata, "title=%s\n\n", c.title)
+				if c.end > c.start {
+					ffmetadata.WriteString("[CHAPTER]\n")
+					ffmetadata.WriteString("TIMEBASE=1/1000\n")
+					fmt.Fprintf(&ffmetadata, "START=%d\n", c.start)
+					fmt.Fprintf(&ffmetadata, "END=%d\n", c.end)
+					fmt.Fprintf(&ffmetadata, "title=%s\n\n", c.title)
+				}
 			}
 
 			cf, err := os.CreateTemp("", "clare-chapters-*.txt")
