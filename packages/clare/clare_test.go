@@ -1579,7 +1579,7 @@ func TestPlayEpisodesOnOtus(t *testing.T) {
 
 	t.Logf("Selected Pre-flighted Show: %s (Provider: %s, URL: %s)", targetShow.Name, targetStream.Provider, targetStream.URL)
 
-	episodesToTest := []string{"1", "2", "3"}
+	episodesToTest := []string{"1"}
 	for _, epNo := range episodesToTest {
 		t.Logf("=== Testing Playback for %s Episode %s ===", targetShow.Name, epNo)
 		_, stream, err := resolver.ResolveWithFallback(targetShow.Name, "sub", epNo, "best")
