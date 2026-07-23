@@ -660,7 +660,7 @@ func fetchEpisodeSources(showID, mode, episodeNo string) ([]SourceInfo, error) {
 		return nil, fmt.Errorf("failed to generate aaReq: %w", err)
 	}
 
-	queryExt := fmt.Sprintf(`{"persistedQuery":{"version":1,"sha256Hash":"%s"},"aaReq":"%s"}`, allAnimeQueryHash, aareq)
+	queryExt := fmt.Sprintf(`{"aaReq":"%s"}`, aareq)
 	reqURL := fmt.Sprintf("%s?variables=%s&extensions=%s", AllAnimeAPI, url.QueryEscape(queryVars), url.QueryEscape(queryExt))
 
 	headers := map[string]string{
