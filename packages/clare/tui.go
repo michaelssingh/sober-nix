@@ -196,7 +196,9 @@ func (s showItem) Description() string {
 	if s.show.Score > 0 {
 		parts = append(parts, fmt.Sprintf("Score: %.2f", s.show.Score))
 	}
-	parts = append(parts, fmt.Sprintf("%d episodes available", s.show.EpCount()))
+	if epCount := s.show.EpCount(); epCount > 0 {
+		parts = append(parts, fmt.Sprintf("%d episodes available", epCount))
+	}
 
 	// Add sub/dub badge
 	subCount := s.show.SubCount()
