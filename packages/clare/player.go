@@ -279,7 +279,9 @@ local skip_times_json = %q
 
 	if strings.Contains(streamURL, "m3u8") || strings.Contains(streamURL, "kotocdn") || strings.Contains(streamURL, "flikhub") {
 		args = append(args, "--no-ytdl")
-		args = append(args, "--demuxer-lavf-o=protocol_whitelist=file\\,http\\,https\\,tcp\\,tls\\,crypto,discard_corrupt=1,reorder_queue_size=100")
+		args = append(args, "--demuxer-lavf-o=protocol_whitelist=file,http,https,tcp,tls,crypto")
+		args = append(args, "--demuxer-lavf-o=discard_corrupt=1")
+		args = append(args, "--demuxer-lavf-o=reorder_queue_size=100")
 	} else {
 		args = append(args, "--ytdl-raw-options=user-agent="+UserAgent+",referer="+referer+",extractor-args=generic:impersonate")
 	}
