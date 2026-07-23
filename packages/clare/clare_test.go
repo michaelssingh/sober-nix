@@ -1555,7 +1555,10 @@ func TestPlayEpisodesOnOtus(t *testing.T) {
 		t.Skip("Skipping playback test unless TEST_PLAYBACK=1 is set")
 	}
 
-	_ = InitLogger("")
+	home, _ := os.UserHomeDir()
+	logPath := filepath.Join(home, ".local", "state", "clare", "debug.log")
+	_ = os.Remove(logPath)
+	_ = InitLogger(logPath)
 	resolver := NewMultiProviderResolver()
 	queries := []string{"Sakamoto Days", "Gachiakuta", "Ghost in the Shell", "Bleach"}
 
