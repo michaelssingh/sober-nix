@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -75,6 +76,38 @@ func PreflightStreamURL(streamURL string, headers map[string]string) error {
 						subContent := string(subBuf[:sn])
 						if strings.Contains(subContent, "Cloudflare") || strings.Contains(subContent, "Attention Required!") || strings.Contains(subContent, ".png") || strings.Contains(subContent, "ibyteimg") || strings.Contains(subContent, "ad-site") {
 							return fmt.Errorf("preflight rejected stream: Cloudflare challenge or PNG ad in sub-playlist")
+						}
+
+						// Probe first segment URL to detect disguised PNG image ads
+						subLines := strings.Split(subContent, "\n")
+						for _, sline := range subLines {
+							sline = strings.TrimSpace(sline)
+							if sline != "" && !strings.HasPrefix(sline, "#") {
+								segURL := sline
+								if !strings.HasPrefix(segURL, "http") {
+									lastIdx := strings.LastIndex(subURL, "/")
+									if lastIdx != -1 {
+										segURL = subURL[:lastIdx+1] + segURL
+									}
+								}
+								segReq, err := http.NewRequest("GET", segURL, nil)
+								if err == nil {
+									for k, v := range headers {
+										segReq.Header.Set(k, v)
+									}
+									segResp, err := client.Do(segReq)
+									if err == nil {
+										segBuf := make([]byte, 512)
+										sgn, _ := segResp.Body.Read(segBuf)
+										segResp.Body.Close()
+										cType := segResp.Header.Get("Content-Type")
+										if strings.Contains(cType, "image/") || strings.Contains(cType, "png") || bytes.Contains(segBuf[:sgn], []byte("PNG")) || bytes.Contains(segBuf[:sgn], []byte("\x89PNG")) {
+											return fmt.Errorf("preflight rejected stream: segment is image/png ad insert (%s)", cType)
+										}
+									}
+								}
+								break
+							}
 						}
 					}
 				}
