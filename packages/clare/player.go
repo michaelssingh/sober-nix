@@ -259,6 +259,14 @@ local skip_times_json = %q
 		headerFields = "Referer: " + referer + ",User-Agent: " + UserAgent
 	}
 
+	keepOpenFlag := "--keep-open=yes"
+	for _, extra := range extraArgs {
+		if strings.HasPrefix(extra, "--keep-open=") {
+			keepOpenFlag = extra
+			break
+		}
+	}
+
 	args := []string{
 		"--tls-verify=no",
 		"--force-media-title=" + title + " - Episode " + epNo,
@@ -266,7 +274,7 @@ local skip_times_json = %q
 		"--http-header-fields=" + headerFields,
 		"--input-ipc-server=" + getMpvSocketPath(),
 		"--osc=yes",
-		"--keep-open=yes",
+		keepOpenFlag,
 	}
 
 	if strings.Contains(streamURL, "m3u8") || strings.Contains(streamURL, "kotocdn") || strings.Contains(streamURL, "flikhub") {
