@@ -16,6 +16,13 @@ const Version = "0.1.43"
 var EnableDryRun bool
 
 func main() {
+	_ = InitLogger("")
+
+	if len(os.Args) > 1 && os.Args[1] == "rpc" {
+		handleRPCCommand(os.Args[2:])
+		os.Exit(0)
+	}
+
 	searchQuery := flag.String("s", "", "Search query for anime")
 	episodeNum := flag.String("e", "", "Episode number to play")
 	modeFlag := flag.String("m", "sub", "Mode: sub or dub")
