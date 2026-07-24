@@ -30,12 +30,13 @@ func (c Config) IsProviderEnabled(name string) bool {
 
 func getDefaultConfig() Config {
 	return Config{
-		Autoplay:         true,
-		Autoskip:         true,
-		AutoskipDelay:    3.0,
-		SkipFillers:      false,
-		PreferredMode:    "sub",
-		PreferredQuality: "best",
+		Autoplay:          true,
+		Autoskip:          true,
+		AutoskipDelay:     3.0,
+		SkipFillers:       false,
+		PreferredMode:     "sub",
+		PreferredQuality:  "best",
+		DisabledProviders: []string{"flikhub", "gogoanime"},
 	}
 }
 
