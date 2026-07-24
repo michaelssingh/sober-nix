@@ -349,10 +349,7 @@ func SanitizeM3U8Playlist(streamURL string, headers map[string]string) (string, 
 		}
 		if variantURL != "" {
 			if !strings.HasPrefix(variantURL, "http") {
-				lastIdx := strings.LastIndex(streamURL, "/")
-				if lastIdx != -1 {
-					variantURL = streamURL[:lastIdx+1] + variantURL
-				}
+				variantURL = resolveRelativeM3U8URL(streamURL, variantURL)
 			}
 			variantBody, err := doHTTPReqWithRetry("GET", variantURL, nil, headers)
 			if err == nil && strings.Contains(string(variantBody), "#EXTM3U") {
@@ -384,10 +381,7 @@ func SanitizeM3U8Playlist(streamURL string, headers map[string]string) (string, 
 
 		// Ensure relative segment URLs are resolved to full HTTPS URLs for local file playback
 		if !strings.HasPrefix(trimmed, "#") && trimmed != "" && !strings.HasPrefix(trimmed, "http") {
-			lastIdx := strings.LastIndex(streamURL, "/")
-			if lastIdx != -1 {
-				line = streamURL[:lastIdx+1] + trimmed
-			}
+			line = resolveRelativeM3U8URL(streamURL, trimmed)
 		}
 
 		sanitizedLines = append(sanitizedLines, line)
@@ -405,6 +399,18 @@ func SanitizeM3U8Playlist(streamURL string, headers map[string]string) (string, 
 	}
 
 	return tmpFile.Name(), nil
+}
+
+func resolveRelativeM3U8URL(baseURLStr, relativeURLStr string) string {
+	baseURL, err := url.Parse(baseURLStr)
+	if err != nil {
+		return relativeURLStr
+	}
+	relURL, err := url.Parse(relativeURLStr)
+	if err != nil {
+		return relativeURLStr
+	}
+	return baseURL.ResolveReference(relURL).String()
 }
 
 func playSingleCmd(streamURL, title, epNo, malID, durationStr string) (*exec.Cmd, string, string, float64, string, error) {
