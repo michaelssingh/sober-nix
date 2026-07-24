@@ -104,6 +104,8 @@ func getRefererForURL(urlVal string) string {
 		return "https://megaplay.buzz/"
 	} else if strings.Contains(urlVal, "allanime") || strings.Contains(urlVal, "alltropic") || strings.Contains(urlVal, "ok.ru") {
 		return "https://youtu-chan.com/"
+	} else if strings.Contains(urlVal, "cloudorchestranova") || strings.Contains(urlVal, "vidsrc") {
+		return "https://cloudorchestranova.com/"
 	}
 	return StreamReferer
 }
@@ -116,6 +118,7 @@ func NewMultiProviderResolver() *MultiProviderResolver {
 	cfg := loadConfig()
 	allProviders := []Provider{
 		&AllAnimeProvider{},
+		&VidSrcProvider{},
 		&FlikhubProvider{},
 		&GogoanimeProvider{},
 	}

@@ -864,8 +864,9 @@ var (
 )
 
 var providers = []Provider{
-	&FlikhubProvider{},
 	&AllAnimeProvider{},
+	&VidSrcProvider{},
+	&FlikhubProvider{},
 	&GogoanimeProvider{},
 }
 

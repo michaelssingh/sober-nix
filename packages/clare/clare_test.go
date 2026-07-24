@@ -1898,3 +1898,42 @@ func TestDisabledProvidersConfig(t *testing.T) {
 		t.Fatalf("expected allanime to be enabled")
 	}
 }
+
+func TestProviderVidSrc(t *testing.T) {
+	p := &VidSrcProvider{}
+	if p.Name() != "vidsrc" {
+		t.Fatalf("expected name vidsrc, got %s", p.Name())
+	}
+	shows, err := p.Search("The Matrix", "sub")
+	if err != nil {
+		t.Fatalf("vidsrc search failed: %v", err)
+	}
+	if len(shows) == 0 {
+		t.Fatalf("expected search results for The Matrix")
+	}
+	t.Logf("✓ VidSrc search found %d results! Top: %s (%s)", len(shows), shows[0].Name, shows[0].ID)
+
+	show, eps, err := p.FetchEpisodes(shows[0].ID, "sub")
+	if err != nil {
+		t.Fatalf("vidsrc fetch episodes failed: %v", err)
+	}
+	if len(eps) == 0 {
+		t.Fatalf("expected episode list")
+	}
+	t.Logf("✓ VidSrc show: %s, episodes: %d", show.Name, len(eps))
+
+	streams, err := p.ResolveStreams(shows[0].ID, "sub", "1", "best")
+	if err != nil {
+		t.Fatalf("vidsrc resolve streams failed: %v", err)
+	}
+	if len(streams) == 0 {
+		t.Fatalf("expected stream candidates")
+	}
+	t.Logf("✓ VidSrc stream resolved! URL: %s", streams[0].URL)
+
+	headers := map[string]string{"Referer": getRefererForURL(streams[0].URL)}
+	if err := PreflightStreamURL(streams[0].URL, headers); err != nil {
+		t.Fatalf("vidsrc stream preflight failed: %v", err)
+	}
+	t.Logf("✓ VidSrc stream preflight 200 OK verified!")
+}
