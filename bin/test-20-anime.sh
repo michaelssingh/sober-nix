@@ -43,14 +43,60 @@ mkdir -p "$MOCK_DIR"
 REAL_MPV_PATH="$(which mpv)"
 REAL_YTDLP_PATH="$(which yt-dlp 2>/dev/null || echo '')"
 
-# mpv wrapper: runs real mpv null-output (no display/audio), decodes 1 frame
-# so Clare can verify the stream URL is actually playable.
+# mpv wrapper: runs real mpv in headless mode and uses IPC to verify real video codec & time-pos progression
 cat > "$MOCK_DIR/mpv" << MPVEOF
 #!/usr/bin/env bash
 echo "MPV_CALL \$(date -Iseconds): \$*" >> "$TEST_DIR/test_executions.log"
-"$REAL_MPV_PATH" --vo=null --ao=null --frames=1 --network-timeout=5 "\$@" \\
-  >> "$TEST_DIR/mpv_output.log" 2>&1
+
+TEST_IPC_SOCK="$TEST_DIR/mpv_verify_\$\$.sock"
+"$REAL_MPV_PATH" --vo=null --ao=null --input-ipc-server="\$TEST_IPC_SOCK" --network-timeout=8 "\$@" >> "$TEST_DIR/mpv_output.log" 2>&1 &
+MPV_PID=\$!
+
+python3 -c "
+import socket, json, time, sys
+sock_path = '\$TEST_IPC_SOCK'
+for _ in range(30):
+    try:
+        s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        s.settimeout(3.0)
+        s.connect(sock_path)
+        break
+    except Exception:
+        time.sleep(0.2)
+else:
+    print('Failed to connect to MPV IPC socket')
+    sys.exit(1)
+
+# Check video-format
+s.sendall(json.dumps({'command': ['get_property', 'video-format']}).encode() + b'\n')
+resp = json.loads(s.recv(4096).decode())
+vfmt = str(resp.get('data', ''))
+if not vfmt or vfmt.lower() in ['png', 'jpg', 'jpeg', 'png_pipe', 'none']:
+    print(f'INVALID VIDEO FORMAT: {vfmt}')
+    sys.exit(1)
+
+# Read initial time-pos
+s.sendall(json.dumps({'command': ['get_property', 'time-pos']}).encode() + b'\n')
+r1 = json.loads(s.recv(4096).decode())
+pos1 = r1.get('data', 0.0)
+
+time.sleep(2.0)
+
+# Read second time-pos
+s.sendall(json.dumps({'command': ['get_property', 'time-pos']}).encode() + b'\n')
+r2 = json.loads(s.recv(4096).decode())
+pos2 = r2.get('data', 0.0)
+
+if isinstance(pos1, (int, float)) and isinstance(pos2, (int, float)) and (pos2 - pos1) >= 0.5:
+    print(f'VERIFIED VIDEO PLAYBACK: codec={vfmt}, pos={pos1:.2f}s -> {pos2:.2f}s')
+    sys.exit(0)
+
+print(f'PLAYBACK STALLED OR INVALID: codec={vfmt}, pos1={pos1}, pos2={pos2}')
+sys.exit(1)
+" >> "$TEST_DIR/test_executions.log" 2>&1
+
 RC=\$?
+kill -9 \$MPV_PID 2>/dev/null
 echo "MPV_EXIT \$RC" >> "$TEST_DIR/test_executions.log"
 exit \$RC
 MPVEOF
