@@ -566,6 +566,8 @@ func initialModel(initialSearch, mode, quality string, download bool) model {
 	sList := createMinimalList("Search Results")
 	eList := createMinimalList("Select Episode")
 	soList := createMinimalList("Select Source & Resolution")
+	spList := createMinimalList("🏟️ Live Sports")
+	spStreamList := createMinimalList("📡 Select Stream")
 
 	cfg := loadConfig()
 
@@ -635,6 +637,10 @@ func initialModel(initialSearch, mode, quality string, download bool) model {
 		showTelemetry:      true, // Enabled by default
 		aniSkipReady:       make(map[string]bool),
 		clareLogChan:       make(chan string, 1000),
+		sportsList:         spList,
+		sportsStreamList:   spStreamList,
+		dryRunStates:       make(map[string]string),
+		dryRunTested:       make(map[string]bool),
 	}
 
 	if isReattached {
@@ -3909,10 +3915,8 @@ func (m *model) recalculateSizes() {
 
 	m.telemetryViewport.Width = m.width - 4
 	m.telemetryViewport.Height = listHeight
-	if m.sportsList.Width() > 0 || m.state == stateLiveSports {
-		m.sportsList.SetSize(m.width-4, listHeight)
-		m.sportsStreamList.SetSize(m.width-4, listHeight)
-	}
+	m.sportsList.SetSize(m.width-4, listHeight)
+	m.sportsStreamList.SetSize(m.width-4, listHeight)
 }
 
 func (m *model) rebuildSportsList() {
