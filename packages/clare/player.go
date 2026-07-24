@@ -269,6 +269,7 @@ local skip_times_json = %q
 
 	args := []string{
 		"--tls-verify=no",
+		"--no-resume-playback",
 		"--force-media-title=" + title + " - Episode " + epNo,
 		"--script=" + tmpFile.Name(),
 		"--http-header-fields=" + headerFields,
