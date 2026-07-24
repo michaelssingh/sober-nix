@@ -372,6 +372,7 @@ func SanitizeM3U8Playlist(streamURL string, headers map[string]string) (string, 
 			strings.Contains(trimmed, "ad-site") ||
 			strings.Contains(trimmed, ".png") ||
 			strings.Contains(trimmed, "/segment/") ||
+			strings.Contains(trimmed, "%2Fsegment") ||
 			strings.Contains(trimmed, "doubleclick") ||
 			strings.Contains(trimmed, "googleadservices") {
 			// Strip preceding #EXTINF tag if present in sanitizedLines
