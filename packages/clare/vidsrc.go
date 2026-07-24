@@ -81,12 +81,13 @@ func (p *VidSrcProvider) Search(query, mode string) ([]AnimeShow, error) {
 }
 
 func (p *VidSrcProvider) FetchEpisodes(showID, mode string) (AnimeShow, []string, error) {
-	parts := strings.Split(showID, ":")
-	if len(parts) < 3 {
+	cleanID := strings.TrimPrefix(showID, "vidsrc:")
+	parts := strings.Split(cleanID, ":")
+	if len(parts) < 2 {
 		return AnimeShow{}, nil, fmt.Errorf("invalid vidsrc show ID: %s", showID)
 	}
-	mediaType := parts[1]
-	tmdbID := parts[2]
+	mediaType := parts[0]
+	tmdbID := parts[1]
 
 	if mediaType == "movie" {
 		return AnimeShow{
@@ -139,12 +140,13 @@ func (p *VidSrcProvider) FetchEpisodes(showID, mode string) (AnimeShow, []string
 }
 
 func (p *VidSrcProvider) ResolveStreams(showID, mode, episodeNo, quality string) ([]ResolvedStream, error) {
-	parts := strings.Split(showID, ":")
-	if len(parts) < 3 {
+	cleanID := strings.TrimPrefix(showID, "vidsrc:")
+	parts := strings.Split(cleanID, ":")
+	if len(parts) < 2 {
 		return nil, fmt.Errorf("invalid vidsrc show ID: %s", showID)
 	}
-	mediaType := parts[1]
-	tmdbID := parts[2]
+	mediaType := parts[0]
+	tmdbID := parts[1]
 
 	var embedURL string
 	if mediaType == "movie" {
