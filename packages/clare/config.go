@@ -28,6 +28,20 @@ func (c Config) IsProviderEnabled(name string) bool {
 	return true
 }
 
+func (c *Config) ToggleProvider(name string) {
+	if c.IsProviderEnabled(name) {
+		c.DisabledProviders = append(c.DisabledProviders, name)
+	} else {
+		var filtered []string
+		for _, d := range c.DisabledProviders {
+			if !strings.EqualFold(d, name) {
+				filtered = append(filtered, d)
+			}
+		}
+		c.DisabledProviders = filtered
+	}
+}
+
 func getDefaultConfig() Config {
 	return Config{
 		Autoplay:          true,

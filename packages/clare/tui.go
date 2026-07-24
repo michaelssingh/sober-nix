@@ -2241,7 +2241,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				return m, nil
 			case "down", "j":
-				if m.configCursor < 5 {
+				if m.configCursor < 8 {
 					m.configCursor++
 				}
 				return m, nil
@@ -2283,6 +2283,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					}
 					nextIdx := (idx + 1) % len(qualities)
 					cfg.PreferredQuality = qualities[nextIdx]
+				case 6:
+					cfg.ToggleProvider("allanime")
+				case 7:
+					cfg.ToggleProvider("flikhub")
+				case 8:
+					cfg.ToggleProvider("gogoanime")
 				}
 				_ = saveConfig(cfg)
 				m.autoplay = cfg.Autoplay
@@ -2676,6 +2682,9 @@ func (m model) View() string {
 			{"Autoskip Delay", fmt.Sprintf("%.0fs", cfg.AutoskipDelay)},
 			{"Preferred Translation Mode", strings.ToUpper(cfg.PreferredMode)},
 			{"Preferred Stream Quality", strings.ToUpper(cfg.PreferredQuality)},
+			{"Provider: AllAnime", formatBool(cfg.IsProviderEnabled("allanime"))},
+			{"Provider: FlikHub", formatBool(cfg.IsProviderEnabled("flikhub"))},
+			{"Provider: GogoAnime", formatBool(cfg.IsProviderEnabled("gogoanime"))},
 		}
 
 		for i, opt := range options {
