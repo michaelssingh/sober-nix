@@ -1535,7 +1535,7 @@ func testProviderPipeline(t *testing.T, prov Provider, queries []string) {
 	for i, s := range streams {
 		headers := map[string]string{
 			"User-Agent": UserAgent,
-			"Referer":    StreamReferer,
+			"Referer":    getRefererForURL(s.URL),
 		}
 		err := PreflightStreamURL(s.URL, headers)
 		if err == nil {

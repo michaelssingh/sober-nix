@@ -256,7 +256,7 @@ local skip_times_json = %q
 
 	headerFields := "User-Agent: " + UserAgent
 	if referer != "" {
-		headerFields = "Referer: " + referer + ",User-Agent: " + UserAgent
+		headerFields = "Referer: " + referer + "\r\nUser-Agent: " + UserAgent
 	}
 
 	keepOpenFlag := "--keep-open=yes"
