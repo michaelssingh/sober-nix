@@ -582,16 +582,16 @@ func loadFileInMpv(streamURL, title, epNo, malID string, extraArgs []string, dur
 		}
 	}
 
-	if startSeconds > 0 {
-		startOpt := fmt.Sprintf("start=%f", startSeconds)
-		_, err = sendMpvCommand(conn, []interface{}{"loadfile", streamURL, "replace", startOpt})
-		debugLog("loadFileInMpv: loaded next episode %s with resume position %f seconds", epNo, startSeconds)
-	} else {
-		_, err = sendMpvCommand(conn, []interface{}{"loadfile", streamURL, "replace"})
-		debugLog("loadFileInMpv: loaded next episode %s from the beginning", epNo)
-	}
+	_, err = sendMpvCommand(conn, []interface{}{"loadfile", streamURL, "replace"})
 	if err != nil {
 		return err
+	}
+	if startSeconds > 0 {
+		time.Sleep(500 * time.Millisecond)
+		_, _ = sendMpvCommand(conn, []interface{}{"seek", startSeconds, "absolute"})
+		debugLog("loadFileInMpv: loaded next episode %s and seeked to position %f seconds", epNo, startSeconds)
+	} else {
+		debugLog("loadFileInMpv: loaded next episode %s from the beginning", epNo)
 	}
 
 	fullTitle := fmt.Sprintf("%s - Episode %s", title, epNo)
