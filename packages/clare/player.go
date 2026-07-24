@@ -253,6 +253,8 @@ local skip_times_json = %q
 		referer = "https://megaplay.buzz/"
 	} else if strings.Contains(streamURL, "allanime") || strings.Contains(streamURL, "alltropic") || strings.Contains(streamURL, "ok.ru") {
 		referer = "https://youtu-chan.com/"
+	} else if strings.Contains(streamURL, "cloudorchestranova") || strings.Contains(streamURL, "zealotsofzenith") || strings.Contains(streamURL, "vidsrc") {
+		referer = "https://cloudorchestranova.com/"
 	}
 
 	headerFields := "User-Agent: " + UserAgent
