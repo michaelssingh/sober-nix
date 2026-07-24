@@ -172,11 +172,16 @@ verify_all_sources_playable() {
         sleep 6
         local after_calls
         after_calls=$(grep -h "MPV_CALL" "$LOG_FILE" 2>/dev/null | wc -l)
+        local last_exit
+        last_exit=$(tail -n 10 "$LOG_FILE" | grep "MPV_EXIT" | tail -n 1 | awk '{print $2}')
         if [ "$after_calls" -le "$before_calls" ]; then
             fail "Source #$((idx + 1)) ([$prov] $name) failed: mpv was not invoked"
             all_ok=false
+        elif [ "$last_exit" != "0" ]; then
+            fail "Source #$((idx + 1)) ([$prov] $name) failed: mpv exited with status $last_exit"
+            all_ok=false
         else
-            pass "Source #$((idx + 1)) ([$prov] $name) is streamable & playable (mpv was invoked)"
+            pass "Source #$((idx + 1)) ([$prov] $name) is streamable & playable (mpv exit code 0)"
         fi
         if [ "$idx" -lt $((total_sources - 1)) ]; then
             if wait_for_screen "$session" "Select Episode|EPISODE DETAILS|enter: play" 4; then
