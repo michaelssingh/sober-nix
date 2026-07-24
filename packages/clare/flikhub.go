@@ -263,21 +263,21 @@ func (p *FlikhubProvider) ResolveStreams(showID, mode, episodeNo, quality string
 	}
 
 	var streams []ResolvedStream
-	if res.M3u8 != "" {
-		streams = append(streams, ResolvedStream{
-			Provider:   "flikhub",
-			SourceName: "Flikhub-Direct",
-			Quality:    "best",
-			URL:        res.M3u8,
-			Subtitles:  subtitles,
-		})
-	}
 	if res.ProxiedUrl != "" {
 		streams = append(streams, ResolvedStream{
 			Provider:   "flikhub",
 			SourceName: "Flikhub-Proxy",
 			Quality:    "best",
 			URL:        res.ProxiedUrl,
+			Subtitles:  subtitles,
+		})
+	}
+	if res.M3u8 != "" {
+		streams = append(streams, ResolvedStream{
+			Provider:   "flikhub",
+			SourceName: "Flikhub-Direct",
+			Quality:    "best",
+			URL:        res.M3u8,
 			Subtitles:  subtitles,
 		})
 	}
