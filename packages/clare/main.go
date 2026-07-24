@@ -25,6 +25,7 @@ func main() {
 
 	searchQuery := flag.String("s", "", "Search query for anime")
 	episodeNum := flag.String("e", "", "Episode number to play")
+	providerFlag := flag.String("p", "", "Provider to use: allanime, flikhub, etc.")
 	modeFlag := flag.String("m", "sub", "Mode: sub or dub")
 	qualityFlag := flag.String("q", "best", "Quality: best, worst, 1080p, 720p, etc.")
 	downloadFlag := flag.Bool("d", false, "Download the episode instead of playing")
@@ -80,12 +81,16 @@ func main() {
 			os.Exit(1)
 		}
 
-		// Parse requested episode number to filter candidates
+		// Parse requested episode number and provider flag to filter candidates
 		reqEpVal := parseEpisodeNumber(epNo)
+		reqProv := strings.ToLower(*providerFlag)
 		var selectedShow AnimeShow
 		found := false
 
 		for _, s := range shows {
+			if reqProv != "" && !strings.HasPrefix(strings.ToLower(s.ID), reqProv) {
+				continue
+			}
 			if reqEpVal > 0 && s.EpCount() > 0 && int(reqEpVal) > s.EpCount() {
 				continue
 			}
