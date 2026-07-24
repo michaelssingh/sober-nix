@@ -3,6 +3,8 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"net/url"
 	"regexp"
 	"strings"
@@ -364,11 +366,22 @@ func (p *AllAnimeProvider) fetchAllResolvedStreams(showID, mode, episodeNo strin
 			if err == nil && len(links) > 0 {
 				mu.Lock()
 				for qual, urlVal := range links {
+					finalURL := urlVal
+					if strings.Contains(finalURL, "ok.ru/videoembed/") {
+						if directURL, err := unpackOkRuEmbed(finalURL); err == nil && directURL != "" {
+							finalURL = directURL
+							debugLog("[ALLANIME-OKRU] Successfully unpacked ok.ru embed to direct video URL: %s", finalURL)
+						} else {
+							debugLog("[ALLANIME-OKRU] Failed to unpack ok.ru embed %s: %v", finalURL, err)
+							continue
+						}
+					}
+
 					results = append(results, ResolvedStream{
 						Provider:   "allanime",
 						SourceName: s.SourceName,
 						Quality:    qual,
-						URL:        urlVal,
+						URL:        finalURL,
 					})
 				}
 				mu.Unlock()
@@ -382,4 +395,67 @@ func (p *AllAnimeProvider) fetchAllResolvedStreams(showID, mode, episodeNo strin
 	}
 
 	return results, nil
+}
+
+func unpackOkRuEmbed(embedURL string) (string, error) {
+	req, err := http.NewRequest("GET", embedURL, nil)
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("User-Agent", UserAgent)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	htmlStr := string(body)
+	reDataOpt := regexp.MustCompile(`data-options="([^"]+)"`)
+	m := reDataOpt.FindStringSubmatch(htmlStr)
+	if len(m) < 2 {
+		return "", fmt.Errorf("ok.ru data-options not found")
+	}
+
+	cleanJSON := strings.ReplaceAll(m[1], "&quot;", "\"")
+	cleanJSON = strings.ReplaceAll(cleanJSON, "&amp;", "&")
+
+	var dataOpt map[string]interface{}
+	if err := json.Unmarshal([]byte(cleanJSON), &dataOpt); err != nil {
+		return "", err
+	}
+
+	flashvars, ok := dataOpt["flashvars"].(map[string]interface{})
+	if !ok {
+		return "", fmt.Errorf("ok.ru flashvars not found")
+	}
+
+	metaStr, ok := flashvars["metadata"].(string)
+	if !ok {
+		return "", fmt.Errorf("ok.ru metadata not found")
+	}
+
+	var meta map[string]interface{}
+	if err := json.Unmarshal([]byte(metaStr), &meta); err != nil {
+		return "", err
+	}
+
+	if hls, ok := meta["hlsManifestUrl"].(string); ok && hls != "" {
+		return hls, nil
+	}
+
+	if videos, ok := meta["videos"].([]interface{}); ok {
+		for _, v := range videos {
+			if vMap, ok := v.(map[string]interface{}); ok {
+				if u, ok := vMap["url"].(string); ok && u != "" {
+					return u, nil
+				}
+			}
+		}
+	}
+
+	return "", fmt.Errorf("no valid video stream URL found in ok.ru metadata")
 }
