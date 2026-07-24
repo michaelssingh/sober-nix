@@ -310,9 +310,11 @@ local skip_times_json = %q
 	}
 
 	playURL := streamURL
-	if sanitizedFile, err := SanitizeM3U8Playlist(streamURL, map[string]string{"Referer": referer, "User-Agent": UserAgent}); err == nil && sanitizedFile != "" {
-		playURL = sanitizedFile
-		debugLog("getMpvCmd: using sanitized local m3u8 playlist file/URL: %s", playURL)
+	if strings.Contains(streamURL, "flikhub") || strings.Contains(streamURL, "kotocdn") {
+		if sanitizedFile, err := SanitizeM3U8Playlist(streamURL, map[string]string{"Referer": referer, "User-Agent": UserAgent}); err == nil && sanitizedFile != "" {
+			playURL = sanitizedFile
+			debugLog("getMpvCmd: using sanitized local m3u8 playlist file/URL: %s", playURL)
+		}
 	}
 
 	args = append(args, extraArgs...)
@@ -324,8 +326,8 @@ local skip_times_json = %q
 }
 
 func SanitizeM3U8Playlist(streamURL string, headers map[string]string) (string, error) {
-	if !strings.Contains(streamURL, "m3u8") && !strings.Contains(streamURL, "kotocdn") && !strings.Contains(streamURL, "flikhub") {
-		return "", fmt.Errorf("not an m3u8 playlist URL")
+	if !strings.Contains(streamURL, "kotocdn") && !strings.Contains(streamURL, "flikhub") {
+		return "", fmt.Errorf("sanitization not needed for non-ad streams")
 	}
 
 	body, err := doHTTPReqWithRetry("GET", streamURL, nil, headers)
