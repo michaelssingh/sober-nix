@@ -898,7 +898,11 @@ func searchAnime(query, mode string) ([]AnimeShow, error) {
 	var mu sync.Mutex
 	var wg sync.WaitGroup
 
+	cfg := loadConfig()
 	for _, p := range providers {
+		if !cfg.IsProviderEnabled(p.Name()) {
+			continue
+		}
 		wg.Add(1)
 		go func(prov Provider) {
 			defer wg.Done()

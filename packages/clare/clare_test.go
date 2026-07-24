@@ -1886,3 +1886,15 @@ func TestPlayEpisodesOnOtus(t *testing.T) {
 	}
 	t.Logf("✓✓ All 3 episodes of %s played successfully on otus!", targetShow.Name)
 }
+
+func TestDisabledProvidersConfig(t *testing.T) {
+	cfg := Config{
+		DisabledProviders: []string{"flikhub"},
+	}
+	if cfg.IsProviderEnabled("flikhub") {
+		t.Fatalf("expected flikhub to be disabled")
+	}
+	if !cfg.IsProviderEnabled("allanime") {
+		t.Fatalf("expected allanime to be enabled")
+	}
+}

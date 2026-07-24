@@ -4,17 +4,28 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 type Config struct {
-	Autoplay         bool    `json:"autoplay"`
-	Autoskip         bool    `json:"autoskip"`
-	AutoskipDelay    float64 `json:"autoskip_delay"` // seconds of padding before skipping starts
-	SkipFillers      bool    `json:"skip_fillers"`
-	AnilistToken     string  `json:"anilist_token"`
-	MalToken         string  `json:"mal_token"`
-	PreferredMode    string  `json:"preferred_mode"`    // sub, dub
-	PreferredQuality string  `json:"preferred_quality"` // best, 1080p, 720p, etc.
+	Autoplay          bool     `json:"autoplay"`
+	Autoskip          bool     `json:"autoskip"`
+	AutoskipDelay     float64  `json:"autoskip_delay"` // seconds of padding before skipping starts
+	SkipFillers       bool     `json:"skip_fillers"`
+	AnilistToken      string   `json:"anilist_token"`
+	MalToken          string   `json:"mal_token"`
+	PreferredMode     string   `json:"preferred_mode"`    // sub, dub
+	PreferredQuality  string   `json:"preferred_quality"` // best, 1080p, 720p, etc.
+	DisabledProviders []string `json:"disabled_providers,omitempty"`
+}
+
+func (c Config) IsProviderEnabled(name string) bool {
+	for _, disabled := range c.DisabledProviders {
+		if strings.EqualFold(disabled, name) {
+			return false
+		}
+	}
+	return true
 }
 
 func getDefaultConfig() Config {

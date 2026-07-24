@@ -113,12 +113,20 @@ type MultiProviderResolver struct {
 }
 
 func NewMultiProviderResolver() *MultiProviderResolver {
+	cfg := loadConfig()
+	allProviders := []Provider{
+		&AllAnimeProvider{},
+		&FlikhubProvider{},
+		&GogoanimeProvider{},
+	}
+	var active []Provider
+	for _, p := range allProviders {
+		if cfg.IsProviderEnabled(p.Name()) {
+			active = append(active, p)
+		}
+	}
 	return &MultiProviderResolver{
-		providers: []Provider{
-			&AllAnimeProvider{},
-			&FlikhubProvider{},
-			&GogoanimeProvider{},
-		},
+		providers: active,
 	}
 }
 
