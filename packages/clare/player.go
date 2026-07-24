@@ -393,10 +393,6 @@ func SanitizeM3U8Playlist(streamURL string, headers map[string]string) (string, 
 		sanitizedLines = append(sanitizedLines, line)
 	}
 
-	if strings.HasPrefix(streamURL, "http") && len(sanitizedLines) == len(lines) {
-		return streamURL, nil
-	}
-
 	tmpFile, err := os.CreateTemp("", "clare-sanitized-*.m3u8")
 	if err != nil {
 		return "", err
