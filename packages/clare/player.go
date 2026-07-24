@@ -270,10 +270,17 @@ local skip_times_json = %q
 		}
 	}
 
+	mediaTitle := title
+	if epNo != "" && epNo != "Movie" && epNo != "movie" {
+		if !strings.HasPrefix(streamURL, "vidsrc:movie") && !strings.Contains(strings.ToLower(title), "movie") {
+			mediaTitle = fmt.Sprintf("%s - Episode %s", title, epNo)
+		}
+	}
+
 	args := []string{
 		"--tls-verify=no",
 		"--no-resume-playback",
-		"--force-media-title=" + title + " - Episode " + epNo,
+		"--force-media-title=" + mediaTitle,
 		"--script=" + tmpFile.Name(),
 		"--http-header-fields=" + headerFields,
 		"--input-ipc-server=" + getMpvSocketPath(),
