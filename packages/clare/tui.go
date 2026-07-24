@@ -2204,7 +2204,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					streamCache[cacheKey] = selected.stream.URL
 					streamCacheMu.Unlock()
 
-					return m, doPreparePlayback(m.selectedShow, m.selectedEp, m.mode, m.quality, m.download)
+					epTitle := ""
+					if info, ok := m.episodeDetails[m.selectedEp]; ok {
+						epTitle = info.Title
+					}
+					return m, doPreparePlayback(m.selectedShow, m.selectedEp, epTitle, m.mode, m.quality, m.download)
 				}
 			case "esc":
 				m.state = stateEpisodeSelect
@@ -2755,7 +2759,7 @@ func doFetchEpisodes(showID, mode string) tea.Cmd {
 }
 
 // Async resolve streams and player build command
-func doPreparePlayback(selectedShow AnimeShow, epNo, mode, quality string, download bool) tea.Cmd {
+func doPreparePlayback(selectedShow AnimeShow, epNo, epTitle, mode, quality string, download bool) tea.Cmd {
 	return func() tea.Msg {
 		var cmd *exec.Cmd
 		var tempLua string
@@ -2780,18 +2784,23 @@ func doPreparePlayback(selectedShow AnimeShow, epNo, mode, quality string, downl
 			return resolvedPlaybackMsg{cmd: cmd, err: nil}
 		}
 
+		showTitle := selectedShow.Name
+		if epTitle != "" {
+			showTitle = fmt.Sprintf("%s - Ep %s: %s", selectedShow.Name, epNo, epTitle)
+		}
+
 		if mode == "dub" {
 			dubStream, errDub := resolveStreamURL(selectedShow.ID, "dub", epNo, quality)
 			if errDub != nil {
 				return resolvedPlaybackMsg{err: errDub}
 			}
-			cmd, tempLua, tempChapters, durationSeconds, skipTimesJSON, err = playSingleCmd(dubStream, selectedShow.Name, epNo, selectedShow.MALID, selectedShow.Duration)
+			cmd, tempLua, tempChapters, durationSeconds, skipTimesJSON, err = playSingleCmd(dubStream, showTitle, epNo, selectedShow.MALID, selectedShow.Duration)
 		} else {
 			subStream, errSub := resolveStreamURL(selectedShow.ID, "sub", epNo, quality)
 			if errSub != nil {
 				return resolvedPlaybackMsg{err: errSub}
 			}
-			cmd, tempLua, tempChapters, durationSeconds, skipTimesJSON, err = playSingleCmd(subStream, selectedShow.Name, epNo, selectedShow.MALID, selectedShow.Duration)
+			cmd, tempLua, tempChapters, durationSeconds, skipTimesJSON, err = playSingleCmd(subStream, showTitle, epNo, selectedShow.MALID, selectedShow.Duration)
 		}
 
 		return resolvedPlaybackMsg{cmd: cmd, tempLuaFile: tempLua, tempChaptersFile: tempChapters, durationSeconds: durationSeconds, skipTimesJSON: skipTimesJSON, err: err}
@@ -3902,7 +3911,11 @@ func (m *model) triggerAutoplayAction() tea.Cmd {
 
 		m.state = statePlaybackPreparing
 		m.loadingMsg = fmt.Sprintf("Autoplay: Preparing playback for Episode %s...", nextEpNo)
-		return doPreparePlayback(playingShow, nextEpNo, playingMode, m.quality, m.download)
+		epTitle := ""
+		if info, ok := m.episodeDetails[nextEpNo]; ok {
+			epTitle = info.Title
+		}
+		return doPreparePlayback(playingShow, nextEpNo, epTitle, playingMode, m.quality, m.download)
 	}
 
 	return nil
