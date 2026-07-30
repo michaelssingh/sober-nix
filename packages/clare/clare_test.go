@@ -1937,3 +1937,57 @@ func TestProviderVidSrc(t *testing.T) {
 	}
 	t.Logf("✓ VidSrc stream preflight 200 OK verified!")
 }
+
+func Test20AnimePipeline(t *testing.T) {
+	shows := []string{
+		"One Piece",
+		"Jujutsu Kaisen",
+		"Solo Leveling",
+		"Demon Slayer",
+		"Attack on Titan",
+		"Naruto",
+		"Bleach",
+		"Chainsaw Man",
+		"Frieren",
+		"Spy x Family",
+		"My Hero Academia",
+		"Death Note",
+		"Dragon Ball Super",
+		"Tokyo Ghoul",
+		"Hunter x Hunter",
+		"Vinland Saga",
+		"Mob Psycho 100",
+		"Sword Art Online",
+		"Steins;Gate",
+		"Sakamoto Days",
+	}
+
+	t.Logf("=== RUNNING CLARE 20 ANIME PIPELINE VERIFICATION ===")
+	resolver := NewMultiProviderResolver()
+
+	passed := 0
+	failed := 0
+
+	for i, title := range shows {
+		start := time.Now()
+		show, stream, err := resolver.ResolveWithFallback(title, "sub", "1", "best")
+		elapsed := time.Since(start).Milliseconds()
+
+		if err != nil || stream.URL == "" {
+			t.Logf("[%2d/20] ❌ FAIL (%dms) for %q: %v", i+1, elapsed, title, err)
+			failed++
+		} else {
+			t.Logf("[%2d/20] ✅ OK (%dms) | %s | Provider: %s | Source: %s", i+1, elapsed, show.Name, stream.Provider, stream.SourceName)
+			passed++
+		}
+	}
+
+	t.Logf("=== FINAL RESULTS ===")
+	t.Logf("Passed: %d / 20 (%.1f%%)", passed, float64(passed)/20.0*100.0)
+	t.Logf("Failed: %d / 20 (%.1f%%)", failed, float64(failed)/20.0*100.0)
+
+	if passed == 0 {
+		t.Fatalf("All 20 anime shows failed resolution")
+	}
+}
+
