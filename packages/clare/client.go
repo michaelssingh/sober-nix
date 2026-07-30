@@ -474,11 +474,12 @@ func fetchAllAnimeCryptoMaterial() (int64, []byte, string, error) {
 	}
 	html := string(htmlBytes)
 
-	// 2. Parse __aaCrypto JSON
+	// 2. Parse __aaCrypto JSON (with fallback if site removed it)
 	reCrypto := regexp.MustCompile(`(?:window\.)?__aaCrypto\s*=\s*(\{[^{}]*\})`)
 	matchCrypto := reCrypto.FindStringSubmatch(html)
 	if len(matchCrypto) < 2 {
-		return 0, nil, "", fmt.Errorf("unable to find __aaCrypto in homepage")
+		debugLog("fetchAllAnimeCryptoMaterial: __aaCrypto not found in homepage, using fallback key")
+		return time.Now().Unix(), allAnimeKey, "fallback-build", nil
 	}
 
 	var bootstrap struct {
@@ -879,7 +880,10 @@ func getProvider(name string) Provider {
 	return &AllAnimeProvider{}
 }
 
-func rankSearchRelevance(name, query string) int {
+func rankTitle(name, query string) int {
+	if name == "" {
+		return 3
+	}
 	nameLower := strings.ToLower(name)
 	queryLower := strings.ToLower(query)
 	if nameLower == queryLower {
@@ -892,6 +896,17 @@ func rankSearchRelevance(name, query string) int {
 		return 2
 	}
 	return 3
+}
+
+func rankSearchRelevance(show AnimeShow, query string) int {
+	best := rankTitle(show.Name, query)
+	if r := rankTitle(show.EnglishName, query); r < best {
+		best = r
+	}
+	if r := rankTitle(show.NativeName, query); r < best {
+		best = r
+	}
+	return best
 }
 
 func searchAnime(query, mode string) ([]AnimeShow, error) {
@@ -927,12 +942,12 @@ func searchAnime(query, mode string) ([]AnimeShow, error) {
 	var filtered []AnimeShow
 	queryWords := strings.Fields(strings.ToLower(query))
 	for _, show := range results {
-		rank := rankSearchRelevance(show.Name, query)
+		rank := rankSearchRelevance(show, query)
 		if rank < 3 {
 			filtered = append(filtered, show)
 		} else {
 			// Check if at least one query word matches
-			titleLower := strings.ToLower(show.Name)
+			titleLower := strings.ToLower(show.Name + " " + show.EnglishName + " " + show.NativeName)
 			matched := false
 			for _, qw := range queryWords {
 				if len(qw) > 2 && strings.Contains(titleLower, qw) {
@@ -948,8 +963,8 @@ func searchAnime(query, mode string) ([]AnimeShow, error) {
 	results = filtered
 
 	sort.SliceStable(results, func(i, j int) bool {
-		rankI := rankSearchRelevance(results[i].Name, query)
-		rankJ := rankSearchRelevance(results[j].Name, query)
+		rankI := rankSearchRelevance(results[i], query)
+		rankJ := rankSearchRelevance(results[j], query)
 		if rankI != rankJ {
 			return rankI < rankJ
 		}
@@ -966,7 +981,7 @@ func searchAnime(query, mode string) ([]AnimeShow, error) {
 		if pi != pj {
 			return pi < pj
 		}
-		return results[i].Name < results[j].Name
+		return strings.ToLower(results[i].Name) < strings.ToLower(results[j].Name)
 	})
 
 	// Deduplicate: keep one entry per (normalised-title, type) pair.
