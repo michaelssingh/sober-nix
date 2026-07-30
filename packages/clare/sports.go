@@ -93,7 +93,9 @@ func fetchStreamedLiveMatches() ([]SportsEvent, error) {
 			}
 			ev.Sources = append(ev.Sources, streams...)
 		}
-		events = append(events, ev)
+		if len(ev.Sources) > 0 {
+			events = append(events, ev)
+		}
 	}
 	return events, nil
 }
