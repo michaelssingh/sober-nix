@@ -63,16 +63,13 @@ in
       fonts.default_family = "FiraCode Nerd Font Mono";
 
       qt.args = [
-        # 1. Bypass conservative Chromium GPU driver blocklists
-        "ignore-gpu-blocklist"
-        "enable-gpu-rasterization"
-        "enable-zero-copy"
+        # Disable GPU acceleration and compositing
+        "disable-gpu"
+        "disable-gpu-compositing"
+        "disable-gpu-rasterization"
 
-        # 3. Hardware-matched features (Enables H.264/HEVC decoding while stripping broken encoding flags)
-        "enable-features=VaapiVideoDecoder,CanvasOopRasterization,ZeroCopy,WebRTCPipeWireCapturer,OverlayScrollbar"
-
-        # 4. Clean feature exclusions without clobbering global video hardware decoding contexts
-        "disable-features=UseChromeOSDirectVideoDecoder,DocumentPictureInPictureAPI,EyeDropper,BackgroundFetch,InstalledApp,WebPayments,WebUSB"
+        # Feature exclusions disabling hardware video decoding & rasterization
+        "disable-features=VaapiVideoDecoder,VaapiVideoEncoder,CanvasOopRasterization,ZeroCopy,UseChromeOSDirectVideoDecoder,DocumentPictureInPictureAPI,EyeDropper,BackgroundFetch,InstalledApp,WebPayments,WebUSB"
       ];
     };
 
