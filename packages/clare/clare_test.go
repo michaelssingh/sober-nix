@@ -1976,10 +1976,28 @@ func Test20AnimePipeline(t *testing.T) {
 		if err != nil || stream.URL == "" {
 			t.Logf("[%2d/20] ❌ FAIL (%dms) for %q: %v", i+1, elapsed, title, err)
 			failed++
-		} else {
-			t.Logf("[%2d/20] ✅ OK (%dms) | %s | Provider: %s | Source: %s", i+1, elapsed, show.Name, stream.Provider, stream.SourceName)
-			passed++
+			continue
 		}
+
+		headers := map[string]string{"Referer": getRefererForURL(stream.URL)}
+		if err := PreflightStreamURL(stream.URL, headers); err != nil {
+			t.Logf("[%2d/20] ❌ PREFLIGHT FAIL (%dms) for %q (%s): %v", i+1, elapsed, title, stream.URL, err)
+			failed++
+			continue
+		}
+
+		// Verify frame decoding via mpv if binary exists
+		if mpvPath, err := exec.LookPath("mpv"); err == nil {
+			cmd := exec.Command(mpvPath, "--vo=null", "--ao=null", "--frames=1", "--network-timeout=5", "--no-terminal", stream.URL)
+			if out, err := cmd.CombinedOutput(); err != nil {
+				t.Logf("[%2d/20] ⚠️ MPV FRAME DECODE FAIL (%dms) for %q: %v\nOutput: %s", i+1, elapsed, title, err, string(out))
+			} else {
+				t.Logf("[%2d/20] ✅ PLAYABLE & DECODED (%dms) | %s | Provider: %s | Source: %s", i+1, elapsed, show.Name, stream.Provider, stream.SourceName)
+			}
+		} else {
+			t.Logf("[%2d/20] ✅ PLAYABLE (200 OK) (%dms) | %s | Provider: %s | Source: %s", i+1, elapsed, show.Name, stream.Provider, stream.SourceName)
+		}
+		passed++
 	}
 
 	t.Logf("=== FINAL RESULTS ===")
