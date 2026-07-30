@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 )
@@ -33,16 +34,16 @@ type SportsStream struct {
 
 // ─── Streamed.su provider ────────────────────────────────────────────────────
 
-const streamedBaseURL = "https://api.streamed.su"
+const streamedBaseURL = "https://streamed.st"
 
-// fetchStreamedLiveMatches returns currently live events from Streamed.su.
+// fetchStreamedLiveMatches returns currently live events from Streamed.st.
 func fetchStreamedLiveMatches() ([]SportsEvent, error) {
 	body, err := doHTTPReqWithRetry("GET", streamedBaseURL+"/api/matches/live", nil, map[string]string{
-		"Referer":    "https://streamed.su/",
+		"Referer":    "https://streamed.st/",
 		"User-Agent": UserAgent,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("streamed.su live request failed: %w", err)
+		return nil, fmt.Errorf("streamed.st live request failed: %w", err)
 	}
 
 	var raw []struct {
@@ -65,7 +66,7 @@ func fetchStreamedLiveMatches() ([]SportsEvent, error) {
 	}
 
 	if err := json.Unmarshal(body, &raw); err != nil {
-		return nil, fmt.Errorf("streamed.su parse failed: %w", err)
+		return nil, fmt.Errorf("streamed.st parse failed: %w", err)
 	}
 
 	var events []SportsEvent
@@ -101,7 +102,7 @@ func fetchStreamedLiveMatches() ([]SportsEvent, error) {
 func fetchStreamedMatchStreams(matchID, source, streamID string) ([]SportsStream, error) {
 	url := fmt.Sprintf("%s/api/stream/%s/%s", streamedBaseURL, source, streamID)
 	body, err := doHTTPReqWithRetry("GET", url, nil, map[string]string{
-		"Referer":    "https://streamed.su/",
+		"Referer":    "https://streamed.st/",
 		"User-Agent": UserAgent,
 	})
 	if err != nil {
@@ -113,6 +114,7 @@ func fetchStreamedMatchStreams(matchID, source, streamID string) ([]SportsStream
 		StreamNo int    `json:"streamNo"`
 		Lang     string `json:"lang"`
 		HLS      string `json:"hls"`
+		EmbedURL string `json:"embedUrl"`
 		Qualities []struct {
 			Name string `json:"name"`
 			URL  string `json:"url"`
@@ -126,12 +128,14 @@ func fetchStreamedMatchStreams(matchID, source, streamID string) ([]SportsStream
 	var streams []SportsStream
 	for _, s := range raw {
 		hls := s.HLS
+		if hls == "" && s.EmbedURL != "" {
+			hls = s.EmbedURL
+		}
 		name := fmt.Sprintf("%s #%d", strings.ToUpper(source), s.StreamNo)
 		lang := s.Lang
 		if lang == "" {
 			lang = "en"
 		}
-		// Prefer best quality variant if listed
 		if len(s.Qualities) > 0 {
 			hls = s.Qualities[0].URL
 		}
@@ -143,11 +147,12 @@ func fetchStreamedMatchStreams(matchID, source, streamID string) ([]SportsStream
 			Name:     name,
 			Language: lang,
 			URL:      hls,
-			Referer:  "https://streamed.su/",
+			Referer:  "https://streamed.st/",
 		})
 	}
 	return streams, nil
 }
+
 
 // ─── DaddyLive provider ───────────────────────────────────────────────────────
 
@@ -259,12 +264,23 @@ func resolveDaddyLiveStream(channelID string) (string, error) {
 
 // ─── Combined fetcher ─────────────────────────────────────────────────────────
 
-// FetchAllSportsEvents merges events from all configured sports providers.
-// NOTE: The original providers (streamed.su, daddylive.mp) are currently
-// offline as of July 2026. This returns a descriptive error immediately
-// instead of hanging on dead endpoints.
+// FetchAllSportsEvents merges live sports events from active providers (streamed.st).
 func FetchAllSportsEvents() ([]SportsEvent, error) {
-	return nil, fmt.Errorf("live sports providers are currently unavailable — streamed.su and daddylive.mp are offline.\n\nThis feature is being reworked with new providers.")
+	events, err := fetchStreamedLiveMatches()
+	if err != nil {
+		debugLog("sports: streamed.st error: %v", err)
+		return nil, fmt.Errorf("failed to fetch live sports: %w", err)
+	}
+
+	// Sort: by category, then by title
+	sort.SliceStable(events, func(i, j int) bool {
+		if events[i].Category != events[j].Category {
+			return events[i].Category < events[j].Category
+		}
+		return events[i].Title < events[j].Title
+	})
+
+	return events, nil
 }
 
 
