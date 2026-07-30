@@ -193,7 +193,7 @@ echo "${GREEN}✔ Episode list loaded${RESET}"
 
 # Press Enter on Episode 1 → resolves sources
 tmux send-keys -t clare-test-main Enter
-sleep 8
+sleep 7
 
 s=$(cap "clare-test-main")
 echo "--- Screen (Source Select) ---"
