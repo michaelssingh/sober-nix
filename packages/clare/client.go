@@ -953,14 +953,36 @@ func searchAnime(query, mode string) ([]AnimeShow, error) {
 		if rankI != rankJ {
 			return rankI < rankJ
 		}
-		provOrder := map[string]int{"flikhub": 0, "allanime": 1, "gogoanime": 2}
-		pi := provOrder[strings.ToLower(results[i].Provider)]
-		pj := provOrder[strings.ToLower(results[j].Provider)]
+		// Provider priority: anime-native providers first, then movie/TV
+		provOrder := map[string]int{"allanime": 0, "flikhub": 1, "gogoanime": 2, "vidsrc": 3}
+		pi, piOk := provOrder[strings.ToLower(results[i].Provider)]
+		pj, pjOk := provOrder[strings.ToLower(results[j].Provider)]
+		if !piOk {
+			pi = 99
+		}
+		if !pjOk {
+			pj = 99
+		}
 		if pi != pj {
 			return pi < pj
 		}
 		return results[i].Name < results[j].Name
 	})
+
+	// Deduplicate: keep one entry per (normalised-title, type) pair.
+	// After sorting the preferred provider is already first, so we keep the
+	// first occurrence and discard later duplicates with the same title+type.
+	seen := make(map[string]struct{})
+	var deduped []AnimeShow
+	for _, show := range results {
+		key := strings.ToLower(strings.TrimSpace(show.Name)) + "|" + strings.ToLower(show.Type)
+		if _, exists := seen[key]; exists {
+			continue
+		}
+		seen[key] = struct{}{}
+		deduped = append(deduped, show)
+	}
+	results = deduped
 
 	return results, nil
 }

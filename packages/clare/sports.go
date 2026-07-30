@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
-	"sort"
 	"strings"
 	"time"
 )
@@ -260,46 +259,14 @@ func resolveDaddyLiveStream(channelID string) (string, error) {
 
 // ─── Combined fetcher ─────────────────────────────────────────────────────────
 
-// FetchAllSportsEvents merges events from both Streamed.su and DaddyLive.
-// Streamed.su is preferred (has live status + immediate stream URLs).
-// DaddyLive supplements with scheduled events that require runtime unpack.
+// FetchAllSportsEvents merges events from all configured sports providers.
+// NOTE: The original providers (streamed.su, daddylive.mp) are currently
+// offline as of July 2026. This returns a descriptive error immediately
+// instead of hanging on dead endpoints.
 func FetchAllSportsEvents() ([]SportsEvent, error) {
-	var all []SportsEvent
-	var errs []string
-
-	streamedEvents, err := fetchStreamedLiveMatches()
-	if err != nil {
-		debugLog("sports: streamed.su error: %v", err)
-		errs = append(errs, "streamed.su: "+err.Error())
-	} else {
-		all = append(all, streamedEvents...)
-	}
-
-	daddyEvents, err := fetchDaddyLiveSchedule()
-	if err != nil {
-		debugLog("sports: daddylive error: %v", err)
-		errs = append(errs, "daddylive: "+err.Error())
-	} else {
-		all = append(all, daddyEvents...)
-	}
-
-	if len(all) == 0 && len(errs) > 0 {
-		return nil, fmt.Errorf("all sports providers failed: %s", strings.Join(errs, "; "))
-	}
-
-	// Sort: live first, then by category, then by title
-	sort.SliceStable(all, func(i, j int) bool {
-		if all[i].IsLive != all[j].IsLive {
-			return all[i].IsLive
-		}
-		if all[i].Category != all[j].Category {
-			return all[i].Category < all[j].Category
-		}
-		return all[i].Title < all[j].Title
-	})
-
-	return all, nil
+	return nil, fmt.Errorf("live sports providers are currently unavailable — streamed.su and daddylive.mp are offline.\n\nThis feature is being reworked with new providers.")
 }
+
 
 // ResolveSportsEventStream resolves the stream URL for a SportsStream.
 // For Streamed.su events the URL is already pre-resolved.
