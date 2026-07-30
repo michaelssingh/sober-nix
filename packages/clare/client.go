@@ -461,6 +461,13 @@ func getDerivedKey() (int64, []byte, string, error) {
 	return epoch, key, buildID, nil
 }
 
+func invalidateDerivedKeyCache() {
+	cachedMutex.Lock()
+	cachedEpoch = 0
+	cachedFetchedAt = time.Time{}
+	cachedMutex.Unlock()
+}
+
 func fetchAllAnimeCryptoMaterial() (int64, []byte, string, error) {
 	headers := map[string]string{
 		"User-Agent": UserAgent,

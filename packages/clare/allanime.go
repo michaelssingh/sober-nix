@@ -172,6 +172,19 @@ func (p *AllAnimeProvider) fetchEpisodeSources(showID, mode, episodeNo string) (
 	}
 	debugLog("[ALLANIME] Episode sources response body snippet: %s", string(body)[:min(150, len(body))])
 
+	if strings.Contains(string(body), "AA_CRYPTO_STALE") || strings.Contains(string(body), "AA_CRYPTO_EXPIRED") {
+		debugLog("[ALLANIME] Stale crypto token detected, invalidating cache and retrying...")
+		invalidateDerivedKeyCache()
+		aareq, _ = generateAAReq(allAnimeQueryHash)
+		queryExt = fmt.Sprintf(`{"persistedQuery":{"version":1,"sha256Hash":"%s"},"aaReq":"%s"}`, allAnimeQueryHash, aareq)
+		reqURL = fmt.Sprintf("%s?variables=%s&extensions=%s", AllAnimeAPI, url.QueryEscape(queryVars), url.QueryEscape(queryExt))
+		body, err = doHTTPReqWithRetry("GET", reqURL, nil, headers)
+		if err != nil {
+			return nil, err
+		}
+		debugLog("[ALLANIME] Retried episode sources response body snippet: %s", string(body)[:min(150, len(body))])
+	}
+
 	re := regexp.MustCompile(`"tobeparsed"\s*:\s*"([^"]*)"`)
 	match := re.FindStringSubmatch(string(body))
 	if len(match) >= 2 && match[1] != "" {
