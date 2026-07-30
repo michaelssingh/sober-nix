@@ -193,7 +193,15 @@ echo "${GREEN}✔ Episode list loaded${RESET}"
 
 # Press Enter on Episode 1 → resolves sources
 tmux send-keys -t clare-test-main Enter
-sleep 7
+
+if ! wait_for "clare-test-main" "Select Source|Ok|Yt-mp4|Mp4upload|fast4speed" 12; then
+    s=$(cap "clare-test-main")
+    echo "--- Screen (Source Select Fail) ---"
+    echo "$s"
+    echo "-----------------------------------"
+    echo "${RED}✘ Test 3 Failed: stream sources not resolved${RESET}"
+    exit 1
+fi
 
 s=$(cap "clare-test-main")
 echo "--- Screen (Source Select) ---"
