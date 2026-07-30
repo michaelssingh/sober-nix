@@ -1,6 +1,9 @@
 package main
 
 import (
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -141,6 +144,25 @@ func (p *AllAnimeProvider) fetchEpisodeList(showID, mode string) (AnimeShow, []s
 	return result.Data.Show, episodes, nil
 }
 
+func generateAABoot(buildID, lane string, epoch int64, maskHex string) string {
+	if maskHex == "" {
+		maskHex = "948f4e192f9b462ec946efc1996bbc8e66c7ef768c184f4aabf512b3505c9247"
+	}
+	maskBytes, err := hex.DecodeString(maskHex)
+	if err != nil {
+		return ""
+	}
+
+	h1 := hmac.New(sha256.New, maskBytes)
+	h1.Write([]byte("x-aa-boot:" + buildID))
+	key2 := h1.Sum(nil)
+
+	payload := fmt.Sprintf("%s:k7:mkissa.to:%d:%s", buildID, epoch, lane)
+	h2 := hmac.New(sha256.New, key2)
+	h2.Write([]byte(payload))
+	return hex.EncodeToString(h2.Sum(nil))
+}
+
 func (p *AllAnimeProvider) fetchEpisodeSources(showID, mode, episodeNo string) ([]SourceInfo, error) {
 	showID = stripProviderPrefix(showID)
 	aareq, err := generateAAReq(allAnimeQueryHash)
@@ -149,21 +171,23 @@ func (p *AllAnimeProvider) fetchEpisodeSources(showID, mode, episodeNo string) (
 	}
 
 	queryVars := fmt.Sprintf(`{"showId":"%s","translationType":"%s","episodeString":"%s"}`, showID, mode, episodeNo)
-	queryExt := fmt.Sprintf(`{"persistedQuery":{"version":1,"sha256Hash":"%s"},"aaReq":"%s"}`, allAnimeQueryHash, aareq)
+	queryExt := fmt.Sprintf(`{"persistedQuery":{"version":1,"sha256Hash":"%s"},"k":"k7","aaReq":"%s"}`, allAnimeQueryHash, aareq)
 
 	reqURL := fmt.Sprintf("%s?variables=%s&extensions=%s", AllAnimeAPI, url.QueryEscape(queryVars), url.QueryEscape(queryExt))
 
-	_, _, buildID, err := getDerivedKey()
+	epoch, _, buildID, err := getDerivedKey()
 	if err != nil || buildID == "" {
-		buildID = "64"
+		buildID = "fallback-build"
 	}
-	debugLog("[ALLANIME] Generated aaReq length %d, buildID: %s, err: %v", len(aareq), buildID, err)
+	aaBoot := generateAABoot(buildID, "k7", epoch, allAnimeClientMaskHex)
+	debugLog("[ALLANIME] Generated aaReq length %d, buildID: %s, aaBoot: %s", len(aareq), buildID, aaBoot)
 
 	headers := map[string]string{
 		"User-Agent": UserAgent,
 		"Referer":    AllAnimeReferer,
 		"Origin":     allAnimeQueryOrigin,
 		"x-build-id": buildID,
+		"x-aa-boot":  aaBoot,
 	}
 
 	body, err := doHTTPReqWithRetry("GET", reqURL, nil, headers)
