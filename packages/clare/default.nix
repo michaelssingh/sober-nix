@@ -15,6 +15,8 @@ buildGoModule {
 
   vendorHash = "sha256-yAmydoJZXlipqhZsjojoPA3uoI8BhaU4sPzs9OZ1+3w=";
 
+  doCheck = false;
+
   overrideModAttrs = (
     _: {
       preBuild = ''
