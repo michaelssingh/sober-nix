@@ -873,6 +873,7 @@ var (
 
 var providers = []Provider{
 	&AllAnimeProvider{},
+	&AniDBProvider{},
 	&VidSrcProvider{},
 	&FlikhubProvider{},
 	&GogoanimeProvider{},
@@ -976,7 +977,7 @@ func searchAnime(query, mode string) ([]AnimeShow, error) {
 			return rankI < rankJ
 		}
 		// Provider priority: anime-native providers first, then movie/TV
-		provOrder := map[string]int{"allanime": 0, "flikhub": 1, "gogoanime": 2, "vidsrc": 3}
+		provOrder := map[string]int{"allanime": 0, "anidb": 1, "flikhub": 2, "gogoanime": 3, "vidsrc": 4}
 		pi, piOk := provOrder[strings.ToLower(results[i].Provider)]
 		pj, pjOk := provOrder[strings.ToLower(results[j].Provider)]
 		if !piOk {
