@@ -988,6 +988,7 @@ func searchAnime(query, mode string) ([]AnimeShow, error) {
 }
 
 func fetchEpisodeList(showID, mode string) (AnimeShow, []string, error) {
+	cfg := loadConfig()
 	provider := ""
 	if cached, _, found := loadShowCache(showID); found && cached.Provider != "" {
 		provider = cached.Provider
@@ -1001,6 +1002,9 @@ func fetchEpisodeList(showID, mode string) (AnimeShow, []string, error) {
 		} else {
 			provider = "allanime"
 		}
+	}
+	if !cfg.IsProviderEnabled(provider) {
+		return AnimeShow{}, nil, fmt.Errorf("provider %q is disabled", provider)
 	}
 	p := getProvider(provider)
 	return p.FetchEpisodes(showID, mode)
@@ -1381,6 +1385,7 @@ func fetchAllResolvedStreams(showID, mode, episodeNo, providerName string) ([]Re
 	var mu sync.Mutex
 	var wg sync.WaitGroup
 
+	cfg := loadConfig()
 	if providerName == "" && strings.Contains(showID, ":") {
 		providerName = strings.SplitN(showID, ":", 2)[0]
 	}
@@ -1398,6 +1403,10 @@ func fetchAllResolvedStreams(showID, mode, episodeNo, providerName string) ([]Re
 	cleanID := stripProviderPrefix(showID)
 
 	for _, p := range targetProviders {
+		if !cfg.IsProviderEnabled(p.Name()) {
+			debugLog("fetchAllResolvedStreams: skipping disabled provider %s", p.Name())
+			continue
+		}
 		wg.Add(1)
 		go func(prov Provider) {
 			defer wg.Done()
