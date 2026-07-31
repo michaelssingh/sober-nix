@@ -2079,5 +2079,44 @@ func TestNoCrossProviderFallback(t *testing.T) {
 	}
 }
 
+func TestTUIAniDBIntegration(t *testing.T) {
+	_ = InitLogger("")
+	searchCmd := doSearch("Sakamoto Days", "sub")
+	msg := searchCmd()
+	sMsg, ok := msg.(searchResultMsg)
+	if !ok || sMsg.err != nil || len(sMsg.shows) == 0 {
+		t.Fatalf("TUI doSearch failed: %v", sMsg.err)
+	}
+
+	var aniDBShow AnimeShow
+	for _, s := range sMsg.shows {
+		if strings.HasPrefix(s.ID, "anidb:") {
+			aniDBShow = s
+			break
+		}
+	}
+	if aniDBShow.ID == "" {
+		t.Fatalf("No AniDB show found in TUI search results")
+	}
+	t.Logf("[TUI] ✓ doSearch returned AniDB show: %s (%s)", aniDBShow.Name, aniDBShow.ID)
+
+	epCmd := doFetchEpisodes(aniDBShow.ID, "sub")
+	epMsg := epCmd()
+	eMsg, ok := epMsg.(episodesResultMsg)
+	if !ok || eMsg.err != nil || len(eMsg.episodes) == 0 {
+		t.Fatalf("TUI doFetchEpisodes failed: %v", eMsg.err)
+	}
+	t.Logf("[TUI] ✓ doFetchEpisodes returned %d episodes", len(eMsg.episodes))
+
+	playCmd := doPreparePlayback(aniDBShow, eMsg.episodes[0], "Ep 1", "sub", "best", false)
+	pMsg := playCmd()
+	rMsg, ok := pMsg.(resolvedPlaybackMsg)
+	if !ok || rMsg.err != nil || rMsg.cmd == nil {
+		t.Fatalf("TUI doPreparePlayback failed: %v", rMsg.err)
+	}
+	t.Logf("[TUI] ✓ doPreparePlayback generated mpv playback command: %s", rMsg.cmd.String())
+}
+
+
 
 
