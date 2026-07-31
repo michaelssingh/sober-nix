@@ -157,7 +157,12 @@ func generateAABoot(buildID, lane string, epoch int64, maskHex string) string {
 	h1.Write([]byte("x-aa-boot:" + buildID))
 	key2 := h1.Sum(nil)
 
-	payload := fmt.Sprintf("%s:k7:mkissa.to:%d:%s", buildID, epoch, lane)
+	domain := "allanime.day"
+	if u, err := url.Parse(AllAnimeReferer); err == nil && u.Host != "" {
+		domain = u.Host
+	}
+
+	payload := fmt.Sprintf("%s:k7:%s:%d:%s", buildID, domain, epoch, lane)
 	h2 := hmac.New(sha256.New, key2)
 	h2.Write([]byte(payload))
 	return hex.EncodeToString(h2.Sum(nil))

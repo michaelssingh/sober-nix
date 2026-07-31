@@ -23,14 +23,14 @@ import (
 )
 
 const (
-	AllAnimeReferer     = "https://mkissa.to"
-	StreamReferer       = "https://mkissa.to/" // Required for Wixmp/HLS CDN and Clock Handshakes
-	AllAnimeBase        = "mkissa.net"
-	AllAnimeAPI         = "https://api.mkissa.net/api"
+	AllAnimeReferer     = "https://allanime.day"
+	StreamReferer       = "https://allanime.day/" // Required for Wixmp/HLS CDN and Clock Handshakes
+	AllAnimeBase        = "allanime.day"
+	AllAnimeAPI         = "https://api.allanime.day/api"
 	UserAgent           = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:150.0) Gecko/20100101 Firefox/150.0"
 	allAnimeKeyPhrase   = "Xot36i3lK3:v1"
 	allAnimeQueryHash   = "f4662f4b7510b26795dd53ef824a0bf1740fbbc5d1273fab18222ac831bca8d0"
-	allAnimeQueryOrigin = "https://mkissa.to"
+	allAnimeQueryOrigin = "https://allanime.day"
 )
 
 var (
