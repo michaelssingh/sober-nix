@@ -999,6 +999,8 @@ func searchAnime(query, mode string) ([]AnimeShow, error) {
 	seen := make(map[string]struct{})
 	var deduped []AnimeShow
 	for _, show := range results {
+		enrichShowMetadata(&show)
+		_ = saveShowCache(show.ID, show, nil)
 		key := strings.ToLower(strings.TrimSpace(show.Name)) + "|" + strings.ToLower(show.Type)
 		if _, exists := seen[key]; exists {
 			continue
