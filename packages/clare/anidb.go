@@ -53,6 +53,8 @@ func (p *AniDBProvider) Search(query, mode string) ([]AnimeShow, error) {
 				Type:        "TV",
 				Description: slugWithID,
 			}
+			enrichShowMetadata(&show)
+			_ = saveShowCache(show.ID, show, nil)
 			shows = append(shows, show)
 		}
 	}
@@ -69,13 +71,16 @@ func (p *AniDBProvider) Search(query, mode string) ([]AnimeShow, error) {
 					continue
 				}
 				seen[idNum] = true
-				shows = append(shows, AnimeShow{
+				show := AnimeShow{
 					ID:          "anidb:" + idNum,
 					Name:        title,
 					EnglishName: title,
 					Type:        "TV",
 					Description: slugWithID,
-				})
+				}
+				enrichShowMetadata(&show)
+				_ = saveShowCache(show.ID, show, nil)
+				shows = append(shows, show)
 			}
 		}
 	}
