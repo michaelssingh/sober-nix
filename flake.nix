@@ -91,13 +91,13 @@
           ];
         };
 
-        thinkpad = nixpkgs.lib.nixosSystem {
+        ninox = nixpkgs.lib.nixosSystem {
           specialArgs = { inherit inputs user; };
 
           modules = [
             disko.nixosModules.disko
             sops-nix.nixosModules.sops
-            ./hosts/workstation/thinkpad/default.nix
+            ./hosts/workstation/ninox/default.nix
 
             {
               nixpkgs.overlays = [

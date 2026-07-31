@@ -8,6 +8,7 @@ Hosts are primarily named after Owl genera (to reflect the system's identity: Ob
 | Hostname | Hardware | Architecture | Role | Vibe |
 | :--- | :--- | :--- | :--- | :--- |
 | **Otus** | Lenovo IdeaPad Slim 1-14AST-05 | `x86_64-linux` | Workstation | *The Scops Owl* - Small, adaptable. |
+| **Ninox** | Lenovo ThinkPad T14 Gen 2 | `x86_64-linux` | Workstation | *The Hawk-Owl* - Powerful, sharp 8-core AMD Ryzen 7 PRO. |
 | **Athene** | Fly.io MicroVM (256MB) | `x86_64-linux` | IRC Bouncer | *The Little Owl* - Small, vigilant. |
 | **Bubo** | Fly.io MicroVM (512MB) | `x86_64-linux` | Git Forge | *The Eagle-Owl* - Large, sovereign, powerful. |
 | **Glaucidium** | Fly.io MicroVM (256MB) | `x86_64-linux` | VPN Gateway | *The Pygmy Owl* - Tiny but fierce. |
@@ -24,6 +25,7 @@ The project follows a **System-Centric** layout, separating hardware (Hosts) fro
 ├── docs/               # 📖 Documentation and system cheatsheets
 ├── hosts/              # 🖥️ Hardware and host-specific entry points
 │   ├── otus/           # Lenovo IdeaPad Slim 1-14AST-05 Workstation
+│   ├── ninox/          # Lenovo ThinkPad T14 Gen 2 Workstation
 │   ├── athene/         # Fly.io MicroVM - Soju IRC Bouncer
 │   ├── bubo/           # Fly.io MicroVM - Forgejo Git Forge
 │   ├── glaucidium/     # Fly.io MicroVM - WireGuard VPN Gateway

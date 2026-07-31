@@ -21,7 +21,7 @@
 
   # --- HOSTNAME & NETWORKING ---
   networking = {
-    hostName = "thinkpad";
+    hostName = "ninox";
     networkmanager = {
       enable = true;
       dns = "systemd-resolved";
