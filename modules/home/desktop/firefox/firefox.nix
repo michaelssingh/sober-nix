@@ -47,21 +47,15 @@ in
         "browser.cache.memory.max_entry_size" = 5120;
         "browser.startup.homepage" = "https://sober.fyi";
 
-        # UI Hardware Acceleration (Forces your Radeon R4 to handle layout/scrolling)
-        "gfx.webrender.enabled" = true;
-        "gfx.webrender.all" = true;
-        "layers.acceleration.force-enabled" = true;
-
-        # Video Hardware Acceleration (VA-API setup)
-        "media.ffmpeg.vaapi.enabled" = true;
-        "media.ffvpx.enabled" = false; # Disables internal software decoding engine
-
-        # RDD Process Fix (Bypasses container sandbox looping bugs on older Mesa drivers)
-        "media.rdd-process.enabled" = false;
-
-        # Codec Blockers (Forces heavy sites like YouTube to serve efficient H.264 streams)
-        "media.mediasource.vp9.enabled" = false;
-        "media.av1.enabled" = false;
+        # UI & Video Hardware Acceleration Disabled
+        "layers.acceleration.force-enabled" = false;
+        "layers.acceleration.disabled" = true;
+        "gfx.webrender.force-disabled" = true;
+        "gfx.webrender.all" = false;
+        "media.ffmpeg.vaapi.enabled" = false;
+        "media.hardware-video-decoding.enabled" = false;
+        "media.ffvpx.enabled" = false;
+        "media.rdd-ffmpeg.enabled" = false;
 
       };
 
