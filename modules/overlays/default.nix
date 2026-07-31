@@ -54,7 +54,7 @@
         owner = "~delthas";
         repo = "senpai";
         rev = "v0.5.0";
-        sha256 = "sha256-4Ax9YVa9z1Unk3Z2iy9ZEqKjNmdgK0aF4GrD9ucXtjk=";
+        sha256 = "sha256-VjXgKdy4IpBhAP6uw/NtlexPki7nJzQi/HuY/+5lE/o=";
       };
       patches = [
         ../../packages/senpai-harper-custom.patch
