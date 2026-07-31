@@ -61,6 +61,7 @@
       ];
       vendorHash = "sha256-4Ax9YVa9z1Unk3Z2iy9ZEqKjNmdgK0aF4GrD9ucXtjk=";
       subPackages = [ "cmd/senpai" ];
+      preBuild = "rm -rf /homeless-shelter 2>/dev/null || true";
       nativeBuildInputs = [ final.scdoc final.installShellFiles ];
       buildInputs = [
         final.xclip
