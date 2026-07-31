@@ -47,18 +47,26 @@
         };
     });
 
-    senpai = prev.senpai.overrideAttrs (_old: {
+    senpai = final.buildGoModule rec {
+      pname = "senpai";
       version = "0.5.0-custom";
       src = ../../packages/senpai;
       vendorHash = "sha256-4Ax9YVa9z1Unk3Z2iy9ZEqKjNmdgK0aF4GrD9ucXtjk=";
-      ldflags = [
-        "-X git.sr.ht/~delthas/senpai.version=v0.5.0-custom"
-      ];
-      buildInputs = (_old.buildInputs or [ ]) ++ [
+      subPackages = [ "cmd/senpai" ];
+      nativeBuildInputs = [ final.scdoc final.installShellFiles ];
+      buildInputs = [
         final.xclip
         final.wl-clipboard
       ];
-    });
+      ldflags = [
+        "-X git.sr.ht/~delthas/senpai.version=v${version}"
+      ];
+      postInstall = ''
+        scdoc < doc/senpai.1.scd > senpai.1
+        scdoc < doc/senpai.5.scd > senpai.5
+        installManPage senpai.1 senpai.5
+      '';
+    };
 
     mpv-unwrapped = prev.mpv-unwrapped.override {
       archiveSupport = true;
