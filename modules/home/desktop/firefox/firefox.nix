@@ -38,25 +38,31 @@ in
         "browser.compactmode.show" = true;
         "browser.sessionstore.interval" = 600000; # 10 minutes for crash resilience
         "network.prefetch-next" = false; # Do not prefetch links
-        "layers.acceleration.force-enabled" = false;
-        "layers.acceleration.disabled" = true;
-        "gfx.webrender.force-disabled" = true;
-        "gfx.webrender.all" = false;
-        "media.ffmpeg.vaapi.enabled" = false;
-        "media.hardware-video-decoding.enabled" = false;
-        "media.ffvpx.enabled" = false;
-        "media.rdd-ffmpeg.enabled" = false;
         "browser.tabs.remote.autostart" = true;
         "image.mem.decode_on_draw" = true;
         "browser.cache.disk.enable" = false; # RAM cache is faster
-        "media.mediasource.vp9.enabled" = false;
-        "media.av1.enabled" = false;
-        "dom.ipc.processCount" = 2;
         "browser.tabs.unloadOnLowMemory" = true;
         "browser.sessionstore.max_tabs_undo" = 5;
         "browser.cache.memory.enable" = true;
         "browser.cache.memory.max_entry_size" = 5120;
         "browser.startup.homepage" = "https://sober.fyi";
+
+        # UI Hardware Acceleration (Forces your Radeon R4 to handle layout/scrolling)
+        "gfx.webrender.enabled" = true;
+        "gfx.webrender.all" = true;
+        "layers.acceleration.force-enabled" = true;
+
+        # Video Hardware Acceleration (VA-API setup)
+        "media.ffmpeg.vaapi.enabled" = true;
+        "media.ffvpx.enabled" = false; # Disables internal software decoding engine
+
+        # RDD Process Fix (Bypasses container sandbox looping bugs on older Mesa drivers)
+        "media.rdd-process.enabled" = false;
+
+        # Codec Blockers (Forces heavy sites like YouTube to serve efficient H.264 streams)
+        "media.mediasource.vp9.enabled" = false;
+        "media.av1.enabled" = false;
+
       };
 
       # This pulls in the file we just created!

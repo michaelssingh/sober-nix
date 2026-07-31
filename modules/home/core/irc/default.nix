@@ -83,7 +83,8 @@ in
 
     [server]
     soju.addresses = "sober-athene.flycast/6667"
-    soju.username = "init@weechat"
+    soju.nickname = "init"
+    soju.username = "init/*@weechat"
     soju.password = "''${sec.data.soju}"
     soju.sasl_username = "init"
     soju.sasl_password = "''${sec.data.soju}"
@@ -214,7 +215,7 @@ in
   xdg.configFile."senpai/senpai.scfg".text = ''
     address irc+insecure://sober-athene.flycast:6667
     nickname init
-    realname michael
+    realname マイケル 
     username init
     password pineapple
     spell-check true
