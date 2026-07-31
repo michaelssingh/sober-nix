@@ -47,7 +47,7 @@
         };
     });
 
-    senpai = (final.buildGoModule rec {
+    senpai = final.buildGoModule rec {
       pname = "senpai";
       version = "0.5.0-custom";
       src = final.fetchFromSourcehut {
@@ -61,7 +61,7 @@
       ];
       vendorHash = "sha256-4Ax9YVa9z1Unk3Z2iy9ZEqKjNmdgK0aF4GrD9ucXtjk=";
       subPackages = [ "cmd/senpai" ];
-      env.HOME = "/tmp";
+      allowGoReference = true;
       nativeBuildInputs = [ final.scdoc final.installShellFiles ];
       buildInputs = [
         final.xclip
@@ -75,9 +75,7 @@
         scdoc < doc/senpai.5.scd > senpai.5
         installManPage senpai.1 senpai.5
       '';
-    }).overrideAttrs (_old: {
-      env.HOME = "/tmp";
-    });
+    };
 
     mpv-unwrapped = prev.mpv-unwrapped.override {
       archiveSupport = true;
