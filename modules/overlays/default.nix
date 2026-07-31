@@ -48,16 +48,11 @@
     });
 
     senpai = prev.senpai.overrideAttrs (_old: {
-      version = "0.5.0";
-      src = final.fetchFromSourcehut {
-        owner = "~delthas";
-        repo = "senpai";
-        rev = "v0.5.0";
-        sha256 = "sha256-VjXgKdy4IpBhAP6uw/NtlexPki7nJzQi/HuY/+5lE/o=";
-      };
+      version = "0.5.0-custom";
+      src = ../../packages/senpai;
       vendorHash = "sha256-4Ax9YVa9z1Unk3Z2iy9ZEqKjNmdgK0aF4GrD9ucXtjk=";
       ldflags = [
-        "-X git.sr.ht/~delthas/senpai.version=v0.5.0"
+        "-X git.sr.ht/~delthas/senpai.version=v0.5.0-custom"
       ];
       buildInputs = (_old.buildInputs or [ ]) ++ [
         final.xclip
