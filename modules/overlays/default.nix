@@ -62,6 +62,14 @@
       vendorHash = "sha256-4Ax9YVa9z1Unk3Z2iy9ZEqKjNmdgK0aF4GrD9ucXtjk=";
       subPackages = [ "cmd/senpai" ];
       allowGoReference = true;
+      preBuild = ''
+        export HOME=$TMPDIR
+        export GOCACHE=$TMPDIR/go-cache
+        rm -rf /homeless-shelter 2>/dev/null || true
+      '';
+      postBuild = ''
+        rm -rf /homeless-shelter 2>/dev/null || true
+      '';
       nativeBuildInputs = [ final.scdoc final.installShellFiles ];
       buildInputs = [
         final.xclip
