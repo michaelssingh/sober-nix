@@ -50,7 +50,15 @@
     senpai = final.buildGoModule rec {
       pname = "senpai";
       version = "0.5.0-custom";
-      src = ../../packages/senpai;
+      src = final.fetchFromSourcehut {
+        owner = "~delthas";
+        repo = "senpai";
+        rev = "v0.5.0";
+        sha256 = "sha256-4Ax9YVa9z1Unk3Z2iy9ZEqKjNmdgK0aF4GrD9ucXtjk=";
+      };
+      patches = [
+        ../../packages/senpai-harper-custom.patch
+      ];
       vendorHash = "sha256-4Ax9YVa9z1Unk3Z2iy9ZEqKjNmdgK0aF4GrD9ucXtjk=";
       subPackages = [ "cmd/senpai" ];
       nativeBuildInputs = [ final.scdoc final.installShellFiles ];

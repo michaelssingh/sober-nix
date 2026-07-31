@@ -1,0 +1,306 @@
+diff --git a/app.go b/app.go
+index a7a4193..341e698 100644
+--- a/app.go
++++ b/app.go
+@@ -2131,6 +2131,7 @@ func (app *App) completions(cursorIdx int, text []rune) []ui.Completion {
+ 	}
+ 
+ 	var cs []ui.Completion
++	cs = app.completionsSpell(cs, cursorIdx, text)
+ 	if buffer != "" {
+ 		cs = app.completionsChannelTopic(cs, cursorIdx, text)
+ 		cs = app.completionsChannelMembers(cs, cursorIdx, text)
+diff --git a/harper.go b/harper.go
+index cb3dcf7..6480084 100644
+--- a/harper.go
++++ b/harper.go
+@@ -10,6 +10,8 @@ import (
+ 	"slices"
+ 	"strconv"
+ 	"strings"
++	"sync"
++	"time"
+ 	"unicode/utf16"
+ 
+ 	"git.sr.ht/~delthas/senpai/events"
+@@ -117,6 +119,21 @@ type lspRange struct {
+ 	End   lspPosition `json:"end"`
+ }
+ 
++type lspCodeActionChange struct {
++	Range   lspRange `json:"range"`
++	NewText string   `json:"newText"`
++}
++
++type lspCodeActionEdit struct {
++	Changes map[string][]lspCodeActionChange `json:"changes"`
++}
++
++type lspCodeAction struct {
++	Title string             `json:"title"`
++	Kind  string             `json:"kind"`
++	Edit  *lspCodeActionEdit `json:"edit"`
++}
++
+ type lspDiagnostic struct {
+ 	Range lspRange `json:"range"`
+ }
+@@ -125,6 +142,7 @@ type lspMessage struct {
+ 	ID     json.RawMessage `json:"id"`
+ 	Method string          `json:"method"`
+ 	Params json.RawMessage `json:"params"`
++	Result json.RawMessage `json:"result"`
+ }
+ 
+ type lspDiagnosticsParams struct {
+@@ -142,6 +160,10 @@ type harperState struct {
+ 	ver      int
+ 	dictPath string
+ 	dictPrev string
++
++	mu              sync.Mutex
++	reqChans        map[int]chan json.RawMessage
++	lastDiagnostics []lspDiagnostic
+ }
+ 
+ func (app *App) harperInit() {
+@@ -223,6 +245,22 @@ func (app *App) harperLoop() {
+ 		if err := json.Unmarshal(msg, &envelope); err != nil {
+ 			continue
+ 		}
++		if envelope.ID != nil && envelope.Method == "" {
++			var reqID int
++			if err := json.Unmarshal(envelope.ID, &reqID); err == nil {
++				h.mu.Lock()
++				ch, ok := h.reqChans[reqID]
++				if ok {
++					delete(h.reqChans, reqID)
++				}
++				h.mu.Unlock()
++				if ok {
++					ch <- envelope.Result
++					continue
++				}
++			}
++		}
++
+ 		if envelope.ID != nil && envelope.Method != "" {
+ 			switch envelope.Method {
+ 			case "workspace/configuration":
+@@ -251,6 +289,10 @@ func (app *App) harperLoop() {
+ 		if err := json.Unmarshal(envelope.Params, &params); err != nil {
+ 			continue
+ 		}
++		h.mu.Lock()
++		h.lastDiagnostics = params.Diagnostics
++		h.mu.Unlock()
++
+ 		var typos []events.TypoRange
+ 		for _, d := range params.Diagnostics {
+ 			typos = append(typos, events.TypoRange{
+@@ -265,6 +307,188 @@ func (app *App) harperLoop() {
+ 	}
+ }
+ 
++func (app *App) completionsSpell(cs []ui.Completion, cursorIdx int, text []rune) []ui.Completion {
++	if app.harper == nil {
++		return cs
++	}
++	return app.harper.getSpellCompletions(cs, cursorIdx, text)
++}
++
++func (h *harperState) sendRequestSync(method string, params json.RawMessage, timeout time.Duration) (json.RawMessage, error) {
++	h.mu.Lock()
++	h.reqID++
++	id := h.reqID
++	if h.reqChans == nil {
++		h.reqChans = make(map[int]chan json.RawMessage)
++	}
++	ch := make(chan json.RawMessage, 1)
++	h.reqChans[id] = ch
++	h.mu.Unlock()
++
++	msg, _ := json.Marshal(map[string]interface{}{
++		"jsonrpc": "2.0",
++		"id":      id,
++		"method":  method,
++		"params":  params,
++	})
++
++	if err := h.writeMessage(msg); err != nil {
++		h.mu.Lock()
++		delete(h.reqChans, id)
++		h.mu.Unlock()
++		return nil, err
++	}
++
++	select {
++	case res := <-ch:
++		return res, nil
++	case <-time.After(timeout):
++		h.mu.Lock()
++		delete(h.reqChans, id)
++		h.mu.Unlock()
++		return nil, fmt.Errorf("timeout")
++	}
++}
++
++func findWordBoundaries(runes []rune, cursorIdx int) (int, int) {
++	if len(runes) == 0 {
++		return 0, 0
++	}
++	if cursorIdx > len(runes) {
++		cursorIdx = len(runes)
++	}
++	start := cursorIdx
++	if start > 0 && (start == len(runes) || !isWordRune(runes[start])) {
++		start--
++	}
++	if !isWordRune(runes[start]) {
++		return cursorIdx, cursorIdx
++	}
++	for start > 0 && isWordRune(runes[start-1]) {
++		start--
++	}
++	end := cursorIdx
++	if end < len(runes) && isWordRune(runes[end]) {
++		for end < len(runes) && isWordRune(runes[end]) {
++			end++
++		}
++	} else {
++		end = start
++		for end < len(runes) && isWordRune(runes[end]) {
++			end++
++		}
++	}
++	return start, end
++}
++
++func isWordRune(r rune) bool {
++	return (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '\'' || r == '-'
++}
++
++func (h *harperState) getSpellCompletions(cs []ui.Completion, cursorIdx int, text []rune) []ui.Completion {
++	textStr := string(text)
++	if len(text) == 0 {
++		return cs
++	}
++	wordStartRune, wordEndRune := findWordBoundaries(text, cursorIdx)
++	if wordStartRune >= wordEndRune {
++		return cs
++	}
++
++	wordStartUtf16 := runeIndexToUtf16Offset(text, wordStartRune)
++	wordEndUtf16 := runeIndexToUtf16Offset(text, wordEndRune)
++
++	h.mu.Lock()
++	var targetDiag *lspDiagnostic
++	for i := range h.lastDiagnostics {
++		d := &h.lastDiagnostics[i]
++		if d.Range.Start.Character <= wordEndUtf16 && d.Range.End.Character >= wordStartUtf16 {
++			targetDiag = d
++			break
++		}
++	}
++	h.mu.Unlock()
++
++	if targetDiag == nil {
++		targetDiag = &lspDiagnostic{
++			Range: lspRange{
++				Start: lspPosition{Character: wordStartUtf16},
++				End:   lspPosition{Character: wordEndUtf16},
++			},
++		}
++	}
++
++	params, err := json.Marshal(map[string]interface{}{
++		"textDocument": map[string]interface{}{
++			"uri": "file:///senpai-input.txt",
++		},
++		"range": targetDiag.Range,
++		"context": map[string]interface{}{
++			"diagnostics": []lspDiagnostic{*targetDiag},
++		},
++	})
++	if err != nil {
++		return cs
++	}
++
++	res, err := h.sendRequestSync("textDocument/codeAction", params, 200*time.Millisecond)
++	if err != nil || len(res) == 0 {
++		return cs
++	}
++
++	var actions []lspCodeAction
++	if err := json.Unmarshal(res, &actions); err != nil {
++		return cs
++	}
++
++	seen := make(map[string]bool)
++	for _, action := range actions {
++		if action.Edit == nil || action.Edit.Changes == nil {
++			continue
++		}
++		changes, ok := action.Edit.Changes["file:///senpai-input.txt"]
++		if !ok {
++			continue
++		}
++		for _, change := range changes {
++			newText := change.NewText
++			if newText == "" || seen[newText] {
++				continue
++			}
++			seen[newText] = true
++
++			startRune := utf16OffsetToRuneIndex(textStr, change.Range.Start.Character)
++			endRune := utf16OffsetToRuneIndex(textStr, change.Range.End.Character)
++			if startRune > len(text) || endRune > len(text) || startRune > endRune {
++				continue
++			}
++
++			rep := make([]rune, 0, len(text)-(endRune-startRune)+len([]rune(newText)))
++			rep = append(rep, text[:startRune]...)
++			rep = append(rep, []rune(newText)...)
++			rep = append(rep, text[endRune:]...)
++
++			cs = append(cs, ui.Completion{
++				StartIdx:  startRune,
++				EndIdx:    endRune,
++				Text:      rep,
++				Display:   []rune(newText),
++				CursorIdx: startRune + len([]rune(newText)),
++			})
++		}
++	}
++
++	return cs
++}
++
++func runeIndexToUtf16Offset(runes []rune, runeIdx int) int {
++	utf16Pos := 0
++	for i := 0; i < len(runes) && i < runeIdx; i++ {
++		utf16Pos += len(utf16.Encode([]rune{runes[i]}))
++	}
++	return utf16Pos
++}
++
+ func (app *App) spellCheck() {
+ 	if app.harper == nil {
+ 		return
+@@ -383,16 +607,6 @@ func (h *harperState) writeLoop() {
+ 			if _, err := h.stdin.Write(append([]byte(header), msg...)); err != nil {
+ 				return
+ 			}
+-			// Wait for the config response before accepting more text,
+-			// so we throttle to harper's processing speed.
+-			resp, ok := <-h.writes
+-			if !ok {
+-				return
+-			}
+-
+-			if _, err := h.stdin.Write(resp); err != nil {
+-				return
+-			}
+ 		}
+ 	}
+ }
