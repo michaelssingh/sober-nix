@@ -38,6 +38,11 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    disko = {
+      url = "github:nix-community/disko";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     neomutt-src = {
       url = "github:neomutt/neomutt/20260504";
       flake = false;
@@ -49,6 +54,7 @@
       nixpkgs,
       home-manager,
       sops-nix,
+      disko,
       ...
     }@inputs:
     let
@@ -67,6 +73,31 @@
             sops-nix.nixosModules.sops
             ./hosts/workstation/otus/hardware-configuration.nix
             ./hosts/workstation/otus/default.nix
+
+            {
+              nixpkgs.overlays = [
+                overlays.additions
+                overlays.modifications
+              ];
+            }
+
+            home-manager.nixosModules.home-manager
+            {
+              home-manager.useGlobalPkgs = true;
+              home-manager.useUserPackages = true;
+              home-manager.extraSpecialArgs = { inherit inputs user; };
+              home-manager.users.${user} = import ./users/${user}/workstation.nix;
+            }
+          ];
+        };
+
+        thinkpad = nixpkgs.lib.nixosSystem {
+          specialArgs = { inherit inputs user; };
+
+          modules = [
+            disko.nixosModules.disko
+            sops-nix.nixosModules.sops
+            ./hosts/workstation/thinkpad/default.nix
 
             {
               nixpkgs.overlays = [
