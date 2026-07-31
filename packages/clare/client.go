@@ -487,7 +487,7 @@ func fetchAllAnimeCryptoMaterial() (int64, []byte, string, error) {
 	matchCrypto := reCrypto.FindStringSubmatch(html)
 	if len(matchCrypto) < 2 {
 		debugLog("fetchAllAnimeCryptoMaterial: __aaCrypto not found in homepage, using fallback key")
-		return time.Now().Unix(), allAnimeKey, "fallback-build", nil
+		return time.Now().Unix(), allAnimeKey, "64", nil
 	}
 
 	var bootstrap struct {
@@ -1448,40 +1448,6 @@ func fetchAllResolvedStreams(showID, mode, episodeNo, providerName string) ([]Re
 		}(p)
 	}
 	wg.Wait()
-
-	// Multi-provider fallback: If primary provider returned 0 streams, query all enabled fallback providers by title!
-	if len(results) == 0 && providerName != "" {
-		debugLog("[STREAM-FALLBACK] Primary provider %s returned 0 streams for %s. Attempting cross-provider search fallback...", providerName, showID)
-		cachedShow, _, found := loadShowCache(showID)
-		showQuery := cachedShow.Name
-		if !found || showQuery == "" {
-			prov := getProvider(providerName)
-			if prov != nil {
-				s, _, err := prov.FetchEpisodes(showID, mode)
-				if err == nil && s.Name != "" {
-					showQuery = s.Name
-				}
-			}
-		}
-		if showQuery != "" {
-			cleanQuery := showQuery
-			if idx := strings.IndexAny(cleanQuery, ":("); idx != -1 {
-				cleanQuery = strings.TrimSpace(cleanQuery[:idx])
-			}
-			fallbackShows, _ := searchAnime(cleanQuery, mode)
-			for _, fbShow := range fallbackShows {
-				fbProv := getProvider(fbShow.Provider)
-				if fbProv != nil && strings.ToLower(fbProv.Name()) != strings.ToLower(providerName) && cfg.IsProviderEnabled(fbProv.Name()) {
-					streams, err := fbProv.ResolveStreams(fbShow.ID, mode, episodeNo, "best")
-					if err == nil && len(streams) > 0 {
-						debugLog("[STREAM-FALLBACK] Successfully resolved %d streams from fallback provider %s for %s", len(streams), fbProv.Name(), showQuery)
-						results = append(results, streams...)
-						break
-					}
-				}
-			}
-		}
-	}
 
 	if len(results) == 0 {
 		return nil, fmt.Errorf("no streams resolved for episode %s (%s)", episodeNo, mode)

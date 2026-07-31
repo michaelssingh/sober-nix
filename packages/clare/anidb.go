@@ -58,7 +58,13 @@ func (p *AniDBProvider) Search(query, mode string) ([]AnimeShow, error) {
 }
 
 func (p *AniDBProvider) FetchEpisodes(showID, mode string) (AnimeShow, []string, error) {
+	if strings.Contains(showID, ":") && !strings.HasPrefix(showID, "anidb:") {
+		return AnimeShow{}, nil, fmt.Errorf("anidb provider cannot handle non-anidb show ID %q", showID)
+	}
 	cleanID := stripProviderPrefix(showID)
+	if _, err := strconv.Atoi(cleanID); err != nil {
+		return AnimeShow{}, nil, fmt.Errorf("anidb provider requires numeric ID, got %q", cleanID)
+	}
 	episodesURL := fmt.Sprintf("https://anidb.app/api/frontend/anime/%s/episodes", cleanID)
 	headers := map[string]string{
 		"User-Agent": UserAgent,
@@ -96,7 +102,13 @@ func (p *AniDBProvider) FetchEpisodes(showID, mode string) (AnimeShow, []string,
 }
 
 func (p *AniDBProvider) ResolveStreams(showID, mode, episodeNo, quality string) ([]ResolvedStream, error) {
+	if strings.Contains(showID, ":") && !strings.HasPrefix(showID, "anidb:") {
+		return nil, fmt.Errorf("anidb provider cannot handle non-anidb show ID %q", showID)
+	}
 	cleanID := stripProviderPrefix(showID)
+	if _, err := strconv.Atoi(cleanID); err != nil {
+		return nil, fmt.Errorf("anidb provider requires numeric ID, got %q", cleanID)
+	}
 	episodesURL := fmt.Sprintf("https://anidb.app/api/frontend/anime/%s/episodes", cleanID)
 	headers := map[string]string{
 		"User-Agent": UserAgent,

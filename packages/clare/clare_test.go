@@ -2048,5 +2048,32 @@ func TestProviderAniDB(t *testing.T) {
 	t.Logf("✓ AniDB stream preflight 200 OK verified!")
 }
 
+func TestAniDBInvalidIDRejection(t *testing.T) {
+	p := &AniDBProvider{}
+
+	// Test non-anidb prefix rejection
+	if _, _, err := p.FetchEpisodes("allanime:3pCcrhBgTN5vFcCsh", "sub"); err == nil {
+		t.Errorf("expected error when passing allanime ID to AniDB provider")
+	}
+
+	if _, err := p.ResolveStreams("allanime:3pCcrhBgTN5vFcCsh", "sub", "1", "best"); err == nil {
+		t.Errorf("expected error when resolving streams for allanime ID on AniDB provider")
+	}
+
+	// Test non-numeric ID rejection
+	if _, _, err := p.FetchEpisodes("anidb:nonnumericID", "sub"); err == nil {
+		t.Errorf("expected error when passing non-numeric ID to AniDB provider")
+	}
+}
+
+func TestNoCrossProviderFallback(t *testing.T) {
+	// Attempt resolving streams for a non-existent show ID with explicit provider set.
+	// It must return error without falling back or querying other providers.
+	_, err := fetchAllResolvedStreams("allanime:nonexistent_show_123456", "sub", "1", "allanime")
+	if err == nil {
+		t.Errorf("expected error when primary provider returns no streams and no fallback is enabled")
+	}
+}
+
 
 

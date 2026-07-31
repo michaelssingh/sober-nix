@@ -177,7 +177,7 @@ func (p *AllAnimeProvider) fetchEpisodeSources(showID, mode, episodeNo string) (
 
 	epoch, _, buildID, err := getDerivedKey()
 	if err != nil || buildID == "" {
-		buildID = "fallback-build"
+		buildID = "64"
 	}
 	aaBoot := generateAABoot(buildID, "k7", epoch, allAnimeClientMaskHex)
 	debugLog("[ALLANIME] Generated aaReq length %d, buildID: %s, aaBoot: %s", len(aareq), buildID, aaBoot)
@@ -196,12 +196,19 @@ func (p *AllAnimeProvider) fetchEpisodeSources(showID, mode, episodeNo string) (
 	}
 	debugLog("[ALLANIME] Episode sources response body snippet: %s", string(body)[:min(150, len(body))])
 
-	if strings.Contains(string(body), "AA_CRYPTO_STALE") || strings.Contains(string(body), "AA_CRYPTO_EXPIRED") {
-		debugLog("[ALLANIME] Stale crypto token detected, invalidating cache and retrying...")
+	if strings.Contains(string(body), "NEED_CAPTCHA") || strings.Contains(string(body), "AA_CRYPTO_STALE") || strings.Contains(string(body), "AA_CRYPTO_EXPIRED") || strings.Contains(string(body), "INTERNAL_SERVER_ERROR") {
+		debugLog("[ALLANIME] Stale/captcha crypto token detected, invalidating cache and retrying...")
 		invalidateDerivedKeyCache()
+		epoch, _, buildID, _ = getDerivedKey()
+		if buildID == "" {
+			buildID = "64"
+		}
 		aareq, _ = generateAAReq(allAnimeQueryHash)
-		queryExt = fmt.Sprintf(`{"persistedQuery":{"version":1,"sha256Hash":"%s"},"aaReq":"%s"}`, allAnimeQueryHash, aareq)
+		aaBoot = generateAABoot(buildID, "k7", epoch, allAnimeClientMaskHex)
+		queryExt = fmt.Sprintf(`{"persistedQuery":{"version":1,"sha256Hash":"%s"},"k":"k7","aaReq":"%s"}`, allAnimeQueryHash, aareq)
 		reqURL = fmt.Sprintf("%s?variables=%s&extensions=%s", AllAnimeAPI, url.QueryEscape(queryVars), url.QueryEscape(queryExt))
+		headers["x-build-id"] = buildID
+		headers["x-aa-boot"] = aaBoot
 		body, err = doHTTPReqWithRetry("GET", reqURL, nil, headers)
 		if err != nil {
 			return nil, err
