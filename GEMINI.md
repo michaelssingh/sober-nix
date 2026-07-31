@@ -21,6 +21,7 @@
 - "Clean Tree" Rule: Always commit changes before running any build or validation command. Avoid "dirty" git trees to ensure reproducible builds.
 - **NEVER Bypass Hooks**: Pre-commit hooks must NEVER be bypassed (`--no-verify` is prohibited). If hooks fail, fix the underlying issues in the development environment until they pass.
 - **Commit Signing**: All commits must be cryptographically signed. When committing from the AI agent, export `SSH_AUTH_SOCK=/home/sprite/.ssh-agent.sock` to authorize signature generation.
+- **Remotes**: `origin` (`git@sober-bubo.flycast:init/sober-nix.git`) is the primary Forgejo repository (source of truth for fetches/pulls). `github` (`git@github.com:michaelssingh/sober-nix.git`) is a push-only secondary mirror. Always push to both `origin` and `github`.
 
 
 ## YouTube & Streaming Conventions
