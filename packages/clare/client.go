@@ -1018,8 +1018,16 @@ func fetchEpisodeList(showID, mode string) (AnimeShow, []string, error) {
 		provider = cached.Provider
 	}
 	if provider == "" {
-		// Infer provider by showID format
-		if strings.HasSuffix(showID, "-online") || strings.Contains(showID, "-1") {
+		// Infer provider by showID format or prefix
+		if strings.HasPrefix(showID, "anidb:") {
+			provider = "anidb"
+		} else if strings.HasPrefix(showID, "flikhub:") {
+			provider = "flikhub"
+		} else if strings.HasPrefix(showID, "allanime:") {
+			provider = "allanime"
+		} else if strings.HasPrefix(showID, "vidsrc:") {
+			provider = "vidsrc"
+		} else if strings.HasSuffix(showID, "-online") || strings.Contains(showID, "-1") {
 			provider = "gogoanime"
 		} else if strings.Contains(showID, "-") {
 			provider = "flikhub"
