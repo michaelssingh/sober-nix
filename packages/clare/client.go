@@ -1050,14 +1050,11 @@ func fetchEpisodeList(showID, mode string) (AnimeShow, []string, error) {
 }
 
 func enrichShowMetadata(show *AnimeShow) {
-	if show == nil || show.Name == "" {
-		return
-	}
 	cleanTitle := show.Name
 	if idx := strings.Index(cleanTitle, "("); idx > 0 {
 		cleanTitle = strings.TrimSpace(cleanTitle[:idx])
 	}
-	if cleanTitle == "" || strings.HasPrefix(cleanTitle, "AniDB Show") {
+	if cleanTitle == "" || cleanTitle == "AniDB Show" {
 		return
 	}
 
