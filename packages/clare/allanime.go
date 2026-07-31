@@ -175,11 +175,6 @@ func (p *AllAnimeProvider) fetchEpisodeSources(showID, mode, episodeNo string) (
 		return nil, fmt.Errorf("failed to generate aaReq: %w", err)
 	}
 
-	queryVars := fmt.Sprintf(`{"showId":"%s","translationType":"%s","episodeString":"%s"}`, showID, mode, episodeNo)
-	queryExt := fmt.Sprintf(`{"persistedQuery":{"version":1,"sha256Hash":"%s"},"k":"k7","aaReq":"%s"}`, allAnimeQueryHash, aareq)
-
-	reqURL := fmt.Sprintf("%s?variables=%s&extensions=%s", AllAnimeAPI, url.QueryEscape(queryVars), url.QueryEscape(queryExt))
-
 	epoch, _, buildID, err := getDerivedKey()
 	if err != nil || buildID == "" {
 		buildID = "64"
@@ -187,21 +182,42 @@ func (p *AllAnimeProvider) fetchEpisodeSources(showID, mode, episodeNo string) (
 	aaBoot := generateAABoot(buildID, "k7", epoch, allAnimeClientMaskHex)
 	debugLog("[ALLANIME] Generated aaReq length %d, buildID: %s, aaBoot: %s", len(aareq), buildID, aaBoot)
 
-	headers := map[string]string{
-		"User-Agent": UserAgent,
-		"Referer":    AllAnimeReferer,
-		"Origin":     allAnimeQueryOrigin,
-		"x-build-id": buildID,
-		"x-aa-boot":  aaBoot,
+	makePayload := func(currentAAReq string) []byte {
+		payload := map[string]any{
+			"variables": map[string]any{
+				"showId":          showID,
+				"translationType": mode,
+				"episodeString":   episodeNo,
+			},
+			"extensions": map[string]any{
+				"persistedQuery": map[string]any{
+					"version":    1,
+					"sha256Hash": allAnimeQueryHash,
+				},
+				"k":     "k7",
+				"aaReq": currentAAReq,
+			},
+		}
+		b, _ := json.Marshal(payload)
+		return b
 	}
 
-	body, err := doHTTPReqWithRetry("GET", reqURL, nil, headers)
+	headers := map[string]string{
+		"Content-Type": "application/json",
+		"User-Agent":   UserAgent,
+		"Referer":      AllAnimeReferer,
+		"Origin":       allAnimeQueryOrigin,
+		"x-build-id":   buildID,
+		"x-aa-boot":    aaBoot,
+	}
+
+	body, err := doHTTPReqWithRetry("POST", AllAnimeAPI, makePayload(aareq), headers)
 	if err != nil {
 		return nil, err
 	}
 	debugLog("[ALLANIME] Episode sources response body snippet: %s", string(body)[:min(150, len(body))])
 
-	if strings.Contains(string(body), "NEED_CAPTCHA") || strings.Contains(string(body), "AA_CRYPTO_STALE") || strings.Contains(string(body), "AA_CRYPTO_EXPIRED") || strings.Contains(string(body), "INTERNAL_SERVER_ERROR") {
+	if strings.Contains(string(body), "NEED_CAPTCHA") || strings.Contains(string(body), "AA_CRYPTO_STALE") || strings.Contains(string(body), "AA_CRYPTO_EXPIRED") || strings.Contains(string(body), "AA_CRYPTO_MISSING") || strings.Contains(string(body), "INTERNAL_SERVER_ERROR") {
 		debugLog("[ALLANIME] Stale/captcha crypto token detected, invalidating cache and retrying...")
 		invalidateDerivedKeyCache()
 		epoch, _, buildID, _ = getDerivedKey()
@@ -210,15 +226,13 @@ func (p *AllAnimeProvider) fetchEpisodeSources(showID, mode, episodeNo string) (
 		}
 		aareq, _ = generateAAReq(allAnimeQueryHash)
 		aaBoot = generateAABoot(buildID, "k7", epoch, allAnimeClientMaskHex)
-		queryExt = fmt.Sprintf(`{"persistedQuery":{"version":1,"sha256Hash":"%s"},"k":"k7","aaReq":"%s"}`, allAnimeQueryHash, aareq)
-		reqURL = fmt.Sprintf("%s?variables=%s&extensions=%s", AllAnimeAPI, url.QueryEscape(queryVars), url.QueryEscape(queryExt))
 		headers["x-build-id"] = buildID
 		headers["x-aa-boot"] = aaBoot
-		body, err = doHTTPReqWithRetry("GET", reqURL, nil, headers)
+		body, err = doHTTPReqWithRetry("POST", AllAnimeAPI, makePayload(aareq), headers)
 		if err != nil {
 			return nil, err
 		}
-		debugLog("[ALLANIME] Retried episode sources response body snippet: %s", string(body)[:min(150, len(body))])
+	}	debugLog("[ALLANIME] Retried episode sources response body snippet: %s", string(body)[:min(150, len(body))])
 	}
 
 	re := regexp.MustCompile(`"tobeparsed"\s*:\s*"([^"]*)"`)
