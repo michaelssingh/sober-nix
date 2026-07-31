@@ -1665,7 +1665,11 @@ func TestProviderAllAnime(t *testing.T) {
 				selectedShow = show
 				episodes = eps
 				streams = resolved
+			} else {
+				t.Logf("[allanime] ResolveStreams error for known ID %s: %v", knownID, err)
 			}
+		} else {
+			t.Logf("[allanime] FetchEpisodes error for known ID %s: %v", knownID, err)
 		}
 	}
 
