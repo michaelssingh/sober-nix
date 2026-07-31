@@ -54,13 +54,6 @@
     "amdgpu.dcdebugmask=0x40000"
   ];
 
-  # Enable LUKS prompt in initrd
-  boot.initrd.luks.devices."crypted" = {
-    device = "/dev/nvme0n1p2";
-    preLVM = true;
-    allowDiscards = true;
-  };
-
   # --- NETWORKING & SECURITY SERVICES ---
   sober.core.networking.mac-rotation.enable = true;
   sober.core.networking.secure-dns.enable = true;
