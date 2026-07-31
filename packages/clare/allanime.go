@@ -232,7 +232,7 @@ func (p *AllAnimeProvider) fetchEpisodeSources(showID, mode, episodeNo string) (
 		if err != nil {
 			return nil, err
 		}
-	}	debugLog("[ALLANIME] Retried episode sources response body snippet: %s", string(body)[:min(150, len(body))])
+		debugLog("[ALLANIME] Retried episode sources response body snippet: %s", string(body)[:min(150, len(body))])
 	}
 
 	re := regexp.MustCompile(`"tobeparsed"\s*:\s*"([^"]*)"`)
