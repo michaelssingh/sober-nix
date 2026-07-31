@@ -15,7 +15,7 @@ VM_PORT="2222"
 FLAKE_DIR="sober-nix" # Directory on the VM
 
 # Configure SSH options to bypass host key prompts and fail fast on timeouts
-SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=10"
+SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=10 -R 1080:127.0.0.1:1080 -R 9000:127.0.0.1:9000"
 export NIX_SSHOPTS="$SSH_OPTS"
 
 echo "${BOLD}${CYAN}==> 1. Pulling latest changes on otus...${RESET}"
@@ -29,7 +29,7 @@ fi
 
 echo -e "\n${BOLD}${CYAN}==> 2. Triggering Nix build on remote VM ($VM_HOST:$VM_PORT) and pushing to Cachix...${RESET}"
 # Saves the raw built path to a temporary file on the worker, outputs it cleanly, and silences Cachix stdout
-raw_output=$(ssh -p "$VM_PORT" $SSH_OPTS "$VM_HOST" "export SSH_AUTH_SOCK=/home/sprite/.ssh-agent.sock && cd \"$FLAKE_DIR\" && git pull >&2 && sudo rm -rf /homeless-shelter && env PATH=/home/sprite/.nix-profile/bin:\$PATH NIX_REMOTE=daemon GOTELEMETRY=off GODEBUG=telemetry=off nix build .#nixosConfigurations.otus.config.system.build.toplevel --print-out-paths --no-link --extra-experimental-features 'nix-command flakes' > /tmp/build_path.txt && cat /tmp/build_path.txt && cat /tmp/build_path.txt | xargs -r env PATH=/home/sprite/.nix-profile/bin:\$PATH NIX_REMOTE=daemon cachix push sober-nix >&2")
+raw_output=$(ssh -p "$VM_PORT" $SSH_OPTS "$VM_HOST" "export SSH_AUTH_SOCK=/home/sprite/.ssh-agent.sock && cd \"$FLAKE_DIR\" && GIT_SSH_COMMAND=\"ssh -o IdentitiesOnly=no -o IdentityFile=/dev/null\" git pull >&2 && sudo rm -rf /homeless-shelter && env PATH=/home/sprite/.nix-profile/bin:\$PATH NIX_REMOTE=daemon GOTELEMETRY=off GODEBUG=telemetry=off nix build .#nixosConfigurations.otus.config.system.build.toplevel --print-out-paths --no-link --extra-experimental-features 'nix-command flakes' > /tmp/build_path.txt && cat /tmp/build_path.txt && cat /tmp/build_path.txt | xargs -r env PATH=/home/sprite/.nix-profile/bin:\$PATH NIX_REMOTE=daemon cachix push sober-nix >&2")
 
 # Extract the nix store path robustly and strip all trailing spaces/newlines
 out_path=$(echo "$raw_output" | grep -E '^/nix/store/' | head -n 1 | tr -d '[:space:]' || true)
