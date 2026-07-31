@@ -27,30 +27,56 @@ func (p *AniDBProvider) Search(query, mode string) ([]AnimeShow, error) {
 		return nil, fmt.Errorf("anidb search failed: %w", err)
 	}
 
-	re := regexp.MustCompile(`<a href="https://anidb\.app/anime/([a-zA-Z0-9_-]+-([0-9]+))"[^>]*title="([^"]+)"`)
+	re := regexp.MustCompile(`(?s)<a href="https://anidb\.app/anime/([a-zA-Z0-9_-]+-([0-9]+))"[^>]*title="([^"]+)".*?<img src="([^"]+)"`)
 	matches := re.FindAllStringSubmatch(string(body), -1)
 
 	seen := make(map[string]bool)
 	var shows []AnimeShow
 
 	for _, m := range matches {
-		if len(m) >= 4 {
+		if len(m) >= 5 {
 			slugWithID := m[1]
 			idNum := m[2]
 			title := strings.TrimSpace(m[3])
+			thumb := m[4]
 
 			if seen[idNum] {
 				continue
 			}
 			seen[idNum] = true
 
-			shows = append(shows, AnimeShow{
+			show := AnimeShow{
 				ID:          "anidb:" + idNum,
 				Name:        title,
 				EnglishName: title,
+				Thumbnail:   thumb,
 				Type:        "TV",
 				Description: slugWithID,
-			})
+			}
+			shows = append(shows, show)
+		}
+	}
+
+	if len(shows) == 0 {
+		reFallback := regexp.MustCompile(`<a href="https://anidb\.app/anime/([a-zA-Z0-9_-]+-([0-9]+))"[^>]*title="([^"]+)"`)
+		fallbackMatches := reFallback.FindAllStringSubmatch(string(body), -1)
+		for _, m := range fallbackMatches {
+			if len(m) >= 4 {
+				slugWithID := m[1]
+				idNum := m[2]
+				title := strings.TrimSpace(m[3])
+				if seen[idNum] {
+					continue
+				}
+				seen[idNum] = true
+				shows = append(shows, AnimeShow{
+					ID:          "anidb:" + idNum,
+					Name:        title,
+					EnglishName: title,
+					Type:        "TV",
+					Description: slugWithID,
+				})
+			}
 		}
 	}
 
@@ -93,9 +119,14 @@ func (p *AniDBProvider) FetchEpisodes(showID, mode string) (AnimeShow, []string,
 		epList = append(epList, strconv.Itoa(ep.Number))
 	}
 
-	show := AnimeShow{
-		ID:   "anidb:" + cleanID,
-		Name: "AniDB Show (" + cleanID + ")",
+	var show AnimeShow
+	if cached, _, found := loadShowCache(showID); found && cached.Name != "" && !strings.HasPrefix(cached.Name, "AniDB Show") {
+		show = cached
+	} else {
+		show = AnimeShow{
+			ID:   "anidb:" + cleanID,
+			Name: "AniDB Show (" + cleanID + ")",
+		}
 	}
 
 	return show, epList, nil

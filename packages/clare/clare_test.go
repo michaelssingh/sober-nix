@@ -2106,9 +2106,12 @@ func TestTUIAniDBIntegration(t *testing.T) {
 	if !ok || eMsg.err != nil || len(eMsg.episodes) == 0 {
 		t.Fatalf("TUI doFetchEpisodes failed: %v", eMsg.err)
 	}
-	t.Logf("[TUI] ✓ doFetchEpisodes returned %d episodes", len(eMsg.episodes))
+	t.Logf("[TUI] ✓ doFetchEpisodes returned %d episodes (Show Name: %s, MALID: %s, AniListID: %s, Thumbnail: %s)", len(eMsg.episodes), eMsg.show.Name, eMsg.show.MALID, eMsg.show.AniListID, eMsg.show.Thumbnail)
+	if eMsg.show.MALID == "" && eMsg.show.AniListID == "" {
+		t.Errorf("Expected metadata (MALID/AniListID) to be populated for AniDB show %s", eMsg.show.ID)
+	}
 
-	playCmd := doPreparePlayback(aniDBShow, eMsg.episodes[0], "Ep 1", "sub", "best", false)
+	playCmd := doPreparePlayback(eMsg.show, eMsg.episodes[0], "Ep 1", "sub", "best", false)
 	pMsg := playCmd()
 	rMsg, ok := pMsg.(resolvedPlaybackMsg)
 	if !ok || rMsg.err != nil || rMsg.cmd == nil {

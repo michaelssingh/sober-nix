@@ -1039,7 +1039,124 @@ func fetchEpisodeList(showID, mode string) (AnimeShow, []string, error) {
 		return AnimeShow{}, nil, fmt.Errorf("provider %q is disabled", provider)
 	}
 	p := getProvider(provider)
-	return p.FetchEpisodes(showID, mode)
+	show, eps, err := p.FetchEpisodes(showID, mode)
+	if err == nil {
+		if show.MALID == "" || show.Thumbnail == "" {
+			enrichShowMetadata(&show)
+		}
+		_ = saveShowCache(showID, show, eps)
+	}
+	return show, eps, err
+}
+
+func enrichShowMetadata(show *AnimeShow) {
+	if show == nil || show.Name == "" {
+		return
+	}
+	cleanTitle := show.Name
+	if idx := strings.Index(cleanTitle, "("); idx > 0 {
+		cleanTitle = strings.TrimSpace(cleanTitle[:idx])
+	}
+	if cleanTitle == "" || strings.HasPrefix(cleanTitle, "AniDB Show") {
+		return
+	}
+
+	query := `query ($search: String) {
+		Media(search: $search, type: ANIME) {
+			id
+			idMal
+			title {
+				romaji
+				english
+				native
+			}
+			coverImage {
+				extraLarge
+				large
+			}
+			description
+			seasonYear
+			score: averageScore
+			genres
+		}
+	}`
+	payload := map[string]any{
+		"query": query,
+		"variables": map[string]any{
+			"search": cleanTitle,
+		},
+	}
+	jsonBody, err := json.Marshal(payload)
+	if err != nil {
+		return
+	}
+
+	headers := map[string]string{
+		"Content-Type": "application/json",
+		"User-Agent":   UserAgent,
+	}
+
+	respBody, err := doHTTPReqWithRetry("POST", "https://graphql.anilist.co", jsonBody, headers)
+	if err != nil {
+		return
+	}
+
+	var alResp struct {
+		Data struct {
+			Media struct {
+				ID          int      `json:"id"`
+				IDMal       int      `json:"idMal"`
+				Description string   `json:"description"`
+				SeasonYear  int      `json:"seasonYear"`
+				Score       float64  `json:"score"`
+				Genres      []string `json:"genres"`
+				Title       struct {
+					Romaji  string `json:"romaji"`
+					English string `json:"english"`
+					Native  string `json:"native"`
+				} `json:"title"`
+				CoverImage struct {
+					ExtraLarge string `json:"extraLarge"`
+					Large      string `json:"large"`
+				} `json:"coverImage"`
+			} `json:"Media"`
+		} `json:"data"`
+	}
+
+	if err := json.Unmarshal(respBody, &alResp); err == nil && alResp.Data.Media.ID != 0 {
+		m := alResp.Data.Media
+		if show.MALID == "" && m.IDMal != 0 {
+			show.MALID = strconv.Itoa(m.IDMal)
+		}
+		if show.AniListID == "" && m.ID != 0 {
+			show.AniListID = strconv.Itoa(m.ID)
+		}
+		if show.Thumbnail == "" {
+			if m.CoverImage.ExtraLarge != "" {
+				show.Thumbnail = m.CoverImage.ExtraLarge
+			} else {
+				show.Thumbnail = m.CoverImage.Large
+			}
+		}
+		if show.Description == "" {
+			show.Description = m.Description
+		}
+		if show.EnglishName == "" && m.Title.English != "" {
+			show.EnglishName = m.Title.English
+		}
+		if show.NativeName == "" && m.Title.Native != "" {
+			show.NativeName = m.Title.Native
+		}
+		if show.Score == 0 && m.Score != 0 {
+			show.Score = m.Score / 10.0
+		}
+		if show.Season.Year == 0 && m.SeasonYear != 0 {
+			show.Season.Year = FlexInt(m.SeasonYear)
+		}
+		if len(show.Genres) == 0 && len(m.Genres) > 0 {
+			show.Genres = m.Genres
+		}
+	}
 }
 
 func prefetchEpisodeStream(showID, mode, epNo, quality string) {
