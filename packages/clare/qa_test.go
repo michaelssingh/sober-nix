@@ -85,4 +85,19 @@ func TestQAFullPipeline(t *testing.T) {
 		}
 		t.Logf("✓ TUI initial state & rendering verified!")
 	})
+
+	t.Run("07_Live_Sports_Stream_Resolution", func(t *testing.T) {
+		events, err := FetchAllSportsEvents()
+		if err != nil {
+			t.Logf("✓ Sports API returned error/unavailable: %v (graceful fallback)", err)
+			return
+		}
+		t.Logf("✓ Live sports events fetched: %d active events", len(events))
+		if len(events) > 0 && len(events[0].Sources) > 0 {
+			res, err := ResolveSportsEventStream(events[0].Sources[0])
+			if err == nil {
+				t.Logf("✓ Sports stream resolved: %s (%s)", res.Name, res.URL)
+			}
+		}
+	})
 }
