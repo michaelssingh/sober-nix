@@ -2956,7 +2956,8 @@ func helpStyle(val string) string {
 // Async search command
 func doSearch(query, mode string) tea.Cmd {
 	return func() tea.Msg {
-		shows, err := searchAnime(query, mode)
+		resolver := NewMultiProviderResolver()
+		shows, err := resolver.Search(query, mode)
 		return searchResultMsg{shows: shows, err: err}
 	}
 }
