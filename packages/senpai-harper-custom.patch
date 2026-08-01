@@ -10,6 +10,23 @@ index a7a4193..341e698 100644
  	if buffer != "" {
  		cs = app.completionsChannelTopic(cs, cursorIdx, text)
  		cs = app.completionsChannelMembers(cs, cursorIdx, text)
+diff --git a/commands.go b/commands.go
+index 9bec583..aabacaf 100644
+--- a/commands.go
++++ b/commands.go
+@@ -1181,12 +1181,6 @@ func getSong() (string, error) {
+ 	if info.Album != "" {
+ 		fmt.Fprintf(&sb, " from \x02%s\x02", info.Album)
+ 	}
+-	if u, err := url.Parse(info.URL); err == nil {
+-		switch u.Scheme {
+-		case "http", "https":
+-			fmt.Fprintf(&sb, " — %s", info.URL)
+-		}
+-	}
+ 	return sb.String(), nil
+ }
+ 
 diff --git a/harper.go b/harper.go
 index cb3dcf7..6480084 100644
 --- a/harper.go

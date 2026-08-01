@@ -58,7 +58,11 @@ func fetchAniSkipTimes(malID string, epNo string, durationSeconds float64) []Ani
 	}
 
 	client := newLoggingHttpClient(4 * time.Second)
-	url := fmt.Sprintf("https://api.aniskip.com/v2/skip-times/%s/%s?types[]=op&types[]=ed&types[]=mixed-op&types[]=mixed-ed&types[]=recap&episodeLength=0", malID, cleanEp)
+	epLen := int(durationSeconds)
+	if epLen <= 0 {
+		epLen = 1440
+	}
+	url := fmt.Sprintf("https://api.aniskip.com/v2/skip-times/%s/%s?types=op&types=ed&types=mixed-op&types=mixed-ed&types=recap&episodeLength=%d", malID, cleanEp, epLen)
 	debugLog("fetchAniSkipTimes: requesting %s", url)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
