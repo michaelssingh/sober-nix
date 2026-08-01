@@ -117,6 +117,7 @@ type MultiProviderResolver struct {
 func NewMultiProviderResolver() *MultiProviderResolver {
 	cfg := loadConfig()
 	allProviders := []Provider{
+		&AniDBProvider{},
 		&AllAnimeProvider{},
 		&VidSrcProvider{},
 		&FlikhubProvider{},
@@ -158,7 +159,14 @@ func (r *MultiProviderResolver) ResolveWithFallback(query, mode, episodeNo, qual
 	}
 
 	for _, s := range shows {
+		provName := ""
+		if idx := strings.Index(s.ID, ":"); idx > 0 {
+			provName = s.ID[:idx]
+		}
 		for _, p := range r.providers {
+			if provName != "" && p.Name() != provName {
+				continue
+			}
 			streams, err := p.ResolveStreams(s.ID, mode, episodeNo, quality)
 			if err != nil || len(streams) == 0 {
 				continue
