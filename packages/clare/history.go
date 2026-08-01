@@ -87,6 +87,11 @@ func getUniqueHistory(history []HistoryEntry) []HistoryEntry {
 	seen := make(map[string]bool)
 	var unique []HistoryEntry
 	for _, entry := range history {
+		if strings.HasPrefix(entry.ShowName, "AniDB Show") {
+			if cached, _, found := loadShowCache(entry.ShowID); found && cached.Name != "" && !strings.HasPrefix(cached.Name, "AniDB Show") {
+				entry.ShowName = cached.Name
+			}
+		}
 		if !seen[entry.ShowID] {
 			seen[entry.ShowID] = true
 			unique = append(unique, entry)
@@ -101,8 +106,19 @@ func recordWatch(showID, showName, episode string) error {
 		history = []HistoryEntry{}
 	}
 
-	// Filter out older entries of this exact show/episode if we want to keep history size reasonable,
-	// but keeping the full log is fine. Let's prepend the new one.
+	if strings.HasPrefix(showName, "AniDB Show") {
+		if cached, _, found := loadShowCache(showID); found && cached.Name != "" && !strings.HasPrefix(cached.Name, "AniDB Show") {
+			showName = cached.Name
+		}
+	}
+
+	// Update any existing history entries for this showID if showName was enriched
+	for i := range history {
+		if history[i].ShowID == showID && strings.HasPrefix(history[i].ShowName, "AniDB Show") && !strings.HasPrefix(showName, "AniDB Show") {
+			history[i].ShowName = showName
+		}
+	}
+
 	newEntry := HistoryEntry{
 		ShowID:    showID,
 		ShowName:  showName,
