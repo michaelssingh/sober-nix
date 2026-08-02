@@ -176,7 +176,8 @@ func getMpvCmd(streamURL string, title string, epNo string, malID string, durati
 
 	tempChaptersFile := ""
 	var times []AniSkipResult
-	if malID != "" && malID != "0" {
+	isMovie := strings.HasPrefix(streamURL, "vidsrc:") || strings.Contains(streamURL, "vaplayer") || strings.EqualFold(epNo, "Movie")
+	if malID != "" && malID != "0" && !isMovie {
 		debugLog("getMpvCmd: fetching AniSkip skip times for malID=%s, epNo=%s", malID, epNo)
 		times = fetchAniSkipTimes(malID, epNo, durationSeconds)
 		if len(times) > 0 {

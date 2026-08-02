@@ -4127,6 +4127,13 @@ func (m *model) triggerAutoplayAction() tea.Cmd {
 		playingEpisodes = m.episodes
 	}
 
+	// Movies and single-episode media should not autoplay a non-existent next episode
+	if strings.EqualFold(playingShow.Type, "MOVIE") || strings.HasPrefix(playingShow.ID, "vidsrc:movie") || len(playingEpisodes) <= 1 {
+		debugLog("[INFO] Autoplay: standalone movie/feature finished. Disabling autoplay transition.")
+		m.triggerAutoplay = false
+		return nil
+	}
+
 	if len(playingEpisodes) == 0 {
 		debugLog("[INFO] Autoplay: episodes list not loaded. Fetching episodes first...")
 		m.state = stateSearchRunning
