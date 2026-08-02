@@ -105,8 +105,10 @@ func getRefererForURL(urlVal string) string {
 		return "https://megaplay.buzz/"
 	} else if strings.Contains(urlVal, "allanime") || strings.Contains(urlVal, "alltropic") || strings.Contains(urlVal, "ok.ru") {
 		return "https://youtu-chan.com/"
-	} else if strings.Contains(urlVal, "cloudorchestranova") || strings.Contains(urlVal, "vidsrc") {
+	} else if strings.Contains(urlVal, "cloudorchestranova") || strings.Contains(urlVal, "zealotsofzenith") {
 		return "https://cloudorchestranova.com/"
+	} else if strings.Contains(urlVal, "nextgen") || strings.Contains(urlVal, "quietmidnight") || strings.Contains(urlVal, "influencerstrategy") || strings.Contains(urlVal, "profitablelaunchsystem") || strings.Contains(urlVal, "vaplayer") || strings.Contains(urlVal, ".site/") {
+		return "https://nextgencloudfabric.com/"
 	}
 	return StreamReferer
 }

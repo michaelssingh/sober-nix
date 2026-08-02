@@ -2071,7 +2071,26 @@ func TestProviderVidSrc(t *testing.T) {
 	if err := PreflightStreamURL(streams[0].URL, headers); err != nil {
 		t.Fatalf("vidsrc stream preflight failed: %v", err)
 	}
-	t.Logf("✓ VidSrc stream preflight 200 OK verified!")
+	t.Logf("✓ VidSrc movie stream preflight 200 OK verified!")
+
+	// Test TV series (South Park) S02E01 season resolution
+	tvShow, tvEps, err := p.FetchEpisodes("vidsrc:tv:2190", "sub")
+	if err != nil || len(tvEps) == 0 {
+		t.Fatalf("vidsrc TV fetch episodes failed: %v", err)
+	}
+	t.Logf("✓ VidSrc TV show: %s, total episodes: %d (S01E01..%s)", tvShow.Name, len(tvEps), tvEps[len(tvEps)-1])
+
+	tvStreams, err := p.ResolveStreams("vidsrc:tv:2190", "sub", "S02E01", "best")
+	if err != nil || len(tvStreams) == 0 {
+		t.Fatalf("vidsrc TV S02E01 resolve streams failed: %v", err)
+	}
+	t.Logf("✓ VidSrc TV S02E01 stream resolved! URL: %s", tvStreams[0].URL)
+
+	tvHeaders := map[string]string{"Referer": getRefererForURL(tvStreams[0].URL)}
+	if err := PreflightStreamURL(tvStreams[0].URL, tvHeaders); err != nil {
+		t.Fatalf("vidsrc TV S02E01 stream preflight failed: %v", err)
+	}
+	t.Logf("✓ VidSrc TV S02E01 stream preflight 200 OK verified!")
 }
 
 func Test20AnimePipeline(t *testing.T) {
