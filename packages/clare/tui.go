@@ -3009,7 +3009,13 @@ func (m model) View() string {
 		}
 
 		var activeBody strings.Builder
-		activeBody.WriteString(titleStyle.Render(fmt.Sprintf("Playing: %s — Episode %s", m.selectedShow.Name, m.selectedEp)) + "\n\n")
+		epLabel := fmt.Sprintf("Episode %s", m.selectedEp)
+		if strings.HasPrefix(strings.ToUpper(m.selectedEp), "S") {
+			epLabel = m.selectedEp
+		} else if (strings.EqualFold(m.selectedShow.Type, "MOVIE") || strings.HasPrefix(m.selectedShow.ID, "vidsrc:movie")) && m.selectedEp == "1" {
+			epLabel = "Full Movie"
+		}
+		activeBody.WriteString(titleStyle.Render(fmt.Sprintf("Playing: %s — %s", m.selectedShow.Name, epLabel)) + "\n\n")
 		activeBody.WriteString(fmt.Sprintf("Status: %s\n\n", statusStr))
 
 		if m.mpvStatus.Duration > 0 {

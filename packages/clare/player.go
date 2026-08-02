@@ -318,8 +318,10 @@ local skip_times_json = %q
 	}
 
 	mediaTitle := title
-	if epNo != "" && epNo != "Movie" && epNo != "movie" && epNo != "1" {
-		if !strings.HasPrefix(streamURL, "vidsrc:") && !strings.Contains(strings.ToLower(title), "movie") {
+	if epNo != "" && !strings.EqualFold(epNo, "Movie") {
+		if strings.HasPrefix(strings.ToUpper(epNo), "S") {
+			mediaTitle = fmt.Sprintf("%s - %s", title, epNo)
+		} else if epNo != "1" && !strings.Contains(strings.ToLower(title), "movie") {
 			mediaTitle = fmt.Sprintf("%s - Episode %s", title, epNo)
 		}
 	}
