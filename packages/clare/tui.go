@@ -32,6 +32,7 @@ const (
 	stateSearchInput
 	stateSearchRunning
 	stateShowSelect
+	stateSeasonSelect
 	stateEpisodeSelect
 	stateSourceSelect
 	statePlaybackPreparing
@@ -217,6 +218,26 @@ func (s showItem) Description() string {
 	}
 
 	return strings.Join(parts, "  •  ")
+}
+
+type seasonItem struct {
+	season SeasonSummary
+	showID string
+}
+
+func (s seasonItem) Title() string {
+	if s.season.AirDate != "" && len(s.season.AirDate) >= 4 {
+		return fmt.Sprintf("%s (%s)", s.season.Name, s.season.AirDate[:4])
+	}
+	return s.season.Name
+}
+
+func (s seasonItem) Description() string {
+	return fmt.Sprintf("%d Episodes", s.season.EpisodeCount)
+}
+
+func (s seasonItem) FilterValue() string {
+	return s.season.Name
 }
 func (s showItem) FilterValue() string { return s.show.Name }
 
@@ -475,6 +496,8 @@ type model struct {
 	searchHistory           []string
 	searchHistoryIndex      int
 	sourceList              list.Model
+	seasonList              list.Model
+	allEpisodes             []string
 	resolvedStreams         []ResolvedStream
 	mpvStatus               MpvStatus
 	playbackActive          bool
@@ -568,6 +591,7 @@ func initialModel(initialSearch, mode, quality string, download bool) model {
 
 	hList := createHistoryList()
 	sList := createMinimalList("Search Results")
+	seaList := createMinimalList("Select Season")
 	eList := createMinimalList("Select Episode")
 	soList := createMinimalList("Select Source & Resolution")
 	spList := createMinimalList("🏟️ Live Sports")
@@ -595,18 +619,22 @@ func initialModel(initialSearch, mode, quality string, download bool) model {
 				hist, _ := loadHistory()
 				for _, h := range hist {
 					if h.ShowName == showName {
-						foundShow, _, found = loadShowCache(h.ShowID)
+						foundShow = AnimeShow{
+							ID:   h.ShowID,
+							Name: h.ShowName,
+						}
+						found = true
 						break
 					}
 				}
-				if !found {
-					foundShow = AnimeShow{Name: showName, EnglishName: showName}
+
+				if found {
+					activeShow = foundShow
+					activeEp = epNo
+					reattachedStatus = status
+					isReattached = true
+					debugLog("[INFO] Reattached to running MPV: %s (Ep %s)", showName, epNo)
 				}
-				activeShow = foundShow
-				activeEp = epNo
-				reattachedStatus = status
-				isReattached = true
-				debugLog("[INFO] Reattached to running MPV: %s (Ep %s)", showName, epNo)
 			}
 		}
 	} else {
@@ -622,6 +650,7 @@ func initialModel(initialSearch, mode, quality string, download bool) model {
 		searchInput:        ti,
 		spinner:            s,
 		showList:           sList,
+		seasonList:         seaList,
 		episodeList:        eList,
 		sourceList:         soList,
 		mode:               mode,
@@ -1194,7 +1223,22 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		m.selectedShow = msg.show
+		m.allEpisodes = msg.episodes
+
+		if len(msg.show.Seasons) > 1 {
+			m.state = stateSeasonSelect
+			var items []list.Item
+			for _, s := range msg.show.Seasons {
+				items = append(items, seasonItem{season: s, showID: msg.show.ID})
+			}
+			m.seasonList.Title = fmt.Sprintf("Select Season (%s)", msg.show.Name)
+			m.seasonList.SetItems(items)
+			m.seasonList.SetSize(m.showList.Width(), m.showList.Height())
+			return m, nil
+		}
+
 		m.episodes = msg.episodes
+		m.refreshEpisodeListItems()
 		m.state = stateEpisodeSelect
 
 		// Clear metadata maps
@@ -2181,6 +2225,40 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, cmd
 
+		case stateSeasonSelect:
+			switch msg.String() {
+			case "enter":
+				selected, ok := m.seasonList.SelectedItem().(seasonItem)
+				if ok {
+					sNum := selected.season.SeasonNumber
+					prefix := fmt.Sprintf("S%02d", sNum)
+					var seasonEps []string
+					for _, ep := range m.allEpisodes {
+						if strings.HasPrefix(strings.ToUpper(ep), prefix) {
+							seasonEps = append(seasonEps, ep)
+						}
+					}
+					if len(seasonEps) == 0 {
+						seasonEps = m.allEpisodes
+					}
+					m.episodes = seasonEps
+					m.refreshEpisodeListItems()
+					m.state = stateEpisodeSelect
+					return m, nil
+				}
+			case "esc":
+				if len(m.showItems) > 1 {
+					m.state = stateShowSelect
+				} else {
+					m.state = stateSearchInput
+					m.searchInput.Focus()
+				}
+				return m, nil
+			}
+			var cmd tea.Cmd
+			m.seasonList, cmd = m.seasonList.Update(msg)
+			return m, cmd
+
 		case stateEpisodeSelect:
 			switch msg.String() {
 			case "tab":
@@ -2231,6 +2309,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					return m, doFetchAllStreams(m.selectedShow.ID, m.mode, selected.epNo, m.selectedShow.Provider)
 				}
 			case "esc":
+				if len(m.selectedShow.Seasons) > 1 {
+					m.state = stateSeasonSelect
+					return m, nil
+				}
 				// If we came from history, go back to history. Else, show selection.
 				if len(m.showItems) > 1 {
 					m.state = stateShowSelect
@@ -2838,6 +2920,26 @@ func (m model) View() string {
 			s.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, leftView, rightView))
 		} else {
 			s.WriteString(m.showList.View())
+		}
+
+	case stateSeasonSelect:
+		if m.width >= 80 {
+			leftWidth := m.width / 2
+			if leftWidth < 35 {
+				leftWidth = 35
+			}
+			rightWidth := m.width - leftWidth - 4
+			if rightWidth < 10 {
+				rightWidth = 10
+			}
+
+			leftView := m.seasonList.View()
+			art := m.coverArtCache[m.selectedShow.ID]
+			rightView := m.renderShowDetailsPanel(m.selectedShow, art, rightWidth, listHeight)
+
+			s.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, leftView, rightView))
+		} else {
+			s.WriteString(m.seasonList.View())
 		}
 
 	case stateEpisodeSelect:
@@ -4021,6 +4123,7 @@ func (m *model) recalculateSizes() {
 	listHeight := m.dynamicListHeight()
 	m.historyList.SetSize(leftWidth, listHeight)
 	m.showList.SetSize(leftWidth, listHeight)
+	m.seasonList.SetSize(leftWidth, listHeight)
 	m.episodeList.SetSize(leftWidth, listHeight)
 	m.sourceList.SetSize(leftWidth, listHeight)
 

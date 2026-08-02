@@ -146,8 +146,11 @@ func (p *VidSrcProvider) FetchEpisodes(showID, mode string) (AnimeShow, []string
 		VoteAverage      float64 `json:"vote_average"`
 		NumberOfEpisodes int     `json:"number_of_episodes"`
 		Seasons          []struct {
-			SeasonNumber int `json:"season_number"`
-			EpisodeCount int `json:"episode_count"`
+			SeasonNumber int    `json:"season_number"`
+			Name         string `json:"name"`
+			EpisodeCount int    `json:"episode_count"`
+			AirDate      string `json:"air_date"`
+			PosterPath   string `json:"poster_path"`
 		} `json:"seasons"`
 	}
 
@@ -156,10 +159,22 @@ func (p *VidSrcProvider) FetchEpisodes(showID, mode string) (AnimeShow, []string
 	}
 
 	var epList []string
+	var seasonSummaries []SeasonSummary
 	for _, season := range tvDetail.Seasons {
 		if season.SeasonNumber <= 0 {
 			continue
 		}
+		seasonName := season.Name
+		if seasonName == "" {
+			seasonName = fmt.Sprintf("Season %d", season.SeasonNumber)
+		}
+		seasonSummaries = append(seasonSummaries, SeasonSummary{
+			SeasonNumber: season.SeasonNumber,
+			Name:         seasonName,
+			EpisodeCount: season.EpisodeCount,
+			AirDate:      season.AirDate,
+			PosterPath:   season.PosterPath,
+		})
 		for e := 1; e <= season.EpisodeCount; e++ {
 			epList = append(epList, fmt.Sprintf("S%02dE%02d", season.SeasonNumber, e))
 		}
@@ -190,6 +205,7 @@ func (p *VidSrcProvider) FetchEpisodes(showID, mode string) (AnimeShow, []string
 			Quarter string  `json:"quarter"`
 			Year    FlexInt `json:"year"`
 		}{Year: FlexInt(year)},
+		Seasons:  seasonSummaries,
 		Provider: "vidsrc",
 	}, epList, nil
 }

@@ -95,10 +95,19 @@ type MediaItem struct {
 	Duration string `json:"duration"`
 
 	// Unified Media extension fields
-	MediaType MediaType `json:"media_type"`
-	TMDBID    string    `json:"tmdb_id,omitempty"`
-	Genres    []string  `json:"genres,omitempty"`
-	Rating    string    `json:"rating,omitempty"`
+	MediaType MediaType       `json:"media_type"`
+	TMDBID    string          `json:"tmdb_id,omitempty"`
+	Genres    []string        `json:"genres,omitempty"`
+	Rating    string          `json:"rating,omitempty"`
+	Seasons   []SeasonSummary `json:"seasons,omitempty"`
+}
+
+type SeasonSummary struct {
+	SeasonNumber int    `json:"season_number"`
+	Name         string `json:"name"`
+	EpisodeCount int    `json:"episode_count"`
+	AirDate      string `json:"air_date"`
+	PosterPath   string `json:"poster_path"`
 }
 
 type AnimeShow = MediaItem
