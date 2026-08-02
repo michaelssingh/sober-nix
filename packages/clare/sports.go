@@ -166,8 +166,10 @@ type DaddyLiveScheduleEntry struct {
 	Time     string `json:"time"`
 	Title    string `json:"title"`
 	Channels []struct {
-		ID   string `json:"id"`
-		Name string `json:"name"`
+		ID          string `json:"id"`
+		Name        string `json:"name"`
+		ChannelID   string `json:"channel_id"`
+		ChannelName string `json:"channel_name"`
 	} `json:"channels"`
 }
 
@@ -206,13 +208,25 @@ func fetchDaddyLiveSchedule() ([]SportsEvent, error) {
 					IsLive:    false,
 				}
 				for _, ch := range entry.Channels {
-					ev.Sources = append(ev.Sources, SportsStream{
-						ID:      "daddy:" + ch.ID,
-						Name:    ch.Name,
-						Referer: daddyLiveBase + "/",
-					})
+					chID := ch.ChannelID
+					if chID == "" {
+						chID = ch.ID
+					}
+					chName := ch.ChannelName
+					if chName == "" {
+						chName = ch.Name
+					}
+					if chID != "" {
+						ev.Sources = append(ev.Sources, SportsStream{
+							ID:      "daddy:" + chID,
+							Name:    chName,
+							Referer: daddyLiveBase + "/",
+						})
+					}
 				}
-				events = append(events, ev)
+				if len(ev.Sources) > 0 {
+					events = append(events, ev)
+				}
 			}
 		}
 	}
