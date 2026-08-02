@@ -125,7 +125,9 @@ func (h historyItem) Description() string {
 		}
 	}
 
-	if h.nextEp != "" && h.totalEps > 0 && !hasExceededTotal {
+	if strings.HasPrefix(h.showID, "vidsrc:movie") || h.totalEps == 1 {
+		parts = append(parts, "Feature Film")
+	} else if h.nextEp != "" && h.totalEps > 0 && !hasExceededTotal {
 		parts = append(parts, fmt.Sprintf("Next: Ep %s / %d", h.nextEp, h.totalEps))
 	} else if h.nextEp != "" {
 		parts = append(parts, fmt.Sprintf("Next: Ep %s", h.nextEp))
@@ -691,9 +693,13 @@ func (m *model) refreshHistory() {
 
 	var allItems []list.Item
 	for _, u := range uniq {
+		name := u.ShowName
+		if cached, _, found := loadShowCache(u.ShowID); found && cached.Name != "" && (name == "Movie" || name == "") {
+			name = cached.Name
+		}
 		item := historyItem{
 			showID:      u.ShowID,
-			showName:    u.ShowName,
+			showName:    name,
 			lastEp:      u.Episode,
 			timestamp:   u.Timestamp,
 			progressPct: -1,
@@ -704,7 +710,11 @@ func (m *model) refreshHistory() {
 		var malID string
 		if cached, _, found := loadShowCache(u.ShowID); found {
 			malID = cached.MALID
-			item.totalEps = cached.EpCount()
+			if cached.Type == "MOVIE" || strings.HasPrefix(u.ShowID, "vidsrc:movie") {
+				item.totalEps = 1
+			} else {
+				item.totalEps = cached.EpCount()
+			}
 		}
 
 		// u.Completed is the canonical completion signal — set by AniList pull
@@ -3493,6 +3503,8 @@ func (m model) renderShowDetailsPanel(show AnimeShow, coverArtANSI string, width
 	seasonStr := "Unknown"
 	if show.Season.Quarter != "" && show.Season.Year > 0 {
 		seasonStr = fmt.Sprintf("%s %d", show.Season.Quarter, show.Season.Year)
+	} else if show.Season.Year > 0 {
+		seasonStr = fmt.Sprintf("%d", show.Season.Year)
 	}
 
 	typeStr := "Unknown"
@@ -3503,6 +3515,8 @@ func (m model) renderShowDetailsPanel(show AnimeShow, coverArtANSI string, width
 	epsStr := "Unknown"
 	if show.Duration != "" {
 		epsStr = show.Duration
+	} else if strings.EqualFold(show.Type, "MOVIE") || strings.HasPrefix(show.ID, "vidsrc:movie") {
+		epsStr = "Feature Film"
 	} else if show.EpCount() > 0 {
 		epsStr = fmt.Sprintf("%d Episodes", show.EpCount())
 	}
@@ -3631,34 +3645,65 @@ func (m model) renderEpisodeDetailsPanel(width, height int) string {
 		return borderStyle.Render("No episode selected.")
 	}
 
+	isMovie := strings.EqualFold(m.selectedShow.Type, "MOVIE") || strings.HasPrefix(m.selectedShow.ID, "vidsrc:movie")
+	isNonAnime := isMovie || strings.EqualFold(m.selectedShow.Type, "TV") || strings.EqualFold(m.selectedShow.Provider, "vidsrc") || strings.HasPrefix(m.selectedShow.ID, "vidsrc:")
+
 	title := fmt.Sprintf("Episode %s", epItem.epNo)
+	if isMovie {
+		title = m.selectedShow.Name
+	} else if strings.HasPrefix(strings.ToUpper(epItem.epNo), "S") && strings.Contains(strings.ToUpper(epItem.epNo), "E") {
+		var s, e int
+		if _, err := fmt.Sscanf(strings.ToUpper(epItem.epNo), "S%02dE%02d", &s, &e); err == nil {
+			title = fmt.Sprintf("Season %d, Episode %d", s, e)
+		}
+	}
+
 	aired := "Unknown"
 	classification := lipgloss.NewStyle().Foreground(lipgloss.Color("#9ece6a")).Render("Canon") // green for canon
+	if isMovie {
+		classification = lipgloss.NewStyle().Foreground(lipgloss.Color("#9ece6a")).Render("Feature Film")
+		if m.selectedShow.Season.Year > 0 {
+			aired = fmt.Sprintf("%d", m.selectedShow.Season.Year)
+		}
+	} else if isNonAnime {
+		classification = lipgloss.NewStyle().Foreground(lipgloss.Color("#7dcfff")).Render("TV Series")
+		if m.selectedShow.Season.Year > 0 {
+			aired = fmt.Sprintf("%d", m.selectedShow.Season.Year)
+		}
+	}
 
 	synopsis := "No synopsis available."
 	if info, ok := m.episodeDetails[epItem.epNo]; ok {
-		if info.Title != "" {
+		if info.Title != "" && !isMovie {
 			title = fmt.Sprintf("Ep %s: %s", epItem.epNo, info.Title)
 		}
-		if info.Aired != "" {
+		if info.Aired != "" && !isNonAnime {
 			aired = info.Aired
 		}
 		if info.Synopsis != "" {
 			synopsis = cleanHTML(info.Synopsis)
 		}
-		if info.Filler {
-			classification = lipgloss.NewStyle().Foreground(lipgloss.Color("#f7768e")).Render("Filler (Non-Canon)")
-		} else if info.Recap {
-			classification = lipgloss.NewStyle().Foreground(lipgloss.Color("#e0af68")).Render("Recap")
+		if !isNonAnime {
+			if info.Filler {
+				classification = lipgloss.NewStyle().Foreground(lipgloss.Color("#f7768e")).Render("Filler (Non-Canon)")
+			} else if info.Recap {
+				classification = lipgloss.NewStyle().Foreground(lipgloss.Color("#e0af68")).Render("Recap")
+			}
 		}
 	} else if m.selectedShow.MALID == "" || m.selectedShow.MALID == "0" {
-		title = fmt.Sprintf("Episode %s", epItem.epNo)
-		aired = "N/A (No MAL ID)"
-		classification = lipgloss.NewStyle().Foreground(lipgloss.Color("#565f89")).Render("Unknown (No MAL)")
+		if !isNonAnime {
+			aired = "N/A (No MAL ID)"
+			classification = lipgloss.NewStyle().Foreground(lipgloss.Color("#565f89")).Render("Unknown (No MAL)")
+		}
 	} else {
-		title = fmt.Sprintf("Episode %s", epItem.epNo)
-		aired = "Loading..."
-		classification = lipgloss.NewStyle().Foreground(lipgloss.Color("#565f89")).Render("Loading...")
+		if !isNonAnime {
+			aired = "Loading..."
+			classification = lipgloss.NewStyle().Foreground(lipgloss.Color("#565f89")).Render("Loading...")
+		}
+	}
+
+	if (synopsis == "No synopsis available." || synopsis == "") && m.selectedShow.Description != "" {
+		synopsis = cleanHTML(m.selectedShow.Description)
 	}
 
 	// Layout size calculations:
@@ -3673,12 +3718,15 @@ func (m model) renderEpisodeDetailsPanel(width, height int) string {
 	metadataFlags := fmt.Sprintf("%s  •  %s", videoStatus, audioStatus)
 
 	// Calculate AniSkip pre-flight badge
-	aniSkipBadge := "✨ AniSkip Checking..."
-	if ready, checked := m.aniSkipReady[epItem.epNo]; checked {
-		if ready {
-			aniSkipBadge = "✨ AniSkip Ready"
-		} else {
-			aniSkipBadge = "✨ AniSkip Unavailable"
+	aniSkipBadge := ""
+	if !isNonAnime {
+		aniSkipBadge = "✨ AniSkip Checking..."
+		if ready, checked := m.aniSkipReady[epItem.epNo]; checked {
+			if ready {
+				aniSkipBadge = "✨ AniSkip Ready"
+			} else {
+				aniSkipBadge = "✨ AniSkip Unavailable"
+			}
 		}
 	}
 
@@ -3709,7 +3757,9 @@ func (m model) renderEpisodeDetailsPanel(width, height int) string {
 		fmt.Sprintf("%s %s", metaKeyStyle.Render("Release Date:  "), metaValStyle.Render(aired)),
 		fmt.Sprintf("%s %s", metaKeyStyle.Render("Classification:"), classification),
 		fmt.Sprintf("%s %s", metaKeyStyle.Render("Format/Audio:  "), metaValStyle.Render(metadataFlags)),
-		fmt.Sprintf("%s %s", metaKeyStyle.Render("AniSkip:       "), lipgloss.NewStyle().Foreground(lipgloss.Color("#7dcfff")).Render(aniSkipBadge)),
+	}
+	if aniSkipBadge != "" {
+		metaLines = append(metaLines, fmt.Sprintf("%s %s", metaKeyStyle.Render("AniSkip:       "), lipgloss.NewStyle().Foreground(lipgloss.Color("#7dcfff")).Render(aniSkipBadge)))
 	}
 	if progressBar != "" {
 		metaLines = append(metaLines, fmt.Sprintf("%s %s", metaKeyStyle.Render("Progress:      "), lipgloss.NewStyle().Foreground(lipgloss.Color("#9ece6a")).Render(progressBar)))
@@ -3747,24 +3797,45 @@ func (m model) renderEpisodeDetailsPanel(width, height int) string {
 	wrappedSynopsis := strings.Join(visibleLines, "\n")
 
 	synopsisHeader := "◆ EPISODE SYNOPSIS ◆"
+	if isMovie {
+		synopsisHeader = "◆ MOVIE OVERVIEW ◆"
+	} else if isNonAnime {
+		synopsisHeader = "◆ SHOW OVERVIEW ◆"
+	}
 	if maxScroll > 0 {
 		currLine := m.detailsScrollOffset + 1
 		maxLine := maxScroll + 1
-		synopsisHeader = fmt.Sprintf("◆ EPISODE SYNOPSIS (scroll: h/l) [%d/%d] ◆", currLine, maxLine)
+		if isMovie {
+			synopsisHeader = fmt.Sprintf("◆ MOVIE OVERVIEW (scroll: h/l) [%d/%d] ◆", currLine, maxLine)
+		} else if isNonAnime {
+			synopsisHeader = fmt.Sprintf("◆ SHOW OVERVIEW (scroll: h/l) [%d/%d] ◆", currLine, maxLine)
+		} else {
+			synopsisHeader = fmt.Sprintf("◆ EPISODE SYNOPSIS (scroll: h/l) [%d/%d] ◆", currLine, maxLine)
+		}
+	}
+
+	subHeader := lipgloss.NewStyle().Foreground(lipgloss.Color("#565f89")).Render(m.selectedShow.Name) + "\n"
+	if isMovie {
+		subHeader = "" // omit duplicated show name for movies
 	}
 
 	rightPanelContent := fmt.Sprintf(
-		"%s\n%s\n\n%s\n\n%s\n%s",
-		lipgloss.NewStyle().Foreground(lipgloss.Color("#565f89")).Render(m.selectedShow.Name),
+		"%s%s\n\n%s\n\n%s\n%s",
+		subHeader,
 		titleStyle.Render(title),
 		strings.Join(metaLines, "\n"),
 		headerStyle.Render(synopsisHeader),
 		wrappedSynopsis,
 	)
 
+	panelTitle := "◆ EPISODE DETAILS ◆"
+	if isMovie {
+		panelTitle = "◆ MOVIE DETAILS ◆"
+	}
+
 	panelContent := fmt.Sprintf(
 		"%s\n%s",
-		headerStyle.Render("◆ EPISODE DETAILS ◆"),
+		headerStyle.Render(panelTitle),
 		rightPanelContent,
 	)
 
