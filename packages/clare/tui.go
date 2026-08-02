@@ -201,15 +201,17 @@ func (s showItem) Description() string {
 		parts = append(parts, fmt.Sprintf("%d episodes available", epCount))
 	}
 
-	// Add sub/dub badge
-	subCount := s.show.SubCount()
-	dubCount := s.show.DubCount()
-	if subCount > 0 && dubCount > 0 {
-		parts = append(parts, subDubBadgeStyle.Render("SUB+DUB"))
-	} else if subCount > 0 {
-		parts = append(parts, subBadgeStyle.Render("SUB"))
-	} else if dubCount > 0 {
-		parts = append(parts, dubBadgeStyle.Render("DUB"))
+	// Add sub/dub badge for anime providers
+	if !strings.EqualFold(s.show.Provider, "vidsrc") && !strings.EqualFold(s.show.Type, "MOVIE") && !strings.EqualFold(s.show.Type, "TV") {
+		subCount := s.show.SubCount()
+		dubCount := s.show.DubCount()
+		if subCount > 0 && dubCount > 0 {
+			parts = append(parts, subDubBadgeStyle.Render("SUB+DUB"))
+		} else if subCount > 0 {
+			parts = append(parts, subBadgeStyle.Render("SUB"))
+		} else if dubCount > 0 {
+			parts = append(parts, dubBadgeStyle.Render("DUB"))
+		}
 	}
 
 	return strings.Join(parts, "  •  ")
@@ -3258,11 +3260,21 @@ func (m *model) refreshEpisodeListItems() {
 			}
 			desc = strings.Join(tags, " | ")
 		} else {
-			title = fmt.Sprintf("Episode %s", ep)
+			if (strings.EqualFold(m.selectedShow.Type, "MOVIE") || strings.HasPrefix(m.selectedShow.ID, "vidsrc:movie")) && ep == "1" {
+				title = "Full Movie"
+			} else {
+				title = fmt.Sprintf("Episode %s", ep)
+			}
 		}
 
 		subAvail := m.selectedShow.HasSub(ep)
 		dubAvail := m.selectedShow.HasDub(ep)
+
+		// Omit sub/dub badges for VidSrc / Movies / TV
+		if strings.EqualFold(m.selectedShow.Provider, "vidsrc") || strings.EqualFold(m.selectedShow.Type, "MOVIE") || strings.EqualFold(m.selectedShow.Type, "TV") {
+			subAvail = false
+			dubAvail = false
+		}
 
 		isCompleted := false
 		if showState != nil {
@@ -3287,16 +3299,23 @@ func (m *model) refreshEpisodeListItems() {
 	}
 	m.episodeItems = items
 
-	// Add sub/dub badge to the list title
+	// Add sub/dub badge to the list title for anime
 	var badge string
-	if subCount > 0 && dubCount > 0 {
-		badge = " [SUB+DUB]"
-	} else if subCount > 0 {
-		badge = " [SUB only]"
-	} else if dubCount > 0 {
-		badge = " [DUB only]"
+	if !strings.EqualFold(m.selectedShow.Provider, "vidsrc") && !strings.EqualFold(m.selectedShow.Type, "MOVIE") && !strings.EqualFold(m.selectedShow.Type, "TV") {
+		if subCount > 0 && dubCount > 0 {
+			badge = " [SUB+DUB]"
+		} else if subCount > 0 {
+			badge = " [SUB only]"
+		} else if dubCount > 0 {
+			badge = " [DUB only]"
+		}
 	}
-	m.episodeList.Title = fmt.Sprintf("Select Episode%s", badge)
+
+	if strings.EqualFold(m.selectedShow.Type, "MOVIE") || strings.HasPrefix(m.selectedShow.ID, "vidsrc:movie") {
+		m.episodeList.Title = "Select Stream"
+	} else {
+		m.episodeList.Title = fmt.Sprintf("Select Episode%s", badge)
+	}
 	m.episodeList.SetItems(items)
 }
 
