@@ -483,6 +483,7 @@ type model struct {
 	quality                 string
 	mode                    string // sub, dub
 	err                     error
+	errorPopupMsg           string
 	width, height           int
 	loadingMsg              string
 	tempLuaFile             string
@@ -1154,6 +1155,17 @@ func (m model) Init() tea.Cmd {
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if keyMsg, ok := msg.(tea.KeyMsg); ok && m.errorPopupMsg != "" {
+		switch keyMsg.String() {
+		case "esc", "enter", "space", "q":
+			m.errorPopupMsg = ""
+			m.err = nil
+			return m, nil
+		default:
+			return m, nil
+		}
+	}
+
 	switch msg := msg.(type) {
 
 	case tea.WindowSizeMsg:
@@ -1172,13 +1184,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		debugLog("TUI searchResultMsg: shows=%d, err=%v", len(msg.shows), msg.err)
 		m.state = stateShowSelect
 		if msg.err != nil {
-			m.state = stateError
-			m.err = msg.err
+			m.errorPopupMsg = fmt.Sprintf("Search failed: %v", msg.err)
+			m.state = stateSearchInput
 			return m, nil
 		}
 		if len(msg.shows) == 0 {
-			m.state = stateError
-			m.err = fmt.Errorf("no shows found matching query")
+			m.errorPopupMsg = "No shows found matching query"
+			m.state = stateSearchInput
 			return m, nil
 		}
 
@@ -1211,8 +1223,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case episodesResultMsg:
 		debugLog("TUI episodesResultMsg: episodes=%d, err=%v", len(msg.episodes), msg.err)
 		if msg.err != nil {
-			m.state = stateError
-			m.err = msg.err
+			m.errorPopupMsg = fmt.Sprintf("Failed to load episodes: %v", msg.err)
+			if len(m.showItems) > 0 {
+				m.state = stateShowSelect
+			} else {
+				m.state = stateSearchInput
+			}
 			return m, nil
 		}
 
@@ -1342,8 +1358,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case resolvedPlaybackMsg:
 		debugLog("[INFO] resolvedPlaybackMsg: err=%v, warning=%s, tempLuaFile=%s, tempChaptersFile=%s", msg.err, msg.warning, msg.tempLuaFile, msg.tempChaptersFile)
 		if msg.err != nil {
-			m.state = stateError
-			m.err = msg.err
+			m.errorPopupMsg = fmt.Sprintf("Playback failed: %v", msg.err)
+			m.state = stateEpisodeSelect
 			return m, nil
 		}
 		if msg.warning != "" {
@@ -1834,9 +1850,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case sportsStreamResolvedMsg:
 		if msg.err != nil {
 			debugLog("TUI sportsStreamResolvedMsg error for %s: %v", msg.streamID, msg.err)
-			m.loadingMsg = fmt.Sprintf("⚠ Stream resolution failed: %v", msg.err)
-			m.state = stateError
-			m.err = msg.err
+			m.errorPopupMsg = fmt.Sprintf("Stream resolution failed: %v", msg.err)
+			m.state = stateLiveSports
 			return m, nil
 		}
 		// Update the stream URL in-place for the matching event
@@ -2349,8 +2364,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if ok {
 					today := time.Now().Format("2006-01-02")
 					if info, ok := m.episodeDetails[selected.epNo]; ok && info.Aired != "" && info.Aired > today {
-						m.state = stateError
-						m.err = fmt.Errorf("%s Episode %s has not aired yet (Air Date: %s)", m.selectedShow.Name, selected.epNo, info.Aired)
+						m.errorPopupMsg = fmt.Sprintf("%s Episode %s has not aired yet (Air Date: %s)", m.selectedShow.Name, selected.epNo, info.Aired)
 						return m, nil
 					}
 					m.selectedEp = selected.epNo
@@ -3145,7 +3159,86 @@ func (m model) View() string {
 		s.WriteString("\n" + helpText)
 	}
 
-	return s.String()
+	out := s.String()
+	if m.errorPopupMsg != "" {
+		out = m.renderErrorModal(out)
+	}
+
+	return out
+}
+
+func (m model) renderErrorModal(baseView string) string {
+	if m.errorPopupMsg == "" {
+		return baseView
+	}
+
+	boxWidth := 58
+	if m.width > 10 && boxWidth > m.width-4 {
+		boxWidth = m.width - 4
+	}
+	if boxWidth < 20 {
+		boxWidth = 20
+	}
+
+	headerStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("#f7768e")).
+		Align(lipgloss.Center).
+		Width(boxWidth - 4)
+
+	bodyStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#c0caf5")).
+		Align(lipgloss.Center).
+		Width(boxWidth - 4)
+
+	footerStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#565f89")).
+		Align(lipgloss.Center).
+		Width(boxWidth - 4)
+
+	popupContent := fmt.Sprintf("%s\n\n%s\n\n%s",
+		headerStyle.Render("⚠️  ERROR  ⚠️"),
+		bodyStyle.Render(m.errorPopupMsg),
+		footerStyle.Render("Press [Esc] or [Enter] to dismiss"),
+	)
+
+	popupBox := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("#f7768e")).
+		Background(lipgloss.Color("#1f2335")).
+		Padding(1, 2).
+		Width(boxWidth).
+		Render(popupContent)
+
+	lines := strings.Split(baseView, "\n")
+	popupLines := strings.Split(popupBox, "\n")
+
+	topPad := (m.height - len(popupLines)) / 2
+	if topPad < 0 {
+		topPad = 0
+	}
+
+	leftPad := (m.width - boxWidth) / 2
+	if leftPad < 0 {
+		leftPad = 0
+	}
+	padStr := strings.Repeat(" ", leftPad)
+
+	var result []string
+	for i := 0; i < topPad && i < len(lines); i++ {
+		result = append(result, lines[i])
+	}
+
+	for _, pLine := range popupLines {
+		result = append(result, padStr+pLine)
+	}
+
+	remaining := len(lines) - len(result)
+	for i := 0; i < remaining && (topPad+len(popupLines)+i) < len(lines); i++ {
+		result = append(result, lines[topPad+len(popupLines)+i])
+	}
+
+	return strings.Join(result, "\n")
 }
 
 func formatTime(seconds float64) string {
