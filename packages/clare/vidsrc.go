@@ -89,9 +89,45 @@ func (p *VidSrcProvider) FetchEpisodes(showID, mode string) (AnimeShow, []string
 	tmdbID := parts[1]
 
 	if mediaType == "movie" {
+		tmdbMovieURL := fmt.Sprintf("https://api.themoviedb.org/3/movie/%s?api_key=***REDACTED***", tmdbID)
+		body, err := doHTTPReqWithRetry("GET", tmdbMovieURL, nil, nil)
+		if err == nil {
+			var movieDetail struct {
+				Title       string  `json:"title"`
+				Overview    string  `json:"overview"`
+				PosterPath  string  `json:"poster_path"`
+				ReleaseDate string  `json:"release_date"`
+				VoteAverage float64 `json:"vote_average"`
+			}
+			if json.Unmarshal(body, &movieDetail) == nil && movieDetail.Title != "" {
+				thumb := ""
+				if movieDetail.PosterPath != "" {
+					thumb = "https://image.tmdb.org/t/p/w500" + movieDetail.PosterPath
+				}
+				year := 0
+				if len(movieDetail.ReleaseDate) >= 4 {
+					fmt.Sscanf(movieDetail.ReleaseDate[:4], "%d", &year)
+				}
+				return AnimeShow{
+					ID:          showID,
+					Name:        movieDetail.Title,
+					EnglishName: movieDetail.Title,
+					Description: movieDetail.Overview,
+					Thumbnail:   thumb,
+					Type:        "MOVIE",
+					Score:       movieDetail.VoteAverage,
+					Season: struct {
+						Quarter string  `json:"quarter"`
+						Year    FlexInt `json:"year"`
+					}{Year: FlexInt(year)},
+					Provider:    "vidsrc",
+				}, []string{"1"}, nil
+			}
+		}
 		return AnimeShow{
 			ID:       showID,
 			Name:     "Movie",
+			Type:     "MOVIE",
 			Provider: "vidsrc",
 		}, []string{"1"}, nil
 	}

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
 )
@@ -134,6 +135,28 @@ func NewMultiProviderResolver() *MultiProviderResolver {
 	}
 }
 
+func rankSearchMatch(showName, query string) int {
+	cleanShow := strings.ToLower(strings.TrimSpace(showName))
+	cleanQuery := strings.ToLower(strings.TrimSpace(query))
+	cleanShowNoSpace := strings.ReplaceAll(cleanShow, " ", "")
+	cleanQueryNoSpace := strings.ReplaceAll(cleanQuery, " ", "")
+
+	// Tier 1: Exact match
+	if cleanShow == cleanQuery || cleanShowNoSpace == cleanQueryNoSpace {
+		return 100
+	}
+	// Tier 2: Show title starts with query
+	if strings.HasPrefix(cleanShow, cleanQuery) || strings.HasPrefix(cleanShowNoSpace, cleanQueryNoSpace) {
+		return 80
+	}
+	// Tier 3: Query is contained in show title
+	if strings.Contains(cleanShow, cleanQuery) || strings.Contains(cleanShowNoSpace, cleanQueryNoSpace) {
+		return 60
+	}
+	// Tier 4: Weak match
+	return 10
+}
+
 func (r *MultiProviderResolver) Search(query, mode string) ([]AnimeShow, error) {
 	var allShows []AnimeShow
 	for _, p := range r.providers {
@@ -145,6 +168,26 @@ func (r *MultiProviderResolver) Search(query, mode string) ([]AnimeShow, error) 
 	if len(allShows) == 0 {
 		return nil, fmt.Errorf("no shows found across all providers for query %q", query)
 	}
+
+	// Sort search results by title relevance score (stable sort preserving provider quality order for equal scores)
+	sort.SliceStable(allShows, func(i, j int) bool {
+		scoreI := rankSearchMatch(allShows[i].Name, query)
+		if english := allShows[i].EnglishName; english != "" {
+			if s := rankSearchMatch(english, query); s > scoreI {
+				scoreI = s
+			}
+		}
+
+		scoreJ := rankSearchMatch(allShows[j].Name, query)
+		if english := allShows[j].EnglishName; english != "" {
+			if s := rankSearchMatch(english, query); s > scoreJ {
+				scoreJ = s
+			}
+		}
+
+		return scoreI > scoreJ
+	})
+
 	LogEventInfo(DomainSearch, "multi-provider search completed",
 		slog.String("query", query),
 		slog.Int("total_shows", len(allShows)),
