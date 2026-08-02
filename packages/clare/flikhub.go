@@ -221,14 +221,16 @@ func (p *FlikhubProvider) ResolveStreams(showID, mode, episodeNo, quality string
 		}
 	}
 
-	// If malID is not numeric (e.g. it's an AllAnime ID), perform a Flikhub title lookup to resolve the MAL ID
-	if _, err := strconv.Atoi(malID); err != nil && showName != "" {
-		if shows, err := p.Search(showName, mode); err == nil && len(shows) > 0 {
-			for _, s := range shows {
-				if flikShow, eps, err := p.FetchEpisodes(s.ID, mode); err == nil && len(eps) > 0 && flikShow.MALID != "" {
-					malID = flikShow.MALID
-					break
-				}
+	// If malID is not numeric (e.g. it's a FlikHub slug or AllAnime ID), resolve MAL ID via title lookup or AniList
+	if _, err := strconv.Atoi(malID); err != nil {
+		targetTitle := showName
+		if targetTitle == "" {
+			targetTitle = cleanFlikhubTitle(stripProviderPrefix(showID))
+		}
+		if targetTitle != "" {
+			if resolvedMAL := resolveMALIDFromTitle(targetTitle); resolvedMAL != "" {
+				malID = resolvedMAL
+				debugLog("Flikhub: resolved MAL ID %s for title %q", malID, targetTitle)
 			}
 		}
 	}
@@ -263,20 +265,23 @@ func (p *FlikhubProvider) ResolveStreams(showID, mode, episodeNo, quality string
 	}
 
 	var streams []ResolvedStream
-	if res.ProxiedUrl != "" {
-		streams = append(streams, ResolvedStream{
-			Provider:   "flikhub",
-			SourceName: "Flikhub-Proxy",
-			Quality:    "best",
-			URL:        res.ProxiedUrl,
-			Subtitles:  subtitles,
-		})
-	} else if res.M3u8 != "" {
+	if res.M3u8 != "" {
 		streams = append(streams, ResolvedStream{
 			Provider:   "flikhub",
 			SourceName: "Flikhub-Direct",
 			Quality:    "best",
 			URL:        res.M3u8,
+			Referer:    "https://megaplay.buzz/",
+			Subtitles:  subtitles,
+		})
+	}
+	if res.ProxiedUrl != "" {
+		streams = append(streams, ResolvedStream{
+			Provider:   "flikhub",
+			SourceName: "Flikhub-Proxy",
+			Quality:    "alt",
+			URL:        res.ProxiedUrl,
+			Referer:    "https://megaplay.buzz/",
 			Subtitles:  subtitles,
 		})
 	}

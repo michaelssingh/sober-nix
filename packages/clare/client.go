@@ -1152,10 +1152,55 @@ func enrichShowMetadata(show *AnimeShow) {
 		if show.Season.Year == 0 && m.SeasonYear != 0 {
 			show.Season.Year = FlexInt(m.SeasonYear)
 		}
-		if len(show.Genres) == 0 && len(m.Genres) > 0 {
-			show.Genres = m.Genres
-		}
 	}
+}
+
+func resolveMALIDFromTitle(title string) string {
+	cleanTitle := title
+	if idx := strings.Index(cleanTitle, "("); idx > 0 {
+		cleanTitle = strings.TrimSpace(cleanTitle[:idx])
+	}
+	if cleanTitle == "" || cleanTitle == "AniDB Show" {
+		return ""
+	}
+
+	query := `query ($search: String) {
+		Media(search: $search, type: ANIME) {
+			idMal
+		}
+	}`
+	payload := map[string]any{
+		"query": query,
+		"variables": map[string]any{
+			"search": cleanTitle,
+		},
+	}
+	jsonBody, err := json.Marshal(payload)
+	if err != nil {
+		return ""
+	}
+
+	headers := map[string]string{
+		"Content-Type": "application/json",
+		"User-Agent":   UserAgent,
+	}
+
+	respBody, err := doHTTPReqWithRetry("POST", "https://graphql.anilist.co", jsonBody, headers)
+	if err != nil {
+		return ""
+	}
+
+	var res struct {
+		Data struct {
+			Media struct {
+				IDMal int `json:"idMal"`
+			} `json:"Media"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(respBody, &res); err == nil && res.Data.Media.IDMal > 0 {
+		return fmt.Sprintf("%d", res.Data.Media.IDMal)
+	}
+	return ""
 }
 
 func prefetchEpisodeStream(showID, mode, epNo, quality string) {
@@ -1518,6 +1563,7 @@ type ResolvedStream struct {
 	SourceName string
 	Quality    string
 	URL        string
+	Referer    string
 	Subtitles  []SubtitleTrack
 }
 

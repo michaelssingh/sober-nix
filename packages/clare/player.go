@@ -24,11 +24,16 @@ var savePositionLua string
 type AniSkipInterval struct {
 	StartTime float64 `json:"startTime"`
 	EndTime   float64 `json:"endTime"`
+
+	// Fallback fields for v1 API (snake_case)
+	StartTimeSnake float64 `json:"start_time"`
+	EndTimeSnake   float64 `json:"end_time"`
 }
 
 type AniSkipResult struct {
-	Interval AniSkipInterval `json:"interval"`
-	SkipType string          `json:"skipType"`
+	Interval      AniSkipInterval `json:"interval"`
+	SkipType      string          `json:"skipType"`
+	SkipTypeSnake string          `json:"skip_type"`
 }
 
 type AniSkipResponse struct {
@@ -62,27 +67,49 @@ func fetchAniSkipTimes(malID string, epNo string, durationSeconds float64) []Ani
 	if epLen <= 0 {
 		epLen = 1440
 	}
-	url := fmt.Sprintf("https://api.aniskip.com/v2/skip-times/%s/%s?types=op&types=ed&types=mixed-op&types=mixed-ed&types=recap&episodeLength=%d", malID, cleanEp, epLen)
-	debugLog("fetchAniSkipTimes: requesting %s", url)
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		debugLog("fetchAniSkipTimes: error creating request: %v", err)
-		return nil
+
+	// Try v2 first (supports mixed-op, mixed-ed, recap, episodeLength), then v1 (supports op, ed)
+	var body []byte
+	endpoints := []struct {
+		ver string
+		url string
+	}{
+		{
+			ver: "v2",
+			url: fmt.Sprintf("https://api.aniskip.com/v2/skip-times/%s/%s?types=op&types=ed&types=mixed-op&types=mixed-ed&types=recap&episodeLength=%d", malID, cleanEp, epLen),
+		},
+		{
+			ver: "v1",
+			url: fmt.Sprintf("https://api.aniskip.com/v1/skip-times/%s/%s?types=op&types=ed", malID, cleanEp),
+		},
 	}
-	req.Header.Set("User-Agent", UserAgent)
-	resp, err := client.Do(req)
-	if err != nil {
-		debugLog("fetchAniSkipTimes: HTTP error: %v", err)
-		return nil
+
+	for _, ep := range endpoints {
+		debugLog("fetchAniSkipTimes: requesting %s (%s)", ep.ver, ep.url)
+		req, err := http.NewRequest("GET", ep.url, nil)
+		if err != nil {
+			debugLog("fetchAniSkipTimes: error creating request: %v", err)
+			continue
+		}
+		req.Header.Set("User-Agent", UserAgent)
+		resp, err := client.Do(req)
+		if err != nil {
+			debugLog("fetchAniSkipTimes: HTTP error: %v", err)
+			continue
+		}
+		body, err = io.ReadAll(resp.Body)
+		resp.Body.Close()
+		if err != nil {
+			debugLog("fetchAniSkipTimes: error reading body: %v", err)
+			continue
+		}
+		debugLog("fetchAniSkipTimes: %s status=%d, body=%s", ep.ver, resp.StatusCode, string(body))
+		if resp.StatusCode == http.StatusOK {
+			break // success
+		}
+		body = nil
 	}
-	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		debugLog("fetchAniSkipTimes: error reading body: %v", err)
-		return nil
-	}
-	debugLog("fetchAniSkipTimes: status=%d, body=%s", resp.StatusCode, string(body))
-	if resp.StatusCode != http.StatusOK {
+	if body == nil {
 		return nil
 	}
 	var result AniSkipResponse
@@ -94,8 +121,21 @@ func fetchAniSkipTimes(malID string, epNo string, durationSeconds float64) []Ani
 		debugLog("fetchAniSkipTimes: API returned found=false")
 		return nil
 	}
-	debugLog("fetchAniSkipTimes: found %d skip times", len(result.Results))
 
+	// Normalize v1/v2 field names (snake_case vs camelCase)
+	for i := range result.Results {
+		if result.Results[i].SkipType == "" {
+			result.Results[i].SkipType = result.Results[i].SkipTypeSnake
+		}
+		if result.Results[i].Interval.StartTime == 0 && result.Results[i].Interval.StartTimeSnake > 0 {
+			result.Results[i].Interval.StartTime = result.Results[i].Interval.StartTimeSnake
+		}
+		if result.Results[i].Interval.EndTime == 0 && result.Results[i].Interval.EndTimeSnake > 0 {
+			result.Results[i].Interval.EndTime = result.Results[i].Interval.EndTimeSnake
+		}
+	}
+
+	debugLog("fetchAniSkipTimes: found %d skip times", len(result.Results))
 	saveAniSkipCache(malID, cleanEp, result.Results)
 
 	return result.Results
@@ -259,6 +299,8 @@ local skip_times_json = %q
 		referer = "https://youtu-chan.com/"
 	} else if strings.Contains(streamURL, "cloudorchestranova") || strings.Contains(streamURL, "zealotsofzenith") || strings.Contains(streamURL, "vidsrc") {
 		referer = "https://cloudorchestranova.com/"
+	} else if strings.Contains(streamURL, "nextgenmarketinghub") || strings.Contains(streamURL, "quietmidnightgardening") || strings.Contains(streamURL, "vaplayer") {
+		referer = "https://nextgencloudfabric.com/"
 	}
 
 	headerFields := "User-Agent: " + UserAgent
@@ -384,8 +426,6 @@ func SanitizeM3U8Playlist(streamURL string, headers map[string]string) (string, 
 		if strings.Contains(trimmed, "ibyteimg.com") ||
 			strings.Contains(trimmed, "ad-site") ||
 			strings.Contains(trimmed, ".png") ||
-			strings.Contains(trimmed, "/segment/") ||
-			strings.Contains(trimmed, "%2Fsegment") ||
 			strings.Contains(trimmed, "doubleclick") ||
 			strings.Contains(trimmed, "googleadservices") {
 			// Strip preceding #EXTINF tag if present in sanitizedLines

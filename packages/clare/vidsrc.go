@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
-	"regexp"
 	"strings"
 )
 
@@ -148,96 +147,77 @@ func (p *VidSrcProvider) ResolveStreams(showID, mode, episodeNo, quality string)
 	mediaType := parts[0]
 	tmdbID := parts[1]
 
-	var embedURL string
-	if mediaType == "movie" {
-		embedURL = fmt.Sprintf("https://vidsrcme.su/embed/movie/%s", tmdbID)
-	} else {
-		embedURL = fmt.Sprintf("https://vidsrcme.su/embed/tv/%s/1/%s", tmdbID, episodeNo)
+	// Determine season from episodeNo (encoded as "S01E01" or a flat counter).
+	// For the vaplayer API we always need season + episode numbers.
+	season := "1"
+	episode := episodeNo
+	if strings.HasPrefix(strings.ToUpper(episodeNo), "S") {
+		// "S01E03" style
+		var s, e int
+		if _, err := fmt.Sscanf(strings.ToUpper(episodeNo), "S%02dE%02d", &s, &e); err == nil {
+			season = fmt.Sprintf("%d", s)
+			episode = fmt.Sprintf("%d", e)
+		}
 	}
 
-	streamURL, err := unpackVidSrcEmbed(embedURL)
+	streamURLs, err := resolveVaplayerStream(tmdbID, mediaType, season, episode)
 	if err != nil {
-		return nil, fmt.Errorf("vidsrc unpack failed: %w", err)
+		return nil, fmt.Errorf("vidsrc stream resolution failed: %w", err)
+	}
+	if len(streamURLs) == 0 {
+		return nil, fmt.Errorf("vidsrc: no stream URLs returned for %s", showID)
 	}
 
-	return []ResolvedStream{
-		{
+	var streams []ResolvedStream
+	for i, u := range streamURLs {
+		quality := "HD"
+		if i > 0 {
+			quality = fmt.Sprintf("HD-Alt%d", i)
+		}
+		streams = append(streams, ResolvedStream{
 			Provider:   "vidsrc",
-			SourceName: "VidSrc-HD",
-			Quality:    "best",
-			URL:        streamURL,
-		},
-	}, nil
+			SourceName: fmt.Sprintf("VidSrc-%s", quality),
+			Quality:    quality,
+			URL:        u,
+			Referer:    "https://nextgencloudfabric.com/",
+		})
+	}
+	return streams, nil
 }
 
-func unpackVidSrcEmbed(embedURL string) (string, error) {
-	headers := map[string]string{
+// resolveVaplayerStream calls the streamdata.vaplayer.ru API which returns
+// direct HLS m3u8 URLs for movies and TV episodes by TMDB ID.
+// This is the backend of the vidsrc.pm / nextgencloudfabric.com player stack.
+func resolveVaplayerStream(tmdbID, mediaType, season, episode string) ([]string, error) {
+	var apiURL string
+	if mediaType == "movie" {
+		apiURL = fmt.Sprintf("https://streamdata.vaplayer.ru/api.php?tmdb=%s&type=movie", tmdbID)
+	} else {
+		apiURL = fmt.Sprintf("https://streamdata.vaplayer.ru/api.php?tmdb=%s&type=tv&season=%s&episode=%s", tmdbID, season, episode)
+	}
+
+	body, err := doHTTPReqWithRetry("GET", apiURL, nil, map[string]string{
 		"User-Agent": UserAgent,
-		"Referer":    "https://vidsrcme.su/",
-	}
-
-	body1, err := doHTTPReqWithRetry("GET", embedURL, nil, headers)
+		"Referer":    "https://nextgencloudfabric.com/",
+	})
 	if err != nil {
-		return "", fmt.Errorf("stage 1 embed page failed: %w", err)
-	}
-	html1 := string(body1)
-
-	reIframe := regexp.MustCompile(`<iframe[^>]*src="([^"]+)"`)
-	match1 := reIframe.FindStringSubmatch(html1)
-	if len(match1) < 2 {
-		return "", fmt.Errorf("stage 1 iframe src not found")
-	}
-	rcpURL := match1[1]
-	if strings.HasPrefix(rcpURL, "//") {
-		rcpURL = "https:" + rcpURL
+		return nil, fmt.Errorf("vaplayer API request failed: %w", err)
 	}
 
-	body2, err := doHTTPReqWithRetry("GET", rcpURL, nil, headers)
-	if err != nil {
-		return "", fmt.Errorf("stage 2 rcp page failed: %w", err)
+	var resp struct {
+		StatusCode string `json:"status_code"`
+		Data       struct {
+			StreamURLs []string `json:"stream_urls"`
+		} `json:"data"`
 	}
-	html2 := string(body2)
-
-	reProrcp := regexp.MustCompile(`src:\s*["'](/prorcp/[^"']+)["']`)
-	match2 := reProrcp.FindStringSubmatch(html2)
-	if len(match2) < 2 {
-		return "", fmt.Errorf("stage 2 prorcp path not found")
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return nil, fmt.Errorf("vaplayer API parse failed: %w", err)
 	}
-	prorcpURL := "https://cloudorchestranova.com" + match2[1]
-
-	prorcpHeaders := map[string]string{
-		"User-Agent": UserAgent,
-		"Referer":    rcpURL,
+	if resp.StatusCode != "200" && resp.StatusCode != "" {
+		return nil, fmt.Errorf("vaplayer API returned status %s", resp.StatusCode)
 	}
-	body3, err := doHTTPReqWithRetry("GET", prorcpURL, nil, prorcpHeaders)
-	if err != nil {
-		return "", fmt.Errorf("stage 3 prorcp page failed: %w", err)
+	if len(resp.Data.StreamURLs) == 0 {
+		return nil, fmt.Errorf("vaplayer API returned no stream URLs")
 	}
-	html3 := string(body3)
-
-	reM3u8 := regexp.MustCompile(`https?://[^\s"'\<>]+?\.m3u8[^\s"'\<>]*`)
-	rawM3u8 := reM3u8.FindString(html3)
-	if rawM3u8 == "" {
-		return "", fmt.Errorf("stage 3 m3u8 url not found")
-	}
-
-	parsedM3u8, err := url.Parse(rawM3u8)
-	if err != nil {
-		return "", fmt.Errorf("stage 3 parse m3u8 url failed: %w", err)
-	}
-	masterHost := parsedM3u8.Host
-
-	tokenURL := fmt.Sprintf("https://%s/generate.php", masterHost)
-	tokenHeaders := map[string]string{
-		"User-Agent": UserAgent,
-		"Referer":    prorcpURL,
-	}
-	tokenBody, err := doHTTPReqWithRetry("GET", tokenURL, nil, tokenHeaders)
-	if err != nil {
-		return "", fmt.Errorf("stage 4 generate token failed: %w", err)
-	}
-	token := strings.TrimSpace(string(tokenBody))
-
-	finalM3u8 := strings.Replace(rawM3u8, "__TOKEN__", token, 1)
-	return finalM3u8, nil
+	return resp.Data.StreamURLs, nil
 }

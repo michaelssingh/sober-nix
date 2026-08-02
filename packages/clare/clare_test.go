@@ -1624,6 +1624,137 @@ func TestProviderFlikHub(t *testing.T) {
 	})
 }
 
+func TestFlikHubSanitization(t *testing.T) {
+	_ = InitLogger("")
+	prov := &FlikhubProvider{}
+	streams, err := prov.ResolveStreams("58939", "sub", "1", "best")
+	if err != nil || len(streams) == 0 {
+		t.Fatalf("Failed to resolve FlikHub streams for Sakamoto Days: %v", err)
+	}
+
+	streamURL := streams[0].URL
+	t.Logf("Resolved FlikHub master stream URL: %s", streamURL)
+
+	sanitizedFile, err := SanitizeM3U8Playlist(streamURL, map[string]string{
+		"User-Agent": UserAgent,
+		"Referer":    "https://megaplay.buzz/",
+	})
+	if err != nil {
+		t.Fatalf("SanitizeM3U8Playlist returned error: %v", err)
+	}
+	if sanitizedFile == "" {
+		t.Fatalf("SanitizeM3U8Playlist returned empty file path")
+	}
+	defer os.Remove(sanitizedFile)
+
+	body, err := os.ReadFile(sanitizedFile)
+	if err != nil {
+		t.Fatalf("Failed to read sanitized playlist file %s: %v", sanitizedFile, err)
+	}
+
+	content := string(body)
+	if !strings.Contains(content, "#EXTM3U") {
+		t.Fatalf("Sanitized playlist missing #EXTM3U header")
+	}
+
+	// Verify ad domains are completely stripped
+	adKeywords := []string{"ibyteimg.com", "ad-site", ".png", "doubleclick", "googleadservices"}
+	for _, kw := range adKeywords {
+		if strings.Contains(content, kw) {
+			t.Errorf("Sanitized playlist still contains ad keyword %q", kw)
+		}
+	}
+
+	// Verify valid segments remain
+	if !strings.Contains(content, "segment/") {
+		t.Errorf("Sanitized playlist missing genuine video segments")
+	}
+
+	t.Logf("✓ Sanitization verified! Created clean playlist (%d bytes) with zero ad segments.", len(body))
+}
+
+func TestFrameRenderingProof(t *testing.T) {
+	_ = InitLogger("")
+
+	t.Log("=== 1. Testing VidSrc Movie Stream Decoding ===")
+	vidsrc := &VidSrcProvider{}
+	movieStreams, err := vidsrc.ResolveStreams("vidsrc:movie:603", "sub", "1", "best")
+	if err != nil || len(movieStreams) == 0 {
+		t.Fatalf("VidSrc resolve error: %v", err)
+	}
+	t.Logf("✓ VidSrc Movie Stream URL: %s", movieStreams[0].URL)
+
+	outDirMatrix := filepath.Join(os.TempDir(), "clare_matrix_frames")
+	_ = os.RemoveAll(outDirMatrix)
+	_ = os.MkdirAll(outDirMatrix, 0755)
+	defer os.RemoveAll(outDirMatrix)
+
+	cmd1 := exec.Command("mpv",
+		"--no-audio",
+		"--vo=image",
+		"--vo-image-format=png",
+		"--vo-image-outdir="+outDirMatrix,
+		"--frames=3",
+		"--http-header-fields=Referer: "+movieStreams[0].Referer+"\r\nUser-Agent: "+UserAgent,
+		movieStreams[0].URL,
+	)
+	if out, err := cmd1.CombinedOutput(); err != nil {
+		t.Fatalf("MPV Matrix error: %v, output: %s", err, string(out))
+	}
+	filesMatrix, _ := os.ReadDir(outDirMatrix)
+	if len(filesMatrix) == 0 {
+		t.Fatalf("MPV failed to decode video frames for The Matrix")
+	}
+	for _, f := range filesMatrix {
+		info, _ := f.Info()
+		t.Logf("✓ Decoded Movie Frame: %s (%d bytes)", f.Name(), info.Size())
+	}
+
+	t.Log("\n=== 2. Testing FlikHub Anime Stream Decoding ===")
+	flik := &FlikhubProvider{}
+	animeStreams, err := flik.ResolveStreams("58939", "sub", "1", "best")
+	if err != nil || len(animeStreams) == 0 {
+		t.Fatalf("FlikHub resolve error: %v", err)
+	}
+	t.Logf("✓ FlikHub Anime Stream URL: %s", animeStreams[0].URL)
+
+	sanitizedFile, err := SanitizeM3U8Playlist(animeStreams[0].URL, map[string]string{
+		"User-Agent": UserAgent,
+		"Referer":    "https://megaplay.buzz/",
+	})
+	if err != nil {
+		t.Fatalf("SanitizeM3U8Playlist error: %v", err)
+	}
+	defer os.Remove(sanitizedFile)
+
+	outDirAnime := filepath.Join(os.TempDir(), "clare_anime_frames")
+	_ = os.RemoveAll(outDirAnime)
+	_ = os.MkdirAll(outDirAnime, 0755)
+	defer os.RemoveAll(outDirAnime)
+
+	cmd2 := exec.Command("mpv",
+		"--no-audio",
+		"--vo=image",
+		"--vo-image-format=png",
+		"--vo-image-outdir="+outDirAnime,
+		"--frames=3",
+		"--http-header-fields=Referer: https://megaplay.buzz/\r\nUser-Agent: "+UserAgent,
+		sanitizedFile,
+	)
+	cmd2.Env = append(os.Environ(), "FFMPEG_PROTOCOL_WHITELIST=file,http,https,tcp,tls,crypto,data,concat")
+	if out, err := cmd2.CombinedOutput(); err != nil {
+		t.Fatalf("MPV Anime error: %v, output: %s", err, string(out))
+	}
+	filesAnime, _ := os.ReadDir(outDirAnime)
+	if len(filesAnime) == 0 {
+		t.Fatalf("MPV failed to decode video frames for Sakamoto Days")
+	}
+	for _, f := range filesAnime {
+		info, _ := f.Info()
+		t.Logf("✓ Decoded Anime Frame: %s (%d bytes)", f.Name(), info.Size())
+	}
+}
+
 func TestProviderAllAnime(t *testing.T) {
 	_ = InitLogger("")
 	prov := &AllAnimeProvider{}
