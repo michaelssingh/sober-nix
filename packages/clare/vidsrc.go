@@ -99,6 +99,7 @@ func (p *VidSrcProvider) FetchEpisodes(showID, mode string) (AnimeShow, []string
 				PosterPath  string  `json:"poster_path"`
 				ReleaseDate string  `json:"release_date"`
 				VoteAverage float64 `json:"vote_average"`
+				Runtime     int     `json:"runtime"`
 			}
 			if json.Unmarshal(body, &movieDetail) == nil && movieDetail.Title != "" {
 				thumb := ""
@@ -109,6 +110,10 @@ func (p *VidSrcProvider) FetchEpisodes(showID, mode string) (AnimeShow, []string
 				if len(movieDetail.ReleaseDate) >= 4 {
 					fmt.Sscanf(movieDetail.ReleaseDate[:4], "%d", &year)
 				}
+				durationStr := "Feature Film"
+				if movieDetail.Runtime > 0 {
+					durationStr = fmt.Sprintf("%d min", movieDetail.Runtime)
+				}
 				return AnimeShow{
 					ID:          showID,
 					Name:        movieDetail.Title,
@@ -116,20 +121,22 @@ func (p *VidSrcProvider) FetchEpisodes(showID, mode string) (AnimeShow, []string
 					Description: movieDetail.Overview,
 					Thumbnail:   thumb,
 					Type:        "MOVIE",
+					Duration:    durationStr,
 					Score:       movieDetail.VoteAverage,
 					Season: struct {
 						Quarter string  `json:"quarter"`
 						Year    FlexInt `json:"year"`
 					}{Year: FlexInt(year)},
-					Provider:    "vidsrc",
+					Provider: "vidsrc",
 				}, []string{"1"}, nil
 			}
 		}
 		return AnimeShow{
-			ID:       showID,
-			Name:     "Movie",
-			Type:     "MOVIE",
-			Provider: "vidsrc",
+			ID:          showID,
+			Name:        "Movie",
+			Type:        "MOVIE",
+			Duration:    "Feature Film",
+			Provider:    "vidsrc",
 		}, []string{"1"}, nil
 	}
 
@@ -146,6 +153,7 @@ func (p *VidSrcProvider) FetchEpisodes(showID, mode string) (AnimeShow, []string
 		FirstAirDate     string  `json:"first_air_date"`
 		VoteAverage      float64 `json:"vote_average"`
 		NumberOfEpisodes int     `json:"number_of_episodes"`
+		NumberOfSeasons  int     `json:"number_of_seasons"`
 		Seasons          []struct {
 			SeasonNumber int    `json:"season_number"`
 			Name         string `json:"name"`
@@ -197,6 +205,13 @@ func (p *VidSrcProvider) FetchEpisodes(showID, mode string) (AnimeShow, []string
 		fmt.Sscanf(tvDetail.FirstAirDate[:4], "%d", &year)
 	}
 
+	durationStr := ""
+	if tvDetail.NumberOfSeasons > 0 && tvDetail.NumberOfEpisodes > 0 {
+		durationStr = fmt.Sprintf("%d Seasons (%d eps)", tvDetail.NumberOfSeasons, tvDetail.NumberOfEpisodes)
+	} else if tvDetail.NumberOfEpisodes > 0 {
+		durationStr = fmt.Sprintf("%d Episodes", tvDetail.NumberOfEpisodes)
+	}
+
 	return AnimeShow{
 		ID:          showID,
 		Name:        tvDetail.Name,
@@ -204,6 +219,7 @@ func (p *VidSrcProvider) FetchEpisodes(showID, mode string) (AnimeShow, []string
 		Description: tvDetail.Overview,
 		Thumbnail:   thumb,
 		Type:        "TV",
+		Duration:    durationStr,
 		Score:       tvDetail.VoteAverage,
 		Season: struct {
 			Quarter string  `json:"quarter"`

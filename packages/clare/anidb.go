@@ -35,7 +35,6 @@ func (p *AniDBProvider) Search(query, mode string) ([]AnimeShow, error) {
 
 	for _, m := range matches {
 		if len(m) >= 5 {
-			slugWithID := m[1]
 			idNum := m[2]
 			title := strings.TrimSpace(m[3])
 			thumb := m[4]
@@ -51,7 +50,7 @@ func (p *AniDBProvider) Search(query, mode string) ([]AnimeShow, error) {
 				EnglishName: title,
 				Thumbnail:   thumb,
 				Type:        "TV",
-				Description: slugWithID,
+				Description: "",
 			}
 			enrichShowMetadata(&show)
 			_ = saveShowCache(show.ID, show, nil)
@@ -64,7 +63,6 @@ func (p *AniDBProvider) Search(query, mode string) ([]AnimeShow, error) {
 		fallbackMatches := reFallback.FindAllStringSubmatch(string(body), -1)
 		for _, m := range fallbackMatches {
 			if len(m) >= 4 {
-				slugWithID := m[1]
 				idNum := m[2]
 				title := strings.TrimSpace(m[3])
 				if seen[idNum] {
@@ -76,7 +74,7 @@ func (p *AniDBProvider) Search(query, mode string) ([]AnimeShow, error) {
 					Name:        title,
 					EnglishName: title,
 					Type:        "TV",
-					Description: slugWithID,
+					Description: "",
 				}
 				enrichShowMetadata(&show)
 				_ = saveShowCache(show.ID, show, nil)

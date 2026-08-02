@@ -1074,6 +1074,9 @@ func enrichShowMetadata(show *AnimeShow) {
 		Media(search: $search, type: ANIME) {
 			id
 			idMal
+			format
+			episodes
+			duration
 			title {
 				romaji
 				english
@@ -1115,6 +1118,9 @@ func enrichShowMetadata(show *AnimeShow) {
 			Media struct {
 				ID          int      `json:"id"`
 				IDMal       int      `json:"idMal"`
+				Format      string   `json:"format"`
+				Episodes    int      `json:"episodes"`
+				Duration    int      `json:"duration"`
 				Description string   `json:"description"`
 				SeasonYear  int      `json:"seasonYear"`
 				Score       float64  `json:"score"`
@@ -1147,7 +1153,7 @@ func enrichShowMetadata(show *AnimeShow) {
 				show.Thumbnail = m.CoverImage.Large
 			}
 		}
-		if show.Description == "" {
+		if show.Description == "" || strings.HasPrefix(show.Description, "anidb:") || (!strings.Contains(show.Description, " ") && len(show.Description) < 30) {
 			show.Description = m.Description
 		}
 		if show.EnglishName == "" && m.Title.English != "" {
@@ -1161,6 +1167,21 @@ func enrichShowMetadata(show *AnimeShow) {
 		}
 		if show.Season.Year == 0 && m.SeasonYear != 0 {
 			show.Season.Year = FlexInt(m.SeasonYear)
+		}
+		if show.Type == "" && m.Format != "" {
+			show.Type = m.Format
+		}
+		if len(show.Genres) == 0 && len(m.Genres) > 0 {
+			show.Genres = m.Genres
+		}
+		if show.Duration == "" {
+			if m.Episodes > 0 && m.Duration > 0 {
+				show.Duration = fmt.Sprintf("%d eps × %d min", m.Episodes, m.Duration)
+			} else if m.Duration > 0 {
+				show.Duration = fmt.Sprintf("%d min", m.Duration)
+			} else if m.Episodes > 0 {
+				show.Duration = fmt.Sprintf("%d Episodes", m.Episodes)
+			}
 		}
 	}
 }

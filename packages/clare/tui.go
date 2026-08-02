@@ -1835,6 +1835,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.err != nil {
 			debugLog("TUI sportsStreamResolvedMsg error for %s: %v", msg.streamID, msg.err)
 			m.loadingMsg = fmt.Sprintf("⚠ Stream resolution failed: %v", msg.err)
+			m.state = stateError
+			m.err = msg.err
 			return m, nil
 		}
 		// Update the stream URL in-place for the matching event
@@ -1847,6 +1849,25 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 		}
+
+		// Update selected show and episode metadata for sports
+		eventTitle := msg.stream.Name
+		if m.selectedSportsEvent != nil && m.selectedSportsEvent.Title != "" {
+			eventTitle = m.selectedSportsEvent.Title
+		}
+		m.selectedShow = AnimeShow{
+			ID:          msg.stream.ID,
+			Name:        eventTitle,
+			EnglishName: eventTitle,
+			Type:        "LIVE",
+			Provider:    "sports",
+		}
+		m.selectedEp = msg.stream.Name
+		m.playingShow = m.selectedShow
+		m.playingEp = m.selectedEp
+		m.playbackActive = true
+		m.mpvStatus = MpvStatus{Paused: false, Volume: 100}
+
 		// Launch MPV with low-latency live sports flags
 		extraArgs := []string{
 			"--demuxer-lavf-o-add=probesize=1000000",
@@ -1856,7 +1877,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			"--force-seekable=yes",
 			"--keep-open=no",
 		}
-		cmd, tempLua, tempChapters, _, _, err := getMpvCmd(msg.stream.URL, msg.stream.Name, "Live", "", "", extraArgs)
+		cmd, tempLua, tempChapters, _, _, err := getMpvCmd(msg.stream.URL, eventTitle, msg.stream.Name, "", "", extraArgs)
 		if err != nil {
 			m.loadingMsg = fmt.Sprintf("⚠ Could not build MPV command: %v", err)
 			return m, nil
@@ -1867,7 +1888,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.activeCmd = cmd
 		m.state = statePlaybackActive
-		return m, waitForExitCmd(cmd, tempLua, tempChapters)
+		return m, tea.Batch(waitForExitCmd(cmd, tempLua, tempChapters), tickMpvStatusCmd())
 
 	case tea.MouseMsg:
 		switch m.state {
@@ -3721,10 +3742,12 @@ func (m model) renderShowDetailsPanel(show AnimeShow, coverArtANSI string, width
 	epsStr := "Unknown"
 	if show.Duration != "" {
 		epsStr = show.Duration
-	} else if strings.EqualFold(show.Type, "MOVIE") || strings.HasPrefix(show.ID, "vidsrc:movie") {
-		epsStr = "Feature Film"
+	} else if len(m.episodes) > 0 && !(strings.EqualFold(show.Type, "MOVIE") || strings.HasPrefix(show.ID, "vidsrc:movie")) {
+		epsStr = fmt.Sprintf("%d Episodes", len(m.episodes))
 	} else if show.EpCount() > 0 {
 		epsStr = fmt.Sprintf("%d Episodes", show.EpCount())
+	} else if strings.EqualFold(show.Type, "MOVIE") || strings.HasPrefix(show.ID, "vidsrc:movie") {
+		epsStr = "Feature Film"
 	}
 
 	desc := cleanHTML(show.Description)
