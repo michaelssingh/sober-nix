@@ -292,12 +292,28 @@ func resolveDaddyLiveStream(channelID string) (string, error) {
 
 // ─── Combined fetcher ─────────────────────────────────────────────────────────
 
-// FetchAllSportsEvents merges live sports events from active providers (streamed.st).
+// FetchAllSportsEvents merges live sports events from active providers (DaddyLive & streamed.st).
 func FetchAllSportsEvents() ([]SportsEvent, error) {
-	events, err := fetchStreamedLiveMatches()
-	if err != nil {
-		debugLog("sports: streamed.st error: %v", err)
-		return nil, fmt.Errorf("failed to fetch live sports: %w", err)
+	var events []SportsEvent
+
+	// 1. Fetch DaddyLive schedule events (290+ channels with direct 200 OK HLS streams)
+	daddyEvents, errDL := fetchDaddyLiveSchedule()
+	if errDL == nil {
+		events = append(events, daddyEvents...)
+	} else {
+		debugLog("sports: daddylive error: %v", errDL)
+	}
+
+	// 2. Fetch Streamed.st live matches
+	streamedEvents, errST := fetchStreamedLiveMatches()
+	if errST == nil {
+		events = append(events, streamedEvents...)
+	} else {
+		debugLog("sports: streamed.st error: %v", errST)
+	}
+
+	if len(events) == 0 {
+		return nil, fmt.Errorf("failed to fetch live sports from any provider")
 	}
 
 	// Sort: by category, then by title
@@ -311,22 +327,22 @@ func FetchAllSportsEvents() ([]SportsEvent, error) {
 	return events, nil
 }
 
-
 // ResolveSportsEventStream resolves the stream URL for a SportsStream.
-// For Streamed.su events the URL is already pre-resolved.
-// For DaddyLive events, we need to unpack the embed page.
+// For DaddyLive events, we unpack the inner iframe base64 stream.
 func ResolveSportsEventStream(stream SportsStream) (SportsStream, error) {
+	if strings.HasPrefix(stream.ID, "daddy:") || stream.URL == "" {
+		id := strings.TrimPrefix(stream.ID, "daddy:")
+		hls, err := resolveDaddyLiveStream(id)
+		if err == nil && hls != "" {
+			stream.URL = hls
+			return stream, nil
+		}
+	}
+
 	if stream.URL != "" {
 		return stream, nil
 	}
-	// DaddyLive channel ID is "daddy:<id>"
-	id := strings.TrimPrefix(stream.ID, "daddy:")
-	hls, err := resolveDaddyLiveStream(id)
-	if err != nil {
-		return SportsStream{}, err
-	}
-	stream.URL = hls
-	return stream, nil
+	return SportsStream{}, fmt.Errorf("could not resolve playable stream for %s", stream.Name)
 }
 
 // ─── Category helpers ─────────────────────────────────────────────────────────
