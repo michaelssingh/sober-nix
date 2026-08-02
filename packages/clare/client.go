@@ -108,6 +108,7 @@ type SeasonSummary struct {
 	EpisodeCount int    `json:"episode_count"`
 	AirDate      string `json:"air_date"`
 	PosterPath   string `json:"poster_path"`
+	Unreleased   bool   `json:"unreleased,omitempty"`
 }
 
 type AnimeShow = MediaItem

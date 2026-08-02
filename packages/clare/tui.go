@@ -226,6 +226,14 @@ type seasonItem struct {
 }
 
 func (s seasonItem) Title() string {
+	today := time.Now().Format("2006-01-02")
+	if s.season.Unreleased || (s.season.AirDate != "" && s.season.AirDate > today) {
+		upcomingStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#e0af68")).Bold(true)
+		if s.season.AirDate != "" && len(s.season.AirDate) >= 4 {
+			return fmt.Sprintf("%s (%s) %s", s.season.Name, s.season.AirDate[:4], upcomingStyle.Render("[UNRELEASED]"))
+		}
+		return fmt.Sprintf("%s %s", s.season.Name, upcomingStyle.Render("[UNRELEASED]"))
+	}
 	if s.season.AirDate != "" && len(s.season.AirDate) >= 4 {
 		return fmt.Sprintf("%s (%s)", s.season.Name, s.season.AirDate[:4])
 	}
@@ -233,6 +241,13 @@ func (s seasonItem) Title() string {
 }
 
 func (s seasonItem) Description() string {
+	today := time.Now().Format("2006-01-02")
+	if s.season.Unreleased || (s.season.AirDate != "" && s.season.AirDate > today) {
+		if s.season.AirDate != "" {
+			return fmt.Sprintf("%d Episodes  •  Unreleased (Airs %s)", s.season.EpisodeCount, s.season.AirDate)
+		}
+		return fmt.Sprintf("%d Episodes  •  Unreleased", s.season.EpisodeCount)
+	}
 	return fmt.Sprintf("%d Episodes", s.season.EpisodeCount)
 }
 
@@ -2311,6 +2326,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "enter":
 				selected, ok := m.episodeList.SelectedItem().(episodeItem)
 				if ok {
+					today := time.Now().Format("2006-01-02")
+					if info, ok := m.episodeDetails[selected.epNo]; ok && info.Aired != "" && info.Aired > today {
+						m.state = stateError
+						m.err = fmt.Errorf("%s Episode %s has not aired yet (Air Date: %s)", m.selectedShow.Name, selected.epNo, info.Aired)
+						return m, nil
+					}
 					m.selectedEp = selected.epNo
 					m.state = stateSearchRunning
 					epLabel := fmt.Sprintf("Episode %s", selected.epNo)
@@ -3453,7 +3474,12 @@ func (m *model) refreshEpisodeListItems() {
 				tags = append(tags, "Recap")
 			}
 			if info.Aired != "" {
-				tags = append(tags, "Aired: "+info.Aired)
+				today := time.Now().Format("2006-01-02")
+				if info.Aired > today {
+					tags = append(tags, "Unreleased (Airs "+info.Aired+")")
+				} else {
+					tags = append(tags, "Aired: "+info.Aired)
+				}
 			}
 			desc = strings.Join(tags, " | ")
 		} else {

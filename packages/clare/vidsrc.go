@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/url"
 	"strings"
+	"time"
 )
 
 type VidSrcProvider struct{}
@@ -158,6 +159,7 @@ func (p *VidSrcProvider) FetchEpisodes(showID, mode string) (AnimeShow, []string
 		return AnimeShow{}, nil, fmt.Errorf("vidsrc tv details parse failed: %w", err)
 	}
 
+	today := time.Now().Format("2006-01-02")
 	var epList []string
 	var seasonSummaries []SeasonSummary
 	for _, season := range tvDetail.Seasons {
@@ -168,12 +170,14 @@ func (p *VidSrcProvider) FetchEpisodes(showID, mode string) (AnimeShow, []string
 		if seasonName == "" {
 			seasonName = fmt.Sprintf("Season %d", season.SeasonNumber)
 		}
+		isUnreleased := season.AirDate != "" && season.AirDate > today
 		seasonSummaries = append(seasonSummaries, SeasonSummary{
 			SeasonNumber: season.SeasonNumber,
 			Name:         seasonName,
 			EpisodeCount: season.EpisodeCount,
 			AirDate:      season.AirDate,
 			PosterPath:   season.PosterPath,
+			Unreleased:   isUnreleased,
 		})
 		for e := 1; e <= season.EpisodeCount; e++ {
 			epList = append(epList, fmt.Sprintf("S%02dE%02d", season.SeasonNumber, e))
