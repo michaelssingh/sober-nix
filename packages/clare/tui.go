@@ -3262,6 +3262,13 @@ func (m *model) refreshEpisodeListItems() {
 		} else {
 			if (strings.EqualFold(m.selectedShow.Type, "MOVIE") || strings.HasPrefix(m.selectedShow.ID, "vidsrc:movie")) && ep == "1" {
 				title = "Full Movie"
+			} else if strings.HasPrefix(strings.ToUpper(ep), "S") && strings.Contains(strings.ToUpper(ep), "E") {
+				var s, e int
+				if _, err := fmt.Sscanf(strings.ToUpper(ep), "S%02dE%02d", &s, &e); err == nil {
+					title = fmt.Sprintf("Season %d, Episode %d", s, e)
+				} else {
+					title = fmt.Sprintf("Episode %s", ep)
+				}
 			} else {
 				title = fmt.Sprintf("Episode %s", ep)
 			}

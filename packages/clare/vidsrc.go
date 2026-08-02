@@ -139,8 +139,12 @@ func (p *VidSrcProvider) FetchEpisodes(showID, mode string) (AnimeShow, []string
 	}
 
 	var tvDetail struct {
-		Name             string `json:"name"`
-		NumberOfEpisodes int    `json:"number_of_episodes"`
+		Name             string  `json:"name"`
+		Overview         string  `json:"overview"`
+		PosterPath       string  `json:"poster_path"`
+		FirstAirDate     string  `json:"first_air_date"`
+		VoteAverage      float64 `json:"vote_average"`
+		NumberOfEpisodes int     `json:"number_of_episodes"`
 		Seasons          []struct {
 			SeasonNumber int `json:"season_number"`
 			EpisodeCount int `json:"episode_count"`
@@ -152,24 +156,40 @@ func (p *VidSrcProvider) FetchEpisodes(showID, mode string) (AnimeShow, []string
 	}
 
 	var epList []string
-	epNum := 1
 	for _, season := range tvDetail.Seasons {
 		if season.SeasonNumber <= 0 {
 			continue
 		}
 		for e := 1; e <= season.EpisodeCount; e++ {
-			epList = append(epList, fmt.Sprintf("%d", epNum))
-			epNum++
+			epList = append(epList, fmt.Sprintf("S%02dE%02d", season.SeasonNumber, e))
 		}
 	}
 
 	if len(epList) == 0 {
-		epList = []string{"1"}
+		epList = []string{"S01E01"}
+	}
+
+	thumb := ""
+	if tvDetail.PosterPath != "" {
+		thumb = "https://image.tmdb.org/t/p/w500" + tvDetail.PosterPath
+	}
+	year := 0
+	if len(tvDetail.FirstAirDate) >= 4 {
+		fmt.Sscanf(tvDetail.FirstAirDate[:4], "%d", &year)
 	}
 
 	return AnimeShow{
-		ID:       showID,
-		Name:     tvDetail.Name,
+		ID:          showID,
+		Name:        tvDetail.Name,
+		EnglishName: tvDetail.Name,
+		Description: tvDetail.Overview,
+		Thumbnail:   thumb,
+		Type:        "TV",
+		Score:       tvDetail.VoteAverage,
+		Season: struct {
+			Quarter string  `json:"quarter"`
+			Year    FlexInt `json:"year"`
+		}{Year: FlexInt(year)},
 		Provider: "vidsrc",
 	}, epList, nil
 }
