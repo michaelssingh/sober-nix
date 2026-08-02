@@ -1966,6 +1966,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "w", "W":
 				if selected, ok := m.historyList.SelectedItem().(historyItem); ok {
 					m.toggleShowCompleted(selected.showID)
+					m.refreshHistory()
 				}
 				return m, nil
 			case "d", "D":
@@ -2066,7 +2067,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 							title = show.TitleEnglish
 						}
 						m.state = stateSearchRunning
-						m.loadingMsg = fmt.Sprintf("Finding show %q on AllAnime...", title)
+						m.loadingMsg = fmt.Sprintf("Searching for %q across providers...", title)
 						return m, doSearch(title, "sub")
 					}
 				case "esc":
@@ -2199,7 +2200,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if ok {
 					m.selectedEp = selected.epNo
 					m.state = stateSearchRunning
-					m.loadingMsg = fmt.Sprintf("Resolving stream for downloading Episode %s...", selected.epNo)
+					epLabel := fmt.Sprintf("Episode %s", selected.epNo)
+					if (strings.EqualFold(m.selectedShow.Type, "MOVIE") || strings.HasPrefix(m.selectedShow.ID, "vidsrc:movie")) && selected.epNo == "1" {
+						epLabel = "Full Movie"
+					}
+					m.loadingMsg = fmt.Sprintf("Resolving stream for downloading %s...", epLabel)
 					return m, doFetchAndDownloadCmd(m.selectedShow, selected.epNo, m.mode, m.quality)
 				}
 				return m, nil
@@ -2208,7 +2213,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if ok {
 					m.selectedEp = selected.epNo
 					m.state = stateSearchRunning
-					m.loadingMsg = fmt.Sprintf("Resolving stream sources for Episode %s...", selected.epNo)
+					epLabel := fmt.Sprintf("Episode %s", selected.epNo)
+					if (strings.EqualFold(m.selectedShow.Type, "MOVIE") || strings.HasPrefix(m.selectedShow.ID, "vidsrc:movie")) && selected.epNo == "1" {
+						epLabel = "Full Movie"
+					}
+					m.loadingMsg = fmt.Sprintf("Resolving stream sources for %s...", epLabel)
 					return m, doFetchAllStreams(m.selectedShow.ID, m.mode, selected.epNo, m.selectedShow.Provider)
 				}
 			case "esc":
@@ -2306,7 +2315,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 							cmds = append(cmds, doFetchJikanMetadata(m.selectedShow.MALID, page))
 						}
 					}
-					if _, checked := m.aniSkipReady[epItem.epNo]; !checked && m.selectedShow.MALID != "" {
+					isMovie := strings.EqualFold(m.selectedShow.Type, "MOVIE") || strings.HasPrefix(m.selectedShow.ID, "vidsrc:") || strings.EqualFold(m.selectedShow.Provider, "vidsrc")
+					if _, checked := m.aniSkipReady[epItem.epNo]; !checked && m.selectedShow.MALID != "" && !isMovie {
 						m.aniSkipReady[epItem.epNo] = false
 						cmds = append(cmds, doCheckAniSkip(m.selectedShow.MALID, epItem.epNo))
 					}
@@ -2382,7 +2392,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				return m, nil
 			case "down", "j":
-				if m.configCursor < 8 {
+				if m.configCursor < 9 {
 					m.configCursor++
 				}
 				return m, nil
@@ -2425,10 +2435,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					nextIdx := (idx + 1) % len(qualities)
 					cfg.PreferredQuality = qualities[nextIdx]
 				case 6:
-					cfg.ToggleProvider("allanime")
+					cfg.ToggleProvider("vidsrc")
 				case 7:
-					cfg.ToggleProvider("flikhub")
+					cfg.ToggleProvider("allanime")
 				case 8:
+					cfg.ToggleProvider("flikhub")
+				case 9:
 					cfg.ToggleProvider("gogoanime")
 				}
 				_ = saveConfig(cfg)
@@ -2884,6 +2896,7 @@ func (m model) View() string {
 			{"Autoskip Delay", fmt.Sprintf("%.0fs", cfg.AutoskipDelay)},
 			{"Preferred Translation Mode", strings.ToUpper(cfg.PreferredMode)},
 			{"Preferred Stream Quality", strings.ToUpper(cfg.PreferredQuality)},
+			{"Provider: VidSrc (Movies & TV)", formatBool(cfg.IsProviderEnabled("vidsrc"))},
 			{"Provider: AllAnime", formatBool(cfg.IsProviderEnabled("allanime"))},
 			{"Provider: FlikHub", formatBool(cfg.IsProviderEnabled("flikhub"))},
 			{"Provider: GogoAnime", formatBool(cfg.IsProviderEnabled("gogoanime"))},
