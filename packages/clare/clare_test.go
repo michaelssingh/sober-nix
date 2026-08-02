@@ -2113,6 +2113,19 @@ func TestLiveSports(t *testing.T) {
 	if len(daddyEvents) > 0 {
 		t.Logf("  Top scheduled event: %s (%s) — %d channels", daddyEvents[0].Title, daddyEvents[0].Category, len(daddyEvents[0].Sources))
 	}
+
+	// Test resolving actual live HLS stream for DaddyLive Channel 1
+	daddyURL, err := resolveDaddyLiveStream("1")
+	if err != nil {
+		t.Fatalf("resolveDaddyLiveStream(1) failed: %v", err)
+	}
+	t.Logf("✓ DaddyLive Channel 1 HLS Stream resolved! URL: %s", daddyURL)
+
+	daddyHeaders := map[string]string{"Referer": "https://hamis.romponalis.st/", "User-Agent": UserAgent}
+	if err := PreflightStreamURLWithTimeout(daddyURL, daddyHeaders, 15*time.Second); err != nil {
+		t.Fatalf("DaddyLive Channel 1 preflight failed: %v", err)
+	}
+	t.Logf("✓ DaddyLive Channel 1 stream preflight 200 OK verified!")
 }
 
 func Test20AnimePipeline(t *testing.T) {

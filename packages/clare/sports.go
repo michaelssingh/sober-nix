@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"regexp"
@@ -220,13 +221,20 @@ func fetchDaddyLiveSchedule() ([]SportsEvent, error) {
 
 // resolveDaddyLiveStream unpacks a DaddyLive channel page and returns its HLS URL.
 func resolveDaddyLiveStream(channelID string) (string, error) {
-	embedURL := fmt.Sprintf("%s/embed/stream-%s.php", daddyLiveBase, channelID)
+	embedURL := fmt.Sprintf("%s/stream/stream-%s.php", daddyLiveBase, channelID)
 	body, err := doHTTPReqWithRetry("GET", embedURL, nil, map[string]string{
 		"Referer":    daddyLiveBase + "/",
 		"User-Agent": UserAgent,
 	})
 	if err != nil {
-		return "", fmt.Errorf("daddylive embed fetch failed: %w", err)
+		embedURL = fmt.Sprintf("%s/embed/stream-%s.php", daddyLiveBase, channelID)
+		body, err = doHTTPReqWithRetry("GET", embedURL, nil, map[string]string{
+			"Referer":    daddyLiveBase + "/",
+			"User-Agent": UserAgent,
+		})
+		if err != nil {
+			return "", fmt.Errorf("daddylive embed fetch failed: %w", err)
+		}
 	}
 
 	html := string(body)
@@ -237,12 +245,22 @@ func resolveDaddyLiveStream(channelID string) (string, error) {
 		return m, nil
 	}
 
+	// Try to find window.atob base64 encoded stream source
+	atobRe := regexp.MustCompile(`window\.atob\s*\(\s*['"]([A-Za-z0-9+/=]+)['"]\s*\)`)
+	if match := atobRe.FindStringSubmatch(html); len(match) > 1 {
+		if decoded, err := base64.StdEncoding.DecodeString(match[1]); err == nil {
+			decStr := string(decoded)
+			if m := m3u8Re.FindString(decStr); m != "" {
+				return m, nil
+			}
+		}
+	}
+
 	// Try to find an iframe src pointing to an HLS player
 	iframeRe := regexp.MustCompile(`<iframe[^>]+src=["']([^"']+)["']`)
 	matches := iframeRe.FindAllStringSubmatch(html, -1)
 	for _, match := range matches {
-		if len(match) > 1 && (strings.Contains(match[1], "dlhd") || strings.Contains(match[1], "hdstream")) {
-			// Fetch the nested player page
+		if len(match) > 1 {
 			playerURL := match[1]
 			if strings.HasPrefix(playerURL, "//") {
 				playerURL = "https:" + playerURL
@@ -254,8 +272,17 @@ func resolveDaddyLiveStream(channelID string) (string, error) {
 			if err != nil {
 				continue
 			}
-			if m := m3u8Re.FindString(string(playerBody)); m != "" {
+			playerHTML := string(playerBody)
+			if m := m3u8Re.FindString(playerHTML); m != "" {
 				return m, nil
+			}
+			if atobMatch := atobRe.FindStringSubmatch(playerHTML); len(atobMatch) > 1 {
+				if decoded, err := base64.StdEncoding.DecodeString(atobMatch[1]); err == nil {
+					decStr := string(decoded)
+					if m := m3u8Re.FindString(decStr); m != "" {
+						return m, nil
+					}
+				}
 			}
 		}
 	}
