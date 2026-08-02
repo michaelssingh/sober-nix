@@ -2688,8 +2688,10 @@ func (m model) View() string {
 			bar := renderSmoothProgressBar(pct, 20)
 			timeStr := fmt.Sprintf("%s/%s", formatTime(m.mpvStatus.PlaybackTime), formatTime(m.mpvStatus.Duration))
 			pb = fmt.Sprintf("[%s] %s", bar, timeStr)
+		} else if m.mpvStatus.PlaybackTime > 0 {
+			pb = fmt.Sprintf("LIVE [%s]", formatTime(m.mpvStatus.PlaybackTime))
 		} else {
-			pb = "Loading..."
+			pb = "LIVE [00:00]"
 		}
 
 		playerBorder := lipgloss.NewStyle().
@@ -2706,15 +2708,38 @@ func (m model) View() string {
 			return fmt.Sprintf("%s %s", box, name)
 		}
 
-		playerContent := fmt.Sprintf("%s %s  %s  Vol: %d%%\n%s  •  %s  •  %s",
-			statusStr,
-			pTitleStyle.Render(fmt.Sprintf("%s - Ep %s", m.playingShow.Name, m.playingEp)),
-			pb,
-			int(m.mpvStatus.Volume),
-			formatCheckbox("autoplay (a)", m.autoplay),
-			formatCheckbox("auto-skip (s)", m.autoskip),
-			formatCheckbox("skip-fillers (f)", m.skipFillers),
-		)
+		titleFormatted := fmt.Sprintf("%s - Ep %s", m.playingShow.Name, m.playingEp)
+		if strings.EqualFold(m.playingShow.Type, "LIVE") || strings.EqualFold(m.playingShow.Provider, "sports") {
+			if m.playingEp != "" {
+				titleFormatted = fmt.Sprintf("🔴 %s (%s)", m.playingShow.Name, m.playingEp)
+			} else {
+				titleFormatted = fmt.Sprintf("🔴 %s", m.playingShow.Name)
+			}
+		} else if strings.EqualFold(m.playingShow.Type, "MOVIE") || strings.HasPrefix(m.playingShow.ID, "vidsrc:movie") || m.playingEp == "1" {
+			titleFormatted = m.playingShow.Name
+		} else if strings.HasPrefix(strings.ToUpper(m.playingEp), "S") {
+			titleFormatted = fmt.Sprintf("%s - %s", m.playingShow.Name, m.playingEp)
+		}
+
+		var playerContent string
+		if strings.EqualFold(m.playingShow.Type, "LIVE") || strings.EqualFold(m.playingShow.Provider, "sports") {
+			playerContent = fmt.Sprintf("%s %s  %s  Vol: %d%%\nPress [space] pause  •  [left/right] seek  •  [up/down] volume  •  [q/esc] stop",
+				statusStr,
+				pTitleStyle.Render(titleFormatted),
+				pb,
+				int(m.mpvStatus.Volume),
+			)
+		} else {
+			playerContent = fmt.Sprintf("%s %s  %s  Vol: %d%%\n%s  •  %s  •  %s",
+				statusStr,
+				pTitleStyle.Render(titleFormatted),
+				pb,
+				int(m.mpvStatus.Volume),
+				formatCheckbox("autoplay (a)", m.autoplay),
+				formatCheckbox("auto-skip (s)", m.autoskip),
+				formatCheckbox("skip-fillers (f)", m.skipFillers),
+			)
+		}
 
 		playerView = playerBorder.Render(playerContent)
 	}
