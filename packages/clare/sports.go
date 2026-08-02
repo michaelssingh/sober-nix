@@ -158,7 +158,7 @@ func fetchStreamedMatchStreams(matchID, source, streamID string) ([]SportsStream
 
 // ─── DaddyLive provider ───────────────────────────────────────────────────────
 
-const daddyLiveBase = "https://daddylive.mp"
+const daddyLiveBase = "https://dlhd.st"
 
 // DaddyLiveScheduleEntry is a single scheduled event in DaddyLive's JSON.
 type DaddyLiveScheduleEntry struct {
@@ -186,22 +186,21 @@ func fetchDaddyLiveSchedule() ([]SportsEvent, error) {
 		return nil, fmt.Errorf("daddylive schedule parse failed: %w", err)
 	}
 
-	todayKey := time.Now().UTC().Format("Monday 2th January")
-
 	var events []SportsEvent
-	for dateKey, categories := range raw {
-		if !strings.EqualFold(dateKey, todayKey) {
-			// Only show today's events (plus accept any single-day response)
-			if len(raw) > 1 {
-				continue
-			}
-		}
+	for _, categories := range raw {
 		for category, entries := range categories {
+			cleanCategory := strings.ReplaceAll(category, "</span>", "")
+			cleanCategory = strings.ReplaceAll(cleanCategory, "<span>", "")
+			cleanCategory = strings.TrimSpace(cleanCategory)
 			for _, entry := range entries {
+				title := entry.Title
+				if title == "" || title == "None" {
+					title = cleanCategory + " Event"
+				}
 				ev := SportsEvent{
-					ID:        fmt.Sprintf("daddy:%s:%s", category, entry.Title),
-					Title:     entry.Title,
-					Category:  normalizeCategory(category),
+					ID:        fmt.Sprintf("daddy:%s:%s", cleanCategory, title),
+					Title:     title,
+					Category:  normalizeCategory(cleanCategory),
 					StartTime: entry.Time,
 					IsLive:    false,
 				}
