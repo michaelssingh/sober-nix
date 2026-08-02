@@ -300,7 +300,7 @@ local skip_times_json = %q
 		referer = "https://youtu-chan.com/"
 	} else if strings.Contains(streamURL, "cloudorchestranova") || strings.Contains(streamURL, "zealotsofzenith") || strings.Contains(streamURL, "vidsrc") {
 		referer = "https://cloudorchestranova.com/"
-	} else if strings.Contains(streamURL, "nextgenmarketinghub") || strings.Contains(streamURL, "quietmidnightgardening") || strings.Contains(streamURL, "vaplayer") {
+	} else if strings.Contains(streamURL, "nextgen") || strings.Contains(streamURL, "quietmidnight") || strings.Contains(streamURL, "influencerstrategy") || strings.Contains(streamURL, "vaplayer") || strings.Contains(streamURL, ".site/") {
 		referer = "https://nextgencloudfabric.com/"
 	}
 
@@ -484,6 +484,14 @@ func downloadCmd(streamURL, title, epNo string) *exec.Cmd {
 		referer = "https://www.mp4upload.com/"
 	} else if strings.Contains(streamURL, "fast4speed") {
 		referer = ""
+	} else if strings.Contains(streamURL, "flikhub") || strings.Contains(streamURL, "kotocdn") || strings.Contains(streamURL, "megap") {
+		referer = "https://megaplay.buzz/"
+	} else if strings.Contains(streamURL, "allanime") || strings.Contains(streamURL, "alltropic") || strings.Contains(streamURL, "ok.ru") {
+		referer = "https://youtu-chan.com/"
+	} else if strings.Contains(streamURL, "cloudorchestranova") || strings.Contains(streamURL, "zealotsofzenith") || strings.Contains(streamURL, "vidsrc") {
+		referer = "https://cloudorchestranova.com/"
+	} else if strings.Contains(streamURL, "nextgen") || strings.Contains(streamURL, "quietmidnight") || strings.Contains(streamURL, "influencerstrategy") || strings.Contains(streamURL, "vaplayer") || strings.Contains(streamURL, ".site/") {
+		referer = "https://nextgencloudfabric.com/"
 	}
 
 	var cmd *exec.Cmd
