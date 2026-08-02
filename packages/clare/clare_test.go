@@ -2095,6 +2095,26 @@ func TestProviderVidSrc(t *testing.T) {
 	}
 }
 
+func TestLiveSports(t *testing.T) {
+	liveEvents, err := fetchStreamedLiveMatches()
+	if err != nil {
+		t.Fatalf("fetchStreamedLiveMatches failed: %v", err)
+	}
+	t.Logf("✓ Streamed.st live matches found: %d", len(liveEvents))
+	if len(liveEvents) > 0 {
+		t.Logf("  Top live event: %s (%s) — %d stream sources", liveEvents[0].Title, liveEvents[0].Category, len(liveEvents[0].Sources))
+	}
+
+	daddyEvents, err := fetchDaddyLiveSchedule()
+	if err != nil {
+		t.Fatalf("fetchDaddyLiveSchedule failed: %v", err)
+	}
+	t.Logf("✓ DaddyLive (dlhd.st) schedule events found: %d", len(daddyEvents))
+	if len(daddyEvents) > 0 {
+		t.Logf("  Top scheduled event: %s (%s) — %d channels", daddyEvents[0].Title, daddyEvents[0].Category, len(daddyEvents[0].Sources))
+	}
+}
+
 func Test20AnimePipeline(t *testing.T) {
 	shows := []string{
 		"One Piece",
