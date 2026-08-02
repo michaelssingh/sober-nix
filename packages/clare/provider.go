@@ -19,7 +19,11 @@ type Provider interface {
 
 // PreflightStreamURL checks if a stream URL responds with 200 OK and valid video content
 func PreflightStreamURL(streamURL string, headers map[string]string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	return PreflightStreamURLWithTimeout(streamURL, headers, 3*time.Second)
+}
+
+func PreflightStreamURLWithTimeout(streamURL string, headers map[string]string, timeout time.Duration) error {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
 	client := &http.Client{}

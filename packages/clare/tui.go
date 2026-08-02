@@ -1252,18 +1252,21 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				for k, v := range cacheData {
 					m.episodeDetails[k] = v
 				}
-				// Pre-mark pages that are fully cached
 				for _, ep := range m.episodes {
-					var val int
-					fmt.Sscanf(ep, "%d", &val)
-					if val > 0 {
-						page := (val-1)/100 + 1
-						if _, ok := cacheData[ep]; ok {
-							m.loadedJikanPages[page] = true
-						}
+					epNum := int(parseEpisodeNumber(ep))
+					if epNum > 0 {
+						page := (epNum-1)/100 + 1
+						m.loadedJikanPages[page] = true
 					}
 				}
+				m.refreshEpisodeListItems()
+			} else {
+				// Fetch page 1 immediately
+				m.loadedJikanPages[1] = true
+				return m, doFetchJikanMetadata(m.selectedShow.MALID, 1)
 			}
+		} else if strings.HasPrefix(m.selectedShow.ID, "vidsrc:tv:") {
+			return m, doFetchTmdbSeasonDetails(m.selectedShow.ID, 1)
 		}
 
 		// Rebuild the list items with current (empty/fallback) titles
@@ -1793,6 +1796,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		_ = saveJikanCache(m.selectedShow.MALID, cacheData)
 		return m, nil
 
+	case tmdbSeasonDetailsMsg:
+		if msg.err == nil && msg.epInfo != nil {
+			for k, v := range msg.epInfo {
+				m.episodeDetails[k] = v
+			}
+			m.refreshEpisodeListItems()
+		}
+		return m, nil
+
 	case sportsEventsMsg:
 		m.sportsEventsLoaded = true
 		m.sportsEventsErr = msg.err
@@ -2244,7 +2256,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.episodes = seasonEps
 					m.refreshEpisodeListItems()
 					m.state = stateEpisodeSelect
-					return m, nil
+					return m, doFetchTmdbSeasonDetails(m.selectedShow.ID, sNum)
 				}
 			case "esc":
 				if len(m.showItems) > 1 {
@@ -3211,6 +3223,57 @@ func doCheckAniSkip(malID, epNo string) tea.Cmd {
 	}
 }
 
+type tmdbSeasonDetailsMsg struct {
+	showID string
+	season int
+	epInfo map[string]JikanEpInfo
+	err    error
+}
+
+func doFetchTmdbSeasonDetails(showID string, season int) tea.Cmd {
+	return func() tea.Msg {
+		cleanID := strings.TrimPrefix(showID, "vidsrc:")
+		parts := strings.Split(cleanID, ":")
+		if len(parts) < 2 || parts[0] != "tv" {
+			return tmdbSeasonDetailsMsg{showID: showID, season: season, err: fmt.Errorf("not a tv show")}
+		}
+		tmdbID := parts[1]
+		apiURL := fmt.Sprintf("https://api.themoviedb.org/3/tv/%s/season/%d?api_key=***REDACTED***", tmdbID, season)
+
+		body, err := doHTTPReqWithRetry("GET", apiURL, nil, map[string]string{
+			"User-Agent": UserAgent,
+		})
+		if err != nil {
+			return tmdbSeasonDetailsMsg{showID: showID, season: season, err: err}
+		}
+
+		var seasonData struct {
+			Episodes []struct {
+				EpisodeNumber int    `json:"episode_number"`
+				Name          string `json:"name"`
+				Overview      string `json:"overview"`
+				AirDate       string `json:"air_date"`
+			} `json:"episodes"`
+		}
+
+		if err := json.Unmarshal(body, &seasonData); err != nil {
+			return tmdbSeasonDetailsMsg{showID: showID, season: season, err: err}
+		}
+
+		resMap := make(map[string]JikanEpInfo)
+		for _, ep := range seasonData.Episodes {
+			epKey := fmt.Sprintf("S%02dE%02d", season, ep.EpisodeNumber)
+			resMap[epKey] = JikanEpInfo{
+				Title:    ep.Name,
+				Synopsis: ep.Overview,
+				Aired:    ep.AirDate,
+			}
+		}
+
+		return tmdbSeasonDetailsMsg{showID: showID, season: season, epInfo: resMap}
+	}
+}
+
 func doFetchJikanMetadata(malID string, page int) tea.Cmd {
 	return func() tea.Msg {
 		if malID == "" || malID == "0" {
@@ -3372,7 +3435,16 @@ func (m *model) refreshEpisodeListItems() {
 		title := ""
 		desc := ""
 		if info, ok := m.episodeDetails[ep]; ok {
-			title = fmt.Sprintf("Ep %s: %s", ep, info.Title)
+			if strings.HasPrefix(strings.ToUpper(ep), "S") && strings.Contains(strings.ToUpper(ep), "E") {
+				var s, e int
+				if _, err := fmt.Sscanf(strings.ToUpper(ep), "S%02dE%02d", &s, &e); err == nil {
+					title = fmt.Sprintf("S%02dE%02d — %s", s, e, info.Title)
+				} else {
+					title = fmt.Sprintf("Ep %s: %s", ep, info.Title)
+				}
+			} else {
+				title = fmt.Sprintf("Ep %s: %s", ep, info.Title)
+			}
 			var tags []string
 			if info.Filler {
 				tags = append(tags, "Filler")
@@ -3814,11 +3886,6 @@ func (m model) renderEpisodeDetailsPanel(width, height int) string {
 		rightColWidth = 15
 	}
 
-	// Calculate multiplexing status flags
-	videoStatus := "Video: RESOLVED"
-	audioStatus := "Audio: SINGLE-STREAM"
-	metadataFlags := fmt.Sprintf("%s  •  %s", videoStatus, audioStatus)
-
 	// Calculate AniSkip pre-flight badge
 	aniSkipBadge := ""
 	if !isNonAnime {
@@ -3858,7 +3925,6 @@ func (m model) renderEpisodeDetailsPanel(width, height int) string {
 	metaLines := []string{
 		fmt.Sprintf("%s %s", metaKeyStyle.Render("Release Date:  "), metaValStyle.Render(aired)),
 		fmt.Sprintf("%s %s", metaKeyStyle.Render("Classification:"), classification),
-		fmt.Sprintf("%s %s", metaKeyStyle.Render("Format/Audio:  "), metaValStyle.Render(metadataFlags)),
 	}
 	if aniSkipBadge != "" {
 		metaLines = append(metaLines, fmt.Sprintf("%s %s", metaKeyStyle.Render("AniSkip:       "), lipgloss.NewStyle().Foreground(lipgloss.Color("#7dcfff")).Render(aniSkipBadge)))
