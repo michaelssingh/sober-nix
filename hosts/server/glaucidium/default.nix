@@ -7,8 +7,14 @@ let
     MTU = 1280
 
     [Peer]
+    # otus
     PublicKey = 23wz66STtDjKTiL9ipLykJy7ElCVkRGR/4js7pm7MzM=
     AllowedIPs = 10.13.13.2/32, fd00::2/128
+
+    [Peer]
+    # ninox
+    PublicKey = vEetjpZ9DSPgsrvVRFox1uDHD0J2XrdG7NJFv9Rau2Y=
+    AllowedIPs = 10.13.13.3/32, fd00::3/128
   '';
 in
 soberLib.mkContainerImage {
