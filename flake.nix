@@ -177,14 +177,11 @@
 
                   echo "=== Provisioning SOPS Age Key ==="
                   mkdir -p /mnt/home/michael/.config/sops/age
-                  cat <<'EOF_AGE_KEY' > /mnt/home/michael/.config/sops/age/keys.txt
-# created: 2026-05-09T09:27:08-04:00
-# public key: ***REDACTED***
-***REDACTED***
-EOF_AGE_KEY
-                  chmod 600 /mnt/home/michael/.config/sops/age/keys.txt
-                  chown -R 1000:100 /mnt/home/michael/.config/sops 2>/dev/null || true
-                  echo "✓ Installed SOPS age key to /mnt/home/michael/.config/sops/age/keys.txt"
+                  if [ -f /home/nixos/.config/sops/age/keys.txt ]; then
+                    cp /home/nixos/.config/sops/age/keys.txt /mnt/home/michael/.config/sops/age/keys.txt
+                    chmod 600 /mnt/home/michael/.config/sops/age/keys.txt
+                    echo "✓ Copied SOPS age key from live environment."
+                  fi
 
                   echo "=== Provisioning sober-nix repository ==="
                   mkdir -p /mnt/home/michael/git
@@ -322,14 +319,11 @@ EOF_AGE_KEY
 
             echo "=== Provisioning SOPS Age Key ==="
             mkdir -p /mnt/home/michael/.config/sops/age
-            cat <<'EOF_AGE_KEY' > /mnt/home/michael/.config/sops/age/keys.txt
-# created: 2026-05-09T09:27:08-04:00
-# public key: ***REDACTED***
-***REDACTED***
-EOF_AGE_KEY
-            chmod 600 /mnt/home/michael/.config/sops/age/keys.txt
-            chown -R 1000:100 /mnt/home/michael/.config/sops 2>/dev/null || true
-            echo "✓ Installed SOPS age key to /mnt/home/michael/.config/sops/age/keys.txt"
+            if [ -f /home/nixos/.config/sops/age/keys.txt ]; then
+              cp /home/nixos/.config/sops/age/keys.txt /mnt/home/michael/.config/sops/age/keys.txt
+              chmod 600 /mnt/home/michael/.config/sops/age/keys.txt
+              echo "✓ Copied SOPS age key from live environment."
+            fi
 
             echo "=== Provisioning sober-nix repository ==="
             mkdir -p /mnt/home/michael/git

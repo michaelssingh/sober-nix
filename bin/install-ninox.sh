@@ -70,12 +70,27 @@ fi
 
 echo "=== Provisioning SOPS Age Key & Repository ==="
 mkdir -p /mnt/home/michael/.config/sops/age
-cat <<'EOF_AGE' > /mnt/home/michael/.config/sops/age/keys.txt
-# created: 2026-05-09T09:27:08-04:00
-# public key: ***REDACTED***
-***REDACTED***
-EOF_AGE
-chmod 600 /mnt/home/michael/.config/sops/age/keys.txt
+
+if [ ! -f /mnt/home/michael/.config/sops/age/keys.txt ]; then
+  if [ -f /home/nixos/.config/sops/age/keys.txt ]; then
+    cp /home/nixos/.config/sops/age/keys.txt /mnt/home/michael/.config/sops/age/keys.txt
+    chmod 600 /mnt/home/michael/.config/sops/age/keys.txt
+    echo "✓ Copied SOPS age key from live user environment."
+  else
+    echo "Please enter/paste your SOPS Age secret key (or press Enter to skip):"
+    read -r -s AGE_KEY < /dev/tty || AGE_KEY=""
+    echo
+    if [ -n "$AGE_KEY" ]; then
+      echo "$AGE_KEY" > /mnt/home/michael/.config/sops/age/keys.txt
+      chmod 600 /mnt/home/michael/.config/sops/age/keys.txt
+      echo "✓ Installed SOPS age key to /mnt/home/michael/.config/sops/age/keys.txt"
+    else
+      echo "Notice: Skipped SOPS Age key setup."
+    fi
+  fi
+else
+  echo "✓ Existing SOPS Age key found at /mnt/home/michael/.config/sops/age/keys.txt"
+fi
 
 mkdir -p /mnt/home/michael/git
 if [ ! -d /mnt/home/michael/git/sober-nix ]; then
