@@ -50,7 +50,6 @@
     enable = true;
     algorithm = "zstd";
     memoryPercent = 50;
-    priority = 100; # High priority: fast compressed RAM swap used before NVMe disk swapfile
   };
 
   # --- BOOTLOADER & KERNEL ---
