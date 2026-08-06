@@ -44,6 +44,8 @@ mkfs.vfat -F32 -n ESP "$PART1"
 
 echo "[3/6] Setting up LUKS Encryption..."
 cryptsetup luksFormat "$PART2"
+dmsetup remove -f crypted 2>/dev/null || cryptsetup close crypted 2>/dev/null || true
+udevadm settle 2>/dev/null || sleep 1
 cryptsetup open "$PART2" crypted
 
 echo "[4/6] Formatting Btrfs & Subvolumes..."
