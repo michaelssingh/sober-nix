@@ -36,6 +36,7 @@ soberLib.mkContainerImage {
     GITEA__server__SSH_LISTEN_PORT = "2222";
     GITEA__security__INSTALL_LOCK = "true";
     GITEA__service__DISABLE_REGISTRATION = "true";
+    GITEA__repository__ENABLE_PUSH_TO_CREATE = "true";
   };
 
   entrypoint = ''
