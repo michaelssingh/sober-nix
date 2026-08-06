@@ -17,10 +17,10 @@ echo "🔨 1/3: Building $IMAGE_ATTR via nixbuild.net..."
 
 # 2. Push via Skopeo (Daemonless)
 echo "🚀 2/3: Pushing image to Fly registry..."
-skopeo copy \
+nix run nixpkgs#skopeo --extra-experimental-features 'nix-command flakes' -- copy \
   docker-archive:$(readlink -f "$DIR/../../../result") \
   docker://$REGISTRY \
-  --dest-creds x:$(fly auth token)
+  --dest-creds x:$(fly tokens create deploy -x 30m -q)
 
 # 3. Deploy
 echo "🚢 3/3: Executing fly deploy..."
