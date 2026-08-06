@@ -89,6 +89,7 @@
 
   users.users.${user} = {
     isNormalUser = true;
+    initialPassword = "nixos";
     extraGroups = [
       "networkmanager"
       "wheel"

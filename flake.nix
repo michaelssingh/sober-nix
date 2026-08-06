@@ -63,6 +63,104 @@
       overlays = import ./modules/overlays { inherit inputs; };
       soberLib = import ./lib { inherit pkgs; };
       publicKeys = import ./lib/public-keys.nix;
+
+      ninoxInstaller = nixpkgs.lib.nixosSystem {
+        specialArgs = { inherit inputs user; };
+        modules = [
+          "${nixpkgs}/nixos/modules/installer/cd-dvd/installation-cd-minimal.nix"
+          disko.nixosModules.disko
+          {
+            nixpkgs.hostPlatform = "x86_64-linux";
+            isoImage.makeEfiBootable = true;
+            isoImage.makeUsbBootable = true;
+            networking.hostName = "ninox-installer";
+            networking.networkmanager.enable = true;
+            networking.networkmanager.ensureProfiles.profiles = {
+              "OCA_Guests" = {
+                connection = {
+                  id = "OCA_Guests";
+                  type = "wifi";
+                  autoconnect = true;
+                };
+                wifi = {
+                  mode = "infrastructure";
+                  ssid = "OCA_Guests";
+                };
+                wifi-security = {
+                  key-mgmt = "wpa-psk";
+                  psk = "Iamaguest!";
+                };
+              };
+            };
+            nix.settings.experimental-features = [
+              "nix-command"
+              "flakes"
+            ];
+            environment.systemPackages = with pkgs; [
+              git
+              disko
+              sops
+              age
+              parted
+              btrfs-progs
+              (pkgs.writeShellScriptBin "install-ninox" ''
+                set -euo pipefail
+                echo "=== Starting Ninox NixOS Installation ==="
+                TARGET_DISK="''${1:-/dev/nvme0n1}"
+                echo "Target disk: $TARGET_DISK"
+
+                if [ ! -b "$TARGET_DISK" ]; then
+                  echo "Error: Block device $TARGET_DISK does not exist!"
+                  exit 1
+                fi
+
+                read -p "WARNING: All data on $TARGET_DISK will be wiped. Continue? (y/N) " -n 1 -r
+                echo
+                if [[ $REPLY =~ ^[Yy]$ ]]; then
+                  echo "Running disko-install..."
+                  nix --extra-experimental-features 'nix-command flakes' run github:nix-community/disko#disko-install -- \
+                    --flake github:michaelssingh/sober-nix#ninox \
+                    --disk main "$TARGET_DISK" \
+                    --write-efibootmgr
+
+                  echo "=== Provisioning SOPS Age Key ==="
+                  mkdir -p /mnt/home/michael/.config/sops/age
+                  cat <<'EOF_AGE_KEY' > /mnt/home/michael/.config/sops/age/keys.txt
+# created: 2026-05-09T09:27:08-04:00
+# public key: ***REDACTED***
+***REDACTED***
+EOF_AGE_KEY
+                  chmod 600 /mnt/home/michael/.config/sops/age/keys.txt
+                  chown -R 1000:100 /mnt/home/michael/.config/sops 2>/dev/null || true
+                  echo "✓ Installed SOPS age key to /mnt/home/michael/.config/sops/age/keys.txt"
+
+                  echo "=== Provisioning sober-nix repository ==="
+                  mkdir -p /mnt/home/michael/git
+                  if [ ! -d /mnt/home/michael/git/sober-nix ]; then
+                    echo "Cloning sober-nix repository into /home/michael/git/sober-nix..."
+                    git clone https://github.com/michaelssingh/sober-nix.git /mnt/home/michael/git/sober-nix
+                    chown -R 1000:100 /mnt/home/michael/git 2>/dev/null || true
+                    echo "✓ Cloned sober-nix repository."
+                  fi
+
+                  echo "=== User Password Setup ==="
+                  echo "Initial default password for user 'michael' is set to 'nixos'."
+                  read -p "Would you like to set a custom password for user 'michael' now? (y/N) " -n 1 -r
+                  echo
+                  if [[ $REPLY =~ ^[Yy]$ ]]; then
+                    nixos-enter --root /mnt -- passwd michael
+                  fi
+
+                  echo "=== Ninox installation complete! You may now reboot. ==="
+                else
+                  echo "Installation cancelled."
+                  exit 1
+                fi
+              '')
+            ];
+          }
+        ];
+      };
     in
     {
       nixosConfigurations = {
@@ -115,9 +213,11 @@
             }
           ];
         };
+        ninox-installer = ninoxInstaller;
       };
 
       packages."x86_64-linux" = {
+        ninox-iso = ninoxInstaller.config.system.build.isoImage;
         appservice-mgr = pkgs.callPackage ./tools/appservice-mgr { };
         tyto = pkgs.callPackage ./packages/tyto { };
         clare = pkgs.callPackage ./packages/clare { };
