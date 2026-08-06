@@ -21,6 +21,11 @@ if [[ ! $REPLY =~ ^[Yy]$ ]]; then
   exit 1
 fi
 
+echo "[0/6] Cleaning up existing mounts and mappings..."
+umount -R /mnt 2>/dev/null || true
+cryptsetup close crypted 2>/dev/null || true
+swapoff -a 2>/dev/null || true
+
 echo "[1/6] Partitioning $TARGET_DISK..."
 sgdisk -Z "$TARGET_DISK"
 sgdisk -n 1:0:+1G -t 1:ef00 -c 1:ESP "$TARGET_DISK"
