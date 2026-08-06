@@ -14,7 +14,7 @@ if [ ! -b "$TARGET_DISK" ]; then
 fi
 
 echo "WARNING: All data on $TARGET_DISK will be WIPED!"
-read -p "Continue with installation? (y/N) " -n 1 -r
+read -p "Continue with installation? (y/N) " -n 1 -r < /dev/tty
 echo
 if [[ ! $REPLY =~ ^[Yy]$ ]]; then
   echo "Installation cancelled."
@@ -73,7 +73,7 @@ echo "=== Running NixOS System Installation ==="
 nixos-install --flake github:michaelssingh/sober-nix#ninox --no-channel-copy
 
 echo "Initial default password for user 'michael' is set to 'nixos'."
-read -p "Would you like to set a custom password for user 'michael' now? (y/N) " -n 1 -r
+read -p "Would you like to set a custom password for user 'michael' now? (y/N) " -n 1 -r < /dev/tty
 echo
 if [[ $REPLY =~ ^[Yy]$ ]]; then
   nixos-enter --root /mnt -- passwd michael
