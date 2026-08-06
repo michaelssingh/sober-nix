@@ -17,6 +17,26 @@ in
         default = "wg-sober";
         description = "Name of the Sober VPN interface.";
       };
+      secretName = lib.mkOption {
+        type = lib.types.str;
+        default = if config.networking.hostName == "ninox" then "wg_sober_ninox_private" else "wg_sober_otus_private";
+        description = "Sops secret name for Sober VPN private key.";
+      };
+      address = lib.mkOption {
+        type = lib.types.listOf lib.types.str;
+        default =
+          if config.networking.hostName == "ninox" then
+            [
+              "10.13.13.3/32"
+              "fd00::3/128"
+            ]
+          else
+            [
+              "10.13.13.2/32"
+              "fd00::2/128"
+            ];
+        description = "Sober VPN interface IP address.";
+      };
       # Rationale: Provides a safe way to limit VPN traffic to internal subnets
       # during troubleshooting, preventing a total network lock-out if
       # the VPN routing is misconfigured or if we need to isolate
@@ -29,17 +49,14 @@ in
     networking.firewall.trustedInterfaces = [ cfg.interface ];
     networking.firewall.checkReversePath = "loose";
 
-    sops.secrets.wg_sober_otus_private = {
+    sops.secrets."${cfg.secretName}" = {
       sopsFile = ../../secrets/secrets.yaml;
     };
 
     networking.wg-quick.interfaces."${cfg.interface}" = {
       autostart = true;
-      address = [
-        "10.13.13.2/32"
-        "fd00::2/128"
-      ];
-      privateKeyFile = config.sops.secrets.wg_sober_otus_private.path;
+      address = cfg.address;
+      privateKeyFile = config.sops.secrets."${cfg.secretName}".path;
       mtu = 1280;
 
       peers = [

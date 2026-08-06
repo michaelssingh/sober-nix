@@ -17,6 +17,20 @@ in
         default = "wg-fly";
         description = "Name of the Fly.io WireGuard interface.";
       };
+      secretName = lib.mkOption {
+        type = lib.types.str;
+        default = if config.networking.hostName == "ninox" then "wg_fly_ninox_private" else "wg_fly_otus_private";
+        description = "Sops secret name for Fly.io WireGuard private key.";
+      };
+      address = lib.mkOption {
+        type = lib.types.listOf lib.types.str;
+        default =
+          if config.networking.hostName == "ninox" then
+            [ "fdaa:3:7a15:a7b:159d:15b0:9fe2:703/120" ]
+          else
+            [ "fdaa:3:7a15:a7b:159d:15b0:9fe2:702/120" ];
+        description = "Fly.io WireGuard interface IP address.";
+      };
     };
   };
 
@@ -24,18 +38,18 @@ in
     # 0. Trust the Fly interface in the firewall
     networking.firewall.trustedInterfaces = [ cfg.interface ];
 
-    sops.secrets.wg_fly_otus_private = {
+    sops.secrets."${cfg.secretName}" = {
       sopsFile = ../../secrets/secrets.yaml;
     };
 
     # 1. WireGuard Configuration
     networking.wg-quick.interfaces."${cfg.interface}" = {
       autostart = true;
-      address = [ "fdaa:3:7a15:a7b:159d:15b0:9fe2:702/120" ];
+      address = cfg.address;
       dns = [ "fdaa:3:7a15::3" ];
       mtu = 1280;
 
-      privateKeyFile = config.sops.secrets.wg_fly_otus_private.path;
+      privateKeyFile = config.sops.secrets."${cfg.secretName}".path;
 
       peers = [
         {
