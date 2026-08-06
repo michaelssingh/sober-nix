@@ -45,6 +45,14 @@
   # --- KEYBOARD & HARDWARE FEATURES ---
   sober.services.kanata.enable = true;
 
+  # --- SWAP & MEMORY TUNING ---
+  zramSwap = {
+    enable = true;
+    algorithm = "zstd";
+    memoryPercent = 50;
+    priority = 100; # High priority: fast compressed RAM swap used before NVMe disk swapfile
+  };
+
   # --- BOOTLOADER & KERNEL ---
   boot.loader.systemd-boot.enable = true;
   boot.loader.efi.canTouchEfiVariables = true;
