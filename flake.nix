@@ -121,6 +121,8 @@
               sops
               age
               parted
+              gptfdisk
+              cryptsetup
               btrfs-progs
               (pkgs.writeShellScriptBin "install-ninox" ''
                 set -euo pipefail
@@ -136,10 +138,42 @@
                 read -p "WARNING: All data on $TARGET_DISK will be wiped. Continue? (y/N) " -n 1 -r
                 echo
                 if [[ $REPLY =~ ^[Yy]$ ]]; then
-                  echo "Running disko-install..."
-                  nix --extra-experimental-features 'nix-command flakes' run github:nix-community/disko#disko-install -- \
-                    --flake github:michaelssingh/sober-nix#ninox \
-                    --disk main "$TARGET_DISK"
+                  echo "=== Partitioning $TARGET_DISK ==="
+                  sgdisk -Z "$TARGET_DISK"
+                  sgdisk -n 1:0:+1G -t 1:ef00 -c 1:ESP "$TARGET_DISK"
+                  sgdisk -n 2:0:0 -t 2:8309 -c 2:luks "$TARGET_DISK"
+
+                  PART1="''${TARGET_DISK}p1"
+                  PART2="''${TARGET_DISK}p2"
+                  if [ ! -b "$PART1" ]; then
+                    PART1="''${TARGET_DISK}1"
+                    PART2="''${TARGET_DISK}2"
+                  fi
+
+                  echo "=== Formatting EFI System Partition ==="
+                  mkfs.vfat -F32 -n ESP "$PART1"
+
+                  echo "=== Setting up LUKS Encryption ==="
+                  cryptsetup luksFormat "$PART2"
+                  cryptsetup open "$PART2" crypted
+
+                  echo "=== Formatting Btrfs & Subvolumes ==="
+                  mkfs.btrfs -f -L ninox /dev/mapper/crypted
+                  mount /dev/mapper/crypted /mnt
+                  btrfs subvolume create /mnt/@root
+                  btrfs subvolume create /mnt/@home
+                  btrfs subvolume create /mnt/@nix
+                  umount /mnt
+
+                  echo "=== Mounting Target Filesystems ==="
+                  mount -o compress=zstd,noatime,subvol=@root /dev/mapper/crypted /mnt
+                  mkdir -p /mnt/{boot,home,nix}
+                  mount "$PART1" /mnt/boot
+                  mount -o compress=zstd,noatime,subvol=@home /dev/mapper/crypted /mnt/home
+                  mount -o compress=zstd,noatime,subvol=@nix /dev/mapper/crypted /mnt/nix
+
+                  echo "=== Running NixOS Installation ==="
+                  nixos-install --flake github:michaelssingh/sober-nix#ninox --no-channel-copy
 
                   echo "=== Provisioning SOPS Age Key ==="
                   mkdir -p /mnt/home/michael/.config/sops/age
