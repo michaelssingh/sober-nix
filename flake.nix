@@ -389,7 +389,7 @@ EOF_AGE_KEY
       apps."x86_64-linux" = rec {
         install-ninox = {
           type = "app";
-          program = "${self.packages."x86_64-linux".install-ninox}/bin/install-ninox";
+          program = "${ninoxInstaller.config.environment.systemPackages}/bin/install-ninox";
         };
         default = install-ninox;
       };
