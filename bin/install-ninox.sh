@@ -78,7 +78,7 @@ if [ ! -d /mnt/home/michael/git/sober-nix ]; then
 fi
 
 echo "=== Running NixOS System Installation ==="
-nixos-install --flake github:michaelssingh/sober-nix#ninox --no-channel-copy
+nixos-install --flake /mnt/home/michael/git/sober-nix#ninox --no-channel-copy
 
 echo "Initial default password for user 'michael' is set to 'nixos'."
 read -p "Would you like to set a custom password for user 'michael' now? (y/N) " -n 1 -r < /dev/tty
