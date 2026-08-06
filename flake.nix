@@ -96,6 +96,25 @@
               "nix-command"
               "flakes"
             ];
+            services.openssh = {
+              enable = true;
+              settings = {
+                PermitRootLogin = "yes";
+                PasswordAuthentication = false;
+              };
+            };
+            users.users.root.openssh.authorizedKeys.keys = [
+              publicKeys.forge
+              publicKeys.fly
+              publicKeys.nixbuild
+              publicKeys.agy
+            ];
+            users.users.nixos.openssh.authorizedKeys.keys = [
+              publicKeys.forge
+              publicKeys.fly
+              publicKeys.nixbuild
+              publicKeys.agy
+            ];
             environment.systemPackages = with pkgs; [
               git
               disko
@@ -120,8 +139,7 @@
                   echo "Running disko-install..."
                   nix --extra-experimental-features 'nix-command flakes' run github:nix-community/disko#disko-install -- \
                     --flake github:michaelssingh/sober-nix#ninox \
-                    --disk main "$TARGET_DISK" \
-                    --write-efibootmgr
+                    --disk main "$TARGET_DISK"
 
                   echo "=== Provisioning SOPS Age Key ==="
                   mkdir -p /mnt/home/michael/.config/sops/age
