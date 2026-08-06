@@ -25,6 +25,7 @@ echo "[1/6] Partitioning $TARGET_DISK..."
 sgdisk -Z "$TARGET_DISK"
 sgdisk -n 1:0:+1G -t 1:ef00 -c 1:ESP "$TARGET_DISK"
 sgdisk -n 2:0:0 -t 2:8309 -c 2:luks "$TARGET_DISK"
+partprobe "$TARGET_DISK" 2>/dev/null || udevadm settle 2>/dev/null || sleep 2
 
 PART1="${TARGET_DISK}p1"
 PART2="${TARGET_DISK}p2"
