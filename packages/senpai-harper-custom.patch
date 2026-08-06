@@ -14,6 +14,8 @@ diff --git a/commands.go b/commands.go
 index 9bec583..aabacaf 100644
 --- a/commands.go
 +++ b/commands.go
+@@ -7,1 +7,0 @@ import (
+-	"net/url"
 @@ -1181,12 +1181,6 @@ func getSong() (string, error) {
  	if info.Album != "" {
  		fmt.Fprintf(&sb, " from \x02%s\x02", info.Album)
