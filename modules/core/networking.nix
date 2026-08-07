@@ -100,6 +100,9 @@
                 # Allow outbound traffic through trusted VPN interfaces (wg-sober, wg-fly)
                 ${trustedOutputRules}
 
+                # Whitelist WireGuard VPN server gateway endpoint IPs (wg-sober & wg-fly)
+                ip daddr { 37.16.11.12, 209.177.156.188 } accept
+
                 # Allow local network subnets for captive portals and LAN access
                 ip daddr { 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16 } accept
 
