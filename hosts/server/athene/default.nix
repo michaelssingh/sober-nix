@@ -23,12 +23,9 @@ let
       python3 = unstable.python312;
     }).overrideAttrs
       (oldAttrs: {
-        propagatedBuildInputs =
-          (builtins.filter (p: p.pname or "" != "protobuf") oldAttrs.propagatedBuildInputs)
-          ++ [
-            unstable.python312Packages.async-timeout
-            unstable.python312Packages.protobuf4
-          ];
+        propagatedBuildInputs = (oldAttrs.propagatedBuildInputs or [ ]) ++ [
+          unstable.python312Packages.async-timeout
+        ];
       });
 
   vectorLatest = pkgs.stdenv.mkDerivation {
@@ -73,6 +70,9 @@ in
 soberLib.mkContainerImage {
   name = "sober-athene";
   harden = false;
+  env = {
+    PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION = "python";
+  };
   observability = {
     package = vectorLatest;
     lokiUrl = "https://logs-prod-042.grafana.net";
