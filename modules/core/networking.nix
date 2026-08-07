@@ -100,11 +100,15 @@
                 # Allow outbound traffic through trusted VPN interfaces (wg-sober, wg-fly)
                 ${trustedOutputRules}
 
+                # Allow local network subnets for captive portals and LAN access
+                ip daddr { 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16 } accept
+
                 # Allow WireGuard UDP handshake packets to endpoints
                 udp dport 51820 accept
 
-                # Allow local network DHCP requests
-                udp dport 67 accept
+                # Allow local network DHCP & DNS requests
+                udp dport { 53, 67 } accept
+                tcp dport 53 accept
                 udp sport 68 accept
               }
             }
