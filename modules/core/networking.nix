@@ -70,6 +70,11 @@
                 iifname "lo" accept
                 ${trustedRules}
                 
+                # Allow inbound WireGuard handshake responses on physical interfaces (wlp3s0, etc.)
+                ip saddr { 37.16.11.12, 209.177.156.188 } accept
+                udp sport 51820 accept
+                udp sport { 53, 68 } accept
+
                 # Stealth mode: drop ICMP echo requests
                 ip protocol icmp icmp type echo-request drop
                 
