@@ -84,16 +84,28 @@
 
               chain output {
                 type filter hook output priority filter;
-                policy accept;
+                policy ${
+                  if config.sober.services.wg-sober.enable && config.sober.services.wg-sober.killSwitch then
+                    "drop"
+                  else
+                    "accept"
+                };
 
+                # Allow loopback
                 oifname "lo" accept
-                ${trustedOutputRules}
-                udp dport 51820 accept
-                udp dport 53 accept
-                tcp dport 53 accept
 
-                # Allow existing connections
+                # Allow return traffic for established connections
                 ct state established,related accept
+
+                # Allow outbound traffic through trusted VPN interfaces (wg-sober, wg-fly)
+                ${trustedOutputRules}
+
+                # Allow WireGuard UDP handshake packets to endpoints
+                udp dport 51820 accept
+
+                # Allow local network DHCP requests
+                udp dport 67 accept
+                udp sport 68 accept
               }
             }
           '';
@@ -101,9 +113,18 @@
     })
     {
       networking.hosts = {
-        "10.13.13.1" = [ "glaucidium" "glaucidium.sober.vpn" ];
-        "10.13.13.2" = [ "otus" "otus.sober.vpn" ];
-        "10.13.13.3" = [ "ninox" "ninox.sober.vpn" ];
+        "10.13.13.1" = [
+          "glaucidium"
+          "glaucidium.sober.vpn"
+        ];
+        "10.13.13.2" = [
+          "otus"
+          "otus.sober.vpn"
+        ];
+        "10.13.13.3" = [
+          "ninox"
+          "ninox.sober.vpn"
+        ];
       };
     }
   ];

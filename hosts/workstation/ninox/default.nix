@@ -68,7 +68,7 @@
   sober.core.networking.firewall.enable = true;
   sober.services.wg-fly.enable = true;
   sober.services.wg-sober.enable = true;
-  sober.services.wg-sober.debugMode = true; # Route only internal subnets through VPN
+  sober.services.wg-sober.debugMode = false;
 
   programs.nh = {
     enable = true;

@@ -19,7 +19,8 @@ in
       };
       secretName = lib.mkOption {
         type = lib.types.str;
-        default = if config.networking.hostName == "ninox" then "wg_sober_ninox_private" else "wg_sober_otus_private";
+        default =
+          if config.networking.hostName == "ninox" then "wg_sober_ninox_private" else "wg_sober_otus_private";
         description = "Sops secret name for Sober VPN private key.";
       };
       address = lib.mkOption {
@@ -42,6 +43,11 @@ in
       # the VPN routing is misconfigured or if we need to isolate
       # VPN traffic from general internet traffic.
       debugMode = lib.mkEnableOption "Debug mode (limits allowedIPs to internal subnets)";
+      killSwitch = lib.mkOption {
+        type = lib.types.bool;
+        default = true;
+        description = "Block non-VPN outbound traffic in firewall when VPN is enabled.";
+      };
     };
   };
 
@@ -55,7 +61,7 @@ in
 
     networking.wg-quick.interfaces."${cfg.interface}" = {
       autostart = true;
-      address = cfg.address;
+      inherit (cfg) address;
       privateKeyFile = config.sops.secrets."${cfg.secretName}".path;
       mtu = 1280;
 
