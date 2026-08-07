@@ -171,5 +171,9 @@
   ];
   system.stateVersion = "25.11";
 
+  environment.systemPackages = with pkgs; [
+    zoom-us
+  ];
+
   security.sudo.wheelNeedsPassword = false;
 }
