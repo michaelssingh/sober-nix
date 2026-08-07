@@ -23,7 +23,8 @@ let
       substituteInPlace maugclib/pblite.py \
         --replace-fail "field_descriptor.label" "getattr(field_descriptor, 'label', getattr(field_descriptor, '_label', None))"
       substituteInPlace mautrix_googlechat/formatter/from_matrix/gc_message.py \
-        --replace-fail "class GCEntityType(Enum):" "class GCEntityType(Enum):''\n    _generate_next_value_ = staticmethod(lambda name, start, count, last_values: count)"
+        --replace-fail "URL = auto()" "URL = \"URL\"" \
+        --replace-fail "EMAIL = auto()" "EMAIL = \"EMAIL\""
     '';
     propagatedBuildInputs = (oldAttrs.propagatedBuildInputs or [ ]) ++ [
       unstable.python3Packages.legacy-cgi
