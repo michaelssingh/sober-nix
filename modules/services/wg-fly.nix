@@ -26,7 +26,7 @@ in
         type = lib.types.listOf lib.types.str;
         default =
           if config.networking.hostName == "ninox" then
-            [ "fdaa:3:7a15:a7b:159d:49b:84:cb02/120" ]
+            [ "fdaa:3:7a15:a7b:159d:50bc:780:bf02/120" ]
           else
             [ "fdaa:3:7a15:a7b:159d:15b0:9fe2:702/120" ];
         description = "Fly.io WireGuard interface IP address.";
