@@ -43,6 +43,7 @@
 
   # --- KEYBOARD & HARDWARE FEATURES ---
   sober.services.kanata.enable = true;
+  services.fprintd.enable = true;
 
   # --- SWAP & MEMORY TUNING ---
   zramSwap = {
