@@ -18,15 +18,16 @@ let
     };
   };
 
-  mautrix-googlechat =
-    (unstable.mautrix-googlechat.override {
-      python3 = unstable.python312;
-    }).overrideAttrs
-      (oldAttrs: {
-        propagatedBuildInputs = (oldAttrs.propagatedBuildInputs or [ ]) ++ [
-          unstable.python312Packages.async-timeout
-        ];
-      });
+  mautrix-googlechat = unstable.mautrix-googlechat.overrideAttrs (oldAttrs: {
+    postPatch = (oldAttrs.postPatch or "") + ''
+      substituteInPlace maugclib/pblite.py \
+        --replace-fail "field_descriptor.label" "getattr(field_descriptor, 'label', getattr(field_descriptor, '_label', None))"
+    '';
+    propagatedBuildInputs = (oldAttrs.propagatedBuildInputs or [ ]) ++ [
+      unstable.python3Packages.legacy-cgi
+      unstable.python3Packages.async-timeout
+    ];
+  });
 
   vectorLatest = pkgs.stdenv.mkDerivation {
     pname = "vector";
