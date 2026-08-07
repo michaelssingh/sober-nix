@@ -26,7 +26,7 @@ in
       seat.seat0.xcursor_theme = "Simp1e-Tokyo-Night 24";
       output = {
         "eDP-1" = {
-          res = "preferred";
+          mode = "preferred";
         };
       };
 
