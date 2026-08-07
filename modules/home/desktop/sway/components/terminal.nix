@@ -48,7 +48,7 @@ in
     enable = true;
     settings = {
       font-family = "FiraCode Nerd Font";
-      font-size = 10;
+      font-size = 13;
       font-feature = [
         "+liga"
         "+calt"

@@ -61,7 +61,7 @@
   services.kmscon = {
     enable = true;
     hwRender = true;
-    extraConfig = "font-size=12";
+    extraConfig = "font-size=16";
     fonts = [
       {
         name = "JetBrainsMono Nerd Font";
