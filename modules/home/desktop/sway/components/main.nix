@@ -28,6 +28,9 @@ in
         "*" = {
           bg = "${./../bg.jpg} fill";
         };
+        "eDP-1" = {
+          scale = "1.25";
+        };
       };
 
       modifier = "Mod4";
