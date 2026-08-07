@@ -99,5 +99,12 @@
           '';
       };
     })
+    {
+      networking.hosts = {
+        "10.13.13.1" = [ "glaucidium" "glaucidium.sober.vpn" ];
+        "10.13.13.2" = [ "otus" "otus.sober.vpn" ];
+        "10.13.13.3" = [ "ninox" "ninox.sober.vpn" ];
+      };
+    }
   ];
 }

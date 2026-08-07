@@ -81,6 +81,16 @@
           StrictHostKeyChecking = "no";
           UserKnownHostsFile = "/dev/null";
         };
+
+        "otus" = {
+          HostName = "10.13.13.2";
+          User = "michael";
+        };
+
+        "ninox" = {
+          HostName = "10.13.13.3";
+          User = "michael";
+        };
       };
   };
 }
