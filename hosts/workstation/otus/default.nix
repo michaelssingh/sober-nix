@@ -208,11 +208,12 @@
   };
 
   # --- SOPS-NIX SECRETS ---
-  # Otus does not use LUKS, so /home is on the root filesystem and is available
-  # immediately during the NixOS activation script. keyFile works here unlike
-  # on Ninox (LUKS+Btrfs) where we must use sshKeyPaths instead.
+  # Otus uses its SSH host key for system-level decryption, consistent with
+  # the architecture on all hosts: each machine decrypts system secrets using
+  # its own hardware key, independent of the user's personal age key.
+  # The personal key (~/.config/sops/age/keys.txt) is used only by Home Manager.
   sops.defaultSopsFile = ../../../secrets/secrets.yaml;
-  sops.age.keyFile = "/home/michael/.config/sops/age/keys.txt";
+  sops.age.sshKeyPaths = [ "/etc/ssh/ssh_host_ed25519_key" ];
 
   # --- System State ---
   # Force rebuild

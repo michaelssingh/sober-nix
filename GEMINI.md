@@ -16,18 +16,21 @@
 - **Validation**: Never consider a task complete without a successful local build.
 
 ## sops-nix Key Architecture
-The key source for `sops-nix` differs per host based on whether LUKS is in use.
+The key source for `sops-nix` differs per layer (NixOS system vs Home Manager).
 NixOS runs `sops-install-secrets` inside the **activation script**, before systemd
 has mounted any subvolumes. This means `/home` is not available at that point on LUKS hosts.
 
-| Host | Encryption | NixOS system key source | Home Manager key source |
-|------|------------|------------------------|-------------------------|
-| `otus` | No LUKS — `/home` on root fs | `sops.age.keyFile = "~/.config/sops/age/keys.txt"` | same |
-| `ninox` | LUKS+Btrfs — `/home` mounts after activation | `sops.age.sshKeyPaths = ["/etc/ssh/ssh_host_ed25519_key"]` | `keyFile` |
+Every NixOS host uses its own SSH host key for **system-level** decryption. The personal
+age key (`~/.config/sops/age/keys.txt`) is used exclusively by **Home Manager**.
 
-**On Ninox reinstall**: NixOS generates a fresh SSH host key. You must:
+| Host | NixOS system key source | Home Manager key source |
+|------|------------------------|-------------------------|
+| `otus` | `sops.age.sshKeyPaths = ["/etc/ssh/ssh_host_ed25519_key"]` (`&otus`) | `sops.age.keyFile = "~/.config/sops/age/keys.txt"` (`&michael`) |
+| `ninox` | `sops.age.sshKeyPaths = ["/etc/ssh/ssh_host_ed25519_key"]` (`&ninox`) | `sops.age.keyFile = "~/.config/sops/age/keys.txt"` (`&michael`) |
+
+**On reinstall of any host**: NixOS generates a fresh SSH host key. You must:
 1. Boot the new system and run: `ssh-to-age -i /etc/ssh/ssh_host_ed25519_key.pub`
-2. Update the `&ninox` age key in `.sops.yaml`
+2. Update the relevant host anchor (`&otus` or `&ninox`) in `.sops.yaml`
 3. Re-encrypt secrets: `sops updatekeys secrets/secrets.yaml`
 4. Commit and redeploy.
 
