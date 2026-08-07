@@ -10,7 +10,7 @@ in
 {
   wayland.windowManager.sway = {
     enable = true;
-    xwayland = false;
+    xwayland = true;
 
     config = {
       input = {
