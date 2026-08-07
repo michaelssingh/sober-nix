@@ -71,7 +71,7 @@ in
     fuzzel
     aerc
     neomutt
-    swaylock
+    swaylock-effects
     swayidle
     inputs.nixpkgs-pinned.legacyPackages.${pkgs.stdenv.hostPlatform.system}.transmission_4
     stig
