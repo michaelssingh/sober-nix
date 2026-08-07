@@ -26,7 +26,7 @@ in
       seat.seat0.xcursor_theme = "Simp1e-Tokyo-Night 24";
       output = {
         "eDP-1" = {
-          res = "1366x768@60Hz";
+          res = "1920x1080@60Hz";
         };
       };
 

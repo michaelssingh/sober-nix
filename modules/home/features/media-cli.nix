@@ -34,10 +34,10 @@
           fi
         done
 
-        if [ -S "$SOCKET" ] && socat - "$SOCKET" <<< '{ "command": ["get_property", "idle-active"] }' >/dev/null 2>&1; then
+        if [ -S "$SOCKET" ] && socat -t 1 - "$SOCKET" <<< '{ "command": ["get_property", "idle-active"] }' >/dev/null 2>&1; then
           # Already running: just append the target
           if [ -n "$TARGET" ]; then
-            echo "{ \"command\": [\"loadfile\", \"$TARGET\", \"append-play\"] }" | socat - "$SOCKET"
+            echo "{ \"command\": [\"loadfile\", \"$TARGET\", \"append-play\"] }" | socat -t 1 - "$SOCKET"
           fi
         else
           # Not running: start fresh
