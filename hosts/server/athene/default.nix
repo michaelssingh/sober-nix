@@ -18,12 +18,18 @@ let
     };
   };
 
-  mautrix-googlechat = unstable.mautrix-googlechat.overrideAttrs (oldAttrs: {
-    propagatedBuildInputs = (oldAttrs.propagatedBuildInputs or [ ]) ++ [
-      unstable.python3Packages.legacy-cgi
-      unstable.python3Packages.async-timeout
-    ];
-  });
+  mautrix-googlechat =
+    (unstable.mautrix-googlechat.override {
+      python3 = unstable.python312;
+    }).overrideAttrs
+      (oldAttrs: {
+        propagatedBuildInputs =
+          (builtins.filter (p: p.pname or "" != "protobuf") oldAttrs.propagatedBuildInputs)
+          ++ [
+            unstable.python312Packages.async-timeout
+            unstable.python312Packages.protobuf4
+          ];
+      });
 
   vectorLatest = pkgs.stdenv.mkDerivation {
     pname = "vector";
