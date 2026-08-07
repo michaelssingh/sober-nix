@@ -24,20 +24,36 @@ in
         if !config.sober.isRemote then
           ''
             function wg-up
-              echo "Restarting WireGuard services in order..."
-              sudo systemctl stop wg-quick-wg-sober
-              sudo systemctl stop wg-quick-wg-fly
+              echo "Restoring VPN kill-switch & starting WireGuard services in order..."
+              sudo systemctl reload nftables.service
+              sudo systemctl stop wg-quick-wg-sober 2>/dev/null
+              sudo systemctl stop wg-quick-wg-fly 2>/dev/null
               sudo systemctl start wg-quick-wg-fly
               sleep 2
               sudo systemctl start wg-quick-wg-sober
-              echo "WireGuard services restarted."
+              echo "WireGuard VPN active & kill-switch enforced."
             end
 
             function wg-down
               echo "Stopping WireGuard services..."
-              sudo systemctl stop wg-quick-wg-sober
-              sudo systemctl stop wg-quick-wg-fly
-              echo "WireGuard services stopped."
+              sudo systemctl stop wg-quick-wg-sober 2>/dev/null
+              sudo systemctl stop wg-quick-wg-fly 2>/dev/null
+              sudo nft insert rule inet filter output tcp dport '{ 80, 443 }' accept 2>/dev/null
+              echo "WireGuard services stopped. (Run 'wg-up' to reconnect & enforce kill-switch)."
+            end
+
+            function portal
+              if test "$argv[1]" = "off"
+                wg-up
+              else
+                echo "Activating captive portal mode..."
+                sudo systemctl stop wg-quick-wg-sober 2>/dev/null
+                sudo systemctl stop wg-quick-wg-fly 2>/dev/null
+                sudo nft insert rule inet filter output tcp dport '{ 80, 443 }' accept 2>/dev/null
+                echo "Captive portal mode ACTIVE."
+                echo "1. Open your browser (or http://neverssl.com) to complete Wi-Fi login."
+                echo "2. Run 'wg-up' or 'portal off' when finished to restore VPN & kill-switch."
+              end
             end
 
             function lofi
