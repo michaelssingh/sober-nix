@@ -65,11 +65,11 @@ soberLib.mkContainerImage {
     sysctl -w net.ipv6.conf.all.forwarding=1
 
     iptables-legacy -A FORWARD -i wg0 -j ACCEPT
-    iptables-legacy -A FORWARD -o wg0 -m state --state RELATED,ESTABLISHED -j ACCEPT
+    iptables-legacy -A FORWARD -o wg0 -j ACCEPT
     iptables-legacy -t nat -A POSTROUTING -s 10.13.13.0/24 -o eth0 -j MASQUERADE
 
     ip6tables-legacy -A FORWARD -i wg0 -j ACCEPT
-    ip6tables-legacy -A FORWARD -o wg0 -m state --state RELATED,ESTABLISHED -j ACCEPT
+    ip6tables-legacy -A FORWARD -o wg0 -j ACCEPT
     ip6tables-legacy -t nat -A POSTROUTING -s fd00::/64 -o eth0 -j MASQUERADE
 
     wg-quick up wg0

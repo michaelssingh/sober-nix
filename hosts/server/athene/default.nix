@@ -18,18 +18,7 @@ let
     };
   };
 
-  mautrix-googlechat =
-    (unstable.mautrix-googlechat.override {
-      python3 = unstable.python312;
-    }).overrideAttrs
-      (oldAttrs: {
-        propagatedBuildInputs =
-          (builtins.filter (p: p.pname or "" != "protobuf") oldAttrs.propagatedBuildInputs)
-          ++ [
-            unstable.python312Packages.async-timeout
-            unstable.python312Packages.protobuf4
-          ];
-      });
+  mautrix-googlechat = unstable.mautrix-googlechat;
 
   vectorLatest = pkgs.stdenv.mkDerivation {
     pname = "vector";
@@ -131,6 +120,8 @@ soberLib.mkContainerImage {
       .appservice.database = "sqlite:/data/mautrix-googlechat/mautrix-googlechat.db" |
       .bridge.encryption.allow = false |
       .bridge.encryption.default = false |
+      .bridge.state.enabled = false |
+      .bridge.m_bridge = false |
       .bridge.displayname_template = "{full_name}" |
       del(.bridge.permissions) |
       .bridge.permissions["sober.fyi"] = "user" |

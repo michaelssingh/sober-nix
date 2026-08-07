@@ -37,6 +37,10 @@ soberLib.mkContainerImage {
     GITEA__security__INSTALL_LOCK = "true";
     GITEA__service__DISABLE_REGISTRATION = "true";
     GITEA__repository__ENABLE_PUSH_TO_CREATE = "true";
+    GITEA__server__LFS_START_SERVER = "true";
+    GITEA__server__LFS_JWT_SECRET = "***REDACTED***";
+    GITEA__lfs__PATH = "/data/forgejo/data/lfs";
+    GITEA__lfs__JWT_SECRET = "***REDACTED***";
   };
 
   entrypoint = ''
@@ -74,6 +78,6 @@ soberLib.mkContainerImage {
         ${pkgs.coreutils}/bin/chown -R git:git /data/forgejo
 
         echo "Starting Forgejo..."
-        exec ${pkgs.su-exec}/bin/su-exec git ${pkgs.forgejo}/bin/forgejo web
+        exec ${pkgs.su-exec}/bin/su-exec git ${pkgs.forgejo}/bin/forgejo web --config /data/forgejo/custom/conf/app.ini --work-path /data/forgejo
   '';
 }
