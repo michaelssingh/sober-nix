@@ -24,22 +24,20 @@ in
         if !config.sober.isRemote then
           ''
             function wg-up
-              echo "Restoring VPN kill-switch & starting WireGuard services in order..."
-              sudo systemctl reload nftables.service
-              sudo systemctl stop wg-quick-wg-sober 2>/dev/null
-              sudo systemctl stop wg-quick-wg-fly 2>/dev/null
+              echo "Restarting WireGuard services in order..."
+              sudo systemctl stop wg-quick-wg-sober
+              sudo systemctl stop wg-quick-wg-fly
               sudo systemctl start wg-quick-wg-fly
               sleep 2
               sudo systemctl start wg-quick-wg-sober
-              echo "WireGuard VPN active & kill-switch enforced."
+              echo "WireGuard services restarted."
             end
 
             function wg-down
               echo "Stopping WireGuard services..."
-              sudo systemctl stop wg-quick-wg-sober 2>/dev/null
-              sudo systemctl stop wg-quick-wg-fly 2>/dev/null
-              sudo nft insert rule inet filter output tcp dport '{ 80, 443 }' accept 2>/dev/null
-              echo "WireGuard services stopped. (Run 'wg-up' to reconnect & enforce kill-switch)."
+              sudo systemctl stop wg-quick-wg-sober
+              sudo systemctl stop wg-quick-wg-fly
+              echo "WireGuard services stopped."
             end
 
             function portal
