@@ -207,8 +207,8 @@
     };
   };
 
-  # --- Sops-Nix Configuration ---
-  sops.defaultSopsFile = ../../secrets/secrets.yaml;
+  # --- SOPS-NIX SECRETS ---
+  sops.defaultSopsFile = ../../../secrets/secrets.yaml;
   sops.age.keyFile = "/home/michael/.config/sops/age/keys.txt";
 
   # --- System State ---

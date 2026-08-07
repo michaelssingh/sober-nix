@@ -150,7 +150,7 @@
   };
 
   # --- SOPS-NIX SECRETS ---
-  sops.defaultSopsFile = ../../secrets/secrets.yaml;
+  sops.defaultSopsFile = ../../../secrets/secrets.yaml;
   sops.age.keyFile = "/home/michael/.config/sops/age/keys.txt";
 
   nixpkgs.config.allowUnfree = true;
