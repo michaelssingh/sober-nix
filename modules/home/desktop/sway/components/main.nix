@@ -25,8 +25,8 @@ in
 
       seat.seat0.xcursor_theme = "Simp1e-Tokyo-Night 24";
       output = {
-        "eDP-1" = {
-          mode = "preferred";
+        "*" = {
+          bg = "${./../bg.jpg} fill";
         };
       };
 
