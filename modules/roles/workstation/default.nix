@@ -46,6 +46,15 @@
   services.gnome.gnome-keyring.enable = true;
   security.pam.services.login.enableGnomeKeyring = true;
   security.pam.services.swaylock = { };
+
+  # Polkit rule to permit wheel group users to enroll/manage fingerprints
+  security.polkit.extraConfig = ''
+    polkit.addRule(function(action, subject) {
+      if (action.id.indexOf("net.reactivated.fprint.") === 0 && subject.isInGroup("wheel")) {
+        return polkit.Result.YES;
+      }
+    });
+  '';
   # --- 5. Firmware & Microcode ---
   services.fwupd.enable = true;
   hardware.enableRedistributableFirmware = true;
