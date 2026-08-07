@@ -15,6 +15,10 @@
     keyMode = "vi";
     terminal = "tmux-256color";
     shell = "${pkgs.fish}/bin/fish";
+    plugins = with pkgs.tmuxPlugins; [
+      fingers
+      extrakto
+    ];
 
     extraConfig =
       let
