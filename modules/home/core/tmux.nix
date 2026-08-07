@@ -34,8 +34,8 @@
         set -g mouse on
 
         # OSC 8 Passthrough & Hyperlink Support
-        set -as terminal-features ",foot:hyperlinks"
-        set -as terminal-overrides ",foot:HLS=\E]8;%p1%s;%p2%s\E\\"
+        set -as terminal-features ",ghostty:hyperlinks,foot:hyperlinks,xterm-256color:hyperlinks"
+        set -as terminal-overrides ",ghostty:HLS=\E]8;%p1%s;%p2%s\E\\,foot:HLS=\E]8;%p1%s;%p2%s\E\\"
         set -g default-terminal "tmux-256color"
 
         # --- Official Tokyo Night Tmux Styling (Ref: extras/tmux/) ---
@@ -90,6 +90,9 @@
         bind-key -T copy-mode-vi y send-keys -X copy-selection-and-cancel
         bind-key -T copy-mode-vi C-v send-keys -X rectangle-toggle
         bind-key P paste-buffer
+
+        # URL Picker overlay (Prefix + u)
+        bind-key u capture-pane -J -S - -E - \; save-buffer /tmp/tmux-url-buffer \; run-shell "${pkgs.bash}/bin/bash -c 'grep -o -E \"(https?|ftp|file)://[-A-Za-z0-9+&@#/%?=~_|!:,.;]*[-A-Za-z0-9+&@#/%=~_|]\" /tmp/tmux-url-buffer | sort -u | ${pkgs.fzf}/bin/fzf --tmux --multi | xargs -r xdg-open'"
 
       '';
   };
