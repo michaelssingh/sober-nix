@@ -2,6 +2,7 @@
   pkgs,
   config,
   lib,
+  osConfig ? { },
   ...
 }:
 let
@@ -28,6 +29,8 @@ in
         "*" = {
           bg = "${./../bg.jpg} fill";
         };
+      }
+      // lib.optionalAttrs ((osConfig.networking.hostName or "") == "ninox") {
         "eDP-1" = {
           scale = "1.25";
         };
