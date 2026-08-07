@@ -1,4 +1,8 @@
-{ config, ... }:
+{
+  config,
+  osConfig ? { },
+  ...
+}:
 
 let
   colors = config.sober.theme.current.colors;
@@ -61,15 +65,20 @@ in
       };
 
       fonts.default_family = "FiraCode Nerd Font Mono";
-      qt.args = [
-        # Disable GPU acceleration and compositing
-        "disable-gpu"
-        "disable-gpu-compositing"
-        "disable-gpu-rasterization"
-
-        # Feature exclusions disabling hardware video decoding & rasterization
-        "disable-features=VaapiVideoDecoder,VaapiVideoEncoder,CanvasOopRasterization,ZeroCopy,UseChromeOSDirectVideoDecoder,DocumentPictureInPictureAPI,EyeDropper,BackgroundFetch,InstalledApp,WebPayments,WebUSB"
-      ];
+      qt.args =
+        if (osConfig.networking.hostName or "") == "ninox" then
+          [
+            "enable-gpu-rasterization"
+            "enable-features=VaapiVideoDecoder,VaapiVideoEncoder,CanvasOopRasterization"
+          ]
+        else
+          [
+            # Disable GPU acceleration on lower-powered hosts like otus
+            "disable-gpu"
+            "disable-gpu-compositing"
+            "disable-gpu-rasterization"
+            "disable-features=VaapiVideoDecoder,VaapiVideoEncoder,CanvasOopRasterization,ZeroCopy,UseChromeOSDirectVideoDecoder,DocumentPictureInPictureAPI,EyeDropper,BackgroundFetch,InstalledApp,WebPayments,WebUSB"
+          ];
     };
 
     searchEngines = {
