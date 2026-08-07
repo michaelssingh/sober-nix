@@ -11,8 +11,9 @@
   };
 
   config = lib.mkIf config.sober.core.perf.lowend.enable {
-    # Speed up system with alternative kernel/scheduler
+    # Speed up system with alternative kernel/scheduler & disabled mitigations
     boot.kernelPackages = pkgs.linuxPackages_xanmod_latest;
+    boot.kernelParams = [ "mitigations=off" ];
 
     # Efficient swap management for limited RAM
     swapDevices = [ ];

@@ -74,7 +74,6 @@
     "pci=noaer"
     "udev.log_level=3"
     "rd.udev.log_level=3"
-    "mitigations=off"
   ];
   systemd.services.NetworkManager-wait-online.enable = false;
 }
