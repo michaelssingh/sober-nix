@@ -144,9 +144,12 @@
       ExecStart = "${pkgs.bash}/bin/bash -l -c ${pkgs.writeShellScript "tmux-autostart-script" ''
         # 1. comms session
         if ! tmux has-session -t comms 2>/dev/null; then
-          tmux new-session -d -s comms -n irc 'senpai'
-          tmux new-window -t comms:2 -n matrix 'iamb --profile athene'
-          tmux new-window -t comms:3 -n email 'aerc'
+          tmux new-session -d -s comms -n irc
+          tmux send-keys -t comms:1 'senpai' C-m
+          tmux new-window -t comms:2 -n matrix
+          tmux send-keys -t comms:2 'iamb --profile athene' C-m
+          tmux new-window -t comms:3 -n email
+          tmux send-keys -t comms:3 'aerc' C-m
         fi
 
         # 2. sys session
