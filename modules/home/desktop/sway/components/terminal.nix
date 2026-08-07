@@ -47,8 +47,12 @@ in
   programs.ghostty = {
     enable = true;
     settings = {
-      font-family = "JetBrainsMono Nerd Font";
+      font-family = "FiraCode Nerd Font";
       font-size = 10;
+      font-feature = [
+        "+liga"
+        "+calt"
+      ];
       background = colors.bg;
       foreground = colors.fg;
       cursor-color = colors.fg;
