@@ -3,7 +3,14 @@
   sops.secrets.protonmail_bridge_password = { };
 
   programs.mbsync.enable = true;
-  programs.notmuch.enable = true;
+  programs.notmuch = {
+    enable = true;
+    new.tags = [
+      "unread"
+      "inbox"
+      "new"
+    ];
+  };
 
   accounts.email.accounts.protonmail = {
     primary = true;
@@ -66,8 +73,20 @@
     };
     Service = {
       ExecStart = "${pkgs.writeShellScript "mbsync-and-notmuch" ''
-        ${pkgs.isync}/bin/mbsync -a
-        ${pkgs.notmuch}/bin/notmuch new
+                ${pkgs.isync}/bin/mbsync -a 2>/dev/null || true
+                ${pkgs.notmuch}/bin/notmuch new 2>/dev/null || true
+                ${pkgs.notmuch}/bin/notmuch search --format=json tag:new 2>/dev/null | ${pkgs.python3}/bin/python3 -c '
+        import sys, json, subprocess
+        try:
+            data = json.load(sys.stdin)
+            for msg in data:
+                authors = msg.get("authors", "Unknown")
+                subject = msg.get("subject", "(No Subject)")
+                subprocess.run(["${pkgs.libnotify}/bin/notify-send", "-a", "aerc", "-i", "mail-unread", f"New Email from {authors}", subject])
+        except Exception:
+            pass
+        '
+                ${pkgs.notmuch}/bin/notmuch tag -new tag:new 2>/dev/null || true
       ''}";
     };
   };
