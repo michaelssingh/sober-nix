@@ -1,7 +1,6 @@
 {
   pkgs,
   user,
-  inputs,
   ...
 }:
 
@@ -69,6 +68,7 @@
   sober.core.networking.firewall.enable = true;
   sober.services.wg-fly.enable = true;
   sober.services.wg-sober.enable = true;
+  sober.services.wg-sober.debugMode = true; # Route only internal subnets through VPN
 
   programs.nh = {
     enable = true;
@@ -153,7 +153,7 @@
 
   # --- SOPS-NIX SECRETS ---
   sops.defaultSopsFile = ../../../secrets/secrets.yaml;
-  sops.age.keyFile = "/home/michael/.config/sops/age/keys.txt";
+  sops.age.sshKeyPaths = [ "/etc/ssh/ssh_host_ed25519_key" ];
 
   nixpkgs.config.allowUnfree = true;
   nixpkgs.config.permittedInsecurePackages = [
