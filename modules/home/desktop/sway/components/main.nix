@@ -6,6 +6,7 @@
 }:
 let
   colors = config.sober.theme.current.colors;
+  swaylockCmd = "swaylock -f --screenshots --clock --indicator --indicator-radius 100 --indicator-thickness 7 --effect-blur 7x5 --effect-vignette 0.5:0.5 --ring-color bb9af7 --key-hl-color 9ece6a --fade-in 0.2";
 in
 {
   wayland.windowManager.sway = {
@@ -92,8 +93,7 @@ in
           "F5" = "exec swaymsg reload";
           "XF86TouchpadToggle" = "input \"type:touchpad\" events toggle";
           "XF86RFKill" = "exec rfkill toggle all";
-          "F9" =
-            "exec swaylock -f -i ${./../bg.jpg} --indicator-radius 100 --indicator-thickness 7 --ring-color bb9af7 --key-hl-color 9ece6a";
+          "F9" = "exec ${swaylockCmd}";
           "XF86Display" = "exec wlr-randr --output eDP-1 --toggle";
 
           # Screenshots
@@ -106,8 +106,7 @@ in
           "${modifier}+Shift+d" = "exec dict-lookup";
           "${modifier}+b" = "exec qutebrowser";
           "${modifier}+Shift+n" = "exec makoctl restore";
-          "${modifier}+Shift+e" =
-            "exec swaylock -f -i ${./../bg.jpg} --indicator-radius 100 --indicator-thickness 7 --ring-color bb9af7 --key-hl-color 9ece6a";
+          "${modifier}+Shift+e" = "exec ${swaylockCmd}";
           "${modifier}+minus" = "scratchpad show";
           "${modifier}+Shift+minus" = "move scratchpad";
           "${modifier}+t" = "floating disable";
@@ -130,7 +129,7 @@ in
           command = "systemctl --user import-environment DISPLAY WAYLAND_DISPLAY SWAYSOCK && systemctl --user start tmux-autostart";
         }
         {
-          command = "${pkgs.swayidle}/bin/swayidle -w timeout 300 'swaylock -f -i ${./../bg.jpg} --indicator-radius 100 --indicator-thickness 7 --ring-color bb9af7 --key-hl-color 9ece6a' before-sleep 'swaylock -f -i ${./../bg.jpg} --indicator-radius 100 --indicator-thickness 7 --ring-color bb9af7 --key-hl-color 9ece6a' lock 'swaylock -f -i ${./../bg.jpg} --indicator-radius 100 --indicator-thickness 7 --ring-color bb9af7 --key-hl-color 9ece6a'";
+          command = "${pkgs.swayidle}/bin/swayidle -w timeout 300 '${swaylockCmd}' before-sleep '${swaylockCmd}' lock '${swaylockCmd}'";
         }
         { command = "qutebrowser"; }
         { command = "swaymsg 'workspace number 2: comms; exec foot -e attach-tmux comms'"; }
