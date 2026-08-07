@@ -12,7 +12,7 @@ in
     settings = {
       main = {
         font = "Inter:size=11";
-        terminal = "foot";
+        terminal = "ghostty";
         prompt = "'❯ '";
       };
       # --- Official Tokyo Night Fuzzel Logic (Ref: extras/fuzzel/) ---

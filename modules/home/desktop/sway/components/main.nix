@@ -37,7 +37,7 @@ in
       };
 
       modifier = "Mod4";
-      terminal = "foot";
+      terminal = "ghostty";
       focus.followMouse = false;
       window.titlebar = false;
 
@@ -107,7 +107,7 @@ in
 
           "${modifier}+Return" = null;
           "${modifier}+c" = "exec makoctl dismiss --all";
-          "${modifier}+z" = "exec foot";
+          "${modifier}+z" = "exec ghostty";
           "${modifier}+d" = "exec fuzzel";
           "${modifier}+Shift+d" = "exec dict-lookup";
           "${modifier}+b" = "exec qutebrowser";
@@ -139,10 +139,10 @@ in
           command = "${pkgs.swayidle}/bin/swayidle -w timeout 300 'swaylock -f -i ${./../bg.jpg} --indicator-radius 100 --indicator-thickness 7 --ring-color bb9af7 --key-hl-color 9ece6a' before-sleep 'swaylock -f -i ${./../bg.jpg} --indicator-radius 100 --indicator-thickness 7 --ring-color bb9af7 --key-hl-color 9ece6a' lock 'swaylock -f -i ${./../bg.jpg} --indicator-radius 100 --indicator-thickness 7 --ring-color bb9af7 --key-hl-color 9ece6a'";
         }
         { command = "qutebrowser"; }
-        { command = "swaymsg 'workspace number 2: comms; exec foot -e attach-tmux comms'"; }
-        { command = "swaymsg 'workspace number 9: sys; exec foot -e attach-tmux sys'"; }
+        { command = "swaymsg 'workspace number 2: comms; exec ghostty -e attach-tmux comms'"; }
+        { command = "swaymsg 'workspace number 9: sys; exec ghostty -e attach-tmux sys'"; }
         {
-          command = "swaymsg 'workspace number 10: hack; exec foot -e attach-tmux hack; exec zathura \"/home/michael/git/books/K&R2\"'";
+          command = "swaymsg 'workspace number 10: hack; exec ghostty -e attach-tmux hack; exec zathura \"/home/michael/git/books/K&R2\"'";
         }
         { command = "swaymsg workspace number 1"; }
       ];
@@ -153,6 +153,7 @@ in
       title_align center
 
       output * bg ${./../bg.jpg} fill
+      for_window [app_id="ghostty"] hints none
       for_window [app_id="foot"] hints none
 
       default_border  pixel 1
