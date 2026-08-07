@@ -152,8 +152,15 @@
   };
 
   # --- SOPS-NIX SECRETS ---
+  # Ninox uses LUKS+Btrfs: /home is a separate subvolume that mounts after the
+  # initrd sops-install-secrets runs. We order sops-nix after home.mount so
+  # keys.txt is available before secret decryption is attempted.
   sops.defaultSopsFile = ../../../secrets/secrets.yaml;
-  sops.age.sshKeyPaths = [ "/etc/ssh/ssh_host_ed25519_key" ];
+  sops.age.keyFile = "/home/michael/.config/sops/age/keys.txt";
+  systemd.services.sops-nix = {
+    after = [ "home.mount" ];
+    requires = [ "home.mount" ];
+  };
 
   nixpkgs.config.allowUnfree = true;
   nixpkgs.config.permittedInsecurePackages = [

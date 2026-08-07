@@ -209,7 +209,7 @@
 
   # --- SOPS-NIX SECRETS ---
   sops.defaultSopsFile = ../../../secrets/secrets.yaml;
-  sops.age.sshKeyPaths = [ "/etc/ssh/ssh_host_ed25519_key" ];
+  sops.age.keyFile = "/home/michael/.config/sops/age/keys.txt";
 
   # --- System State ---
   # Force rebuild
