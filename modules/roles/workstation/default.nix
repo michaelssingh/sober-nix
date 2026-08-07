@@ -45,6 +45,7 @@
   # Keyring (Needed for saving WiFi passwords)
   services.gnome.gnome-keyring.enable = true;
   security.pam.services.login.enableGnomeKeyring = true;
+  security.pam.services.swaylock = { };
   # --- 5. Firmware & Microcode ---
   services.fwupd.enable = true;
   hardware.enableRedistributableFirmware = true;
