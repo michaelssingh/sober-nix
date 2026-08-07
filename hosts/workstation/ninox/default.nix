@@ -52,13 +52,25 @@
     memoryPercent = 50;
   };
 
-  # --- BOOTLOADER & KERNEL ---
+  # --- BOOTLOADER, PLYMOUTH & KERNEL ---
   boot.kernelPackages = pkgs.linuxPackages_latest;
   boot.loader.systemd-boot.enable = true;
   boot.loader.efi.canTouchEfiVariables = true;
   boot.loader.systemd-boot.configurationLimit = 10;
 
+  boot.plymouth = {
+    enable = true;
+  };
+  boot.initrd.verbose = false;
+  boot.consoleLogLevel = 0;
+
   boot.kernelParams = [
+    "quiet"
+    "splash"
+    "loglevel=3"
+    "rd.systemd.show_status=false"
+    "rd.udev.log_level=3"
+    "vt.global_cursor_default=0"
     "amdgpu.dcdebugmask=0x40000"
     "amd_pstate=active"
   ];

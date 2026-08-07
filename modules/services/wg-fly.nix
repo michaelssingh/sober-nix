@@ -19,7 +19,8 @@ in
       };
       secretName = lib.mkOption {
         type = lib.types.str;
-        default = if config.networking.hostName == "ninox" then "wg_fly_ninox_private" else "wg_fly_otus_private";
+        default =
+          if config.networking.hostName == "ninox" then "wg_fly_ninox_private" else "wg_fly_otus_private";
         description = "Sops secret name for Fly.io WireGuard private key.";
       };
       address = lib.mkOption {
@@ -45,7 +46,7 @@ in
     # 1. WireGuard Configuration
     networking.wg-quick.interfaces."${cfg.interface}" = {
       autostart = true;
-      address = cfg.address;
+      inherit (cfg) address;
       dns = [ "fdaa:3:7a15::3" ];
       mtu = 1280;
 
@@ -56,7 +57,7 @@ in
           # Fly.io Gateway
           publicKey = "aOtHoNmjTnvF32CvJnzFJbOyb9picxPnXgeS8keR2gQ=";
           allowedIPs = [ "fdaa:3:7a15::/48" ];
-          endpoint = "dfw1.gateway.6pn.dev:51820";
+          endpoint = "209.177.156.188:51820";
           persistentKeepalive = 15;
         }
       ];
