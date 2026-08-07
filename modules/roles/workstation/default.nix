@@ -57,6 +57,19 @@
       }
     });
   '';
+  # DRM/KMS Hardware Accelerated High-Res TTY Virtual Console
+  services.kmscon = {
+    enable = true;
+    hwRender = true;
+    extraConfig = "font-size=12";
+    fonts = [
+      {
+        name = "JetBrainsMono Nerd Font";
+        package = pkgs.nerd-fonts.jetbrains-mono;
+      }
+    ];
+  };
+
   # --- 5. Firmware & Microcode ---
   services.fwupd.enable = true;
   hardware.enableRedistributableFirmware = true;
