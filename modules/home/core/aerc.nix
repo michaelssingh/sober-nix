@@ -16,6 +16,26 @@
       compose = {
         editor = "nvim";
         header-layout = "To,Cc,Subject";
+        address-book-cmd = "${pkgs.writeShellScript "aerc-address-book" ''
+                    query="$1"
+                    if [ -z "$query" ]; then
+                      search="*"
+                    else
+                      search="from:*$query* or to:*$query*"
+                    fi
+                    ${pkgs.notmuch}/bin/notmuch address --deduplicate=address "$search" 2>/dev/null | ${pkgs.python3}/bin/python3 -c '
+          import sys, re
+          for line in sys.stdin:
+              line = line.strip()
+              m = re.search(r"^(.*?)\s*<([^>]+)>$", line)
+              if m:
+                  name = m.group(1).strip("\" \t")
+                  email = m.group(2).strip()
+                  print(email + "\t" + name)
+              elif "@" in line:
+                  print(line + "\t")
+          '
+        ''} %s";
       };
       filters = {
         "text/plain" = "wrap -w 100 | colorize";
