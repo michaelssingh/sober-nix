@@ -152,15 +152,18 @@
   };
 
   # --- SOPS-NIX SECRETS ---
-  # Ninox uses LUKS+Btrfs: /home is a separate subvolume that mounts after the
-  # initrd sops-install-secrets runs. We order sops-nix after home.mount so
-  # keys.txt is available before secret decryption is attempted.
+  # On Ninox, the system uses LUKS full-disk encryption with Btrfs subvolumes.
+  # NixOS runs sops-install-secrets inside the activation script (before systemd
+  # has mounted any subvolumes), so /home/michael/.config/sops/age/keys.txt is
+  # not yet accessible. We therefore use the host SSH key at /etc/ssh/, which
+  # lives on the root subvolume and is available immediately after LUKS unlock.
+  #
+  # NOTE: If this machine is reinstalled, a new SSH host key will be generated.
+  # You must then run:
+  #   ssh-to-age -i /etc/ssh/ssh_host_ed25519_key.pub
+  # and update the &ninox recipient in .sops.yaml + re-encrypt secrets.yaml.
   sops.defaultSopsFile = ../../../secrets/secrets.yaml;
-  sops.age.keyFile = "/home/michael/.config/sops/age/keys.txt";
-  systemd.services.sops-nix = {
-    after = [ "home.mount" ];
-    requires = [ "home.mount" ];
-  };
+  sops.age.sshKeyPaths = [ "/etc/ssh/ssh_host_ed25519_key" ];
 
   nixpkgs.config.allowUnfree = true;
   nixpkgs.config.permittedInsecurePackages = [

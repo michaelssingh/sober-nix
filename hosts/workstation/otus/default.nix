@@ -208,6 +208,9 @@
   };
 
   # --- SOPS-NIX SECRETS ---
+  # Otus does not use LUKS, so /home is on the root filesystem and is available
+  # immediately during the NixOS activation script. keyFile works here unlike
+  # on Ninox (LUKS+Btrfs) where we must use sshKeyPaths instead.
   sops.defaultSopsFile = ../../../secrets/secrets.yaml;
   sops.age.keyFile = "/home/michael/.config/sops/age/keys.txt";
 
