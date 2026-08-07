@@ -22,6 +22,7 @@ in
     ../../modules/home/desktop/sway
     ../../modules/home/desktop/qutebrowser
     ../../modules/home/desktop/firefox/firefox.nix
+    ../../modules/home/desktop/hyprlock.nix
     ../../modules/home/core/email.nix
     ../../modules/home/core/aerc.nix
     ../../modules/home/core/neomutt.nix
