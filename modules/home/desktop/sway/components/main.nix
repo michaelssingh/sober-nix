@@ -6,7 +6,6 @@
 }:
 let
   colors = config.sober.theme.current.colors;
-  lockCmd = "hyprlock";
 in
 {
   wayland.windowManager.sway = {
@@ -93,7 +92,8 @@ in
           "F5" = "exec swaymsg reload";
           "XF86TouchpadToggle" = "input \"type:touchpad\" events toggle";
           "XF86RFKill" = "exec rfkill toggle all";
-          "F9" = "exec ${lockCmd}";
+          "F9" =
+            "exec swaylock -f -i ${./../bg.jpg} --indicator-radius 100 --indicator-thickness 7 --ring-color bb9af7 --key-hl-color 9ece6a";
           "XF86Display" = "exec wlr-randr --output eDP-1 --toggle";
 
           # Screenshots
@@ -106,7 +106,8 @@ in
           "${modifier}+Shift+d" = "exec dict-lookup";
           "${modifier}+b" = "exec qutebrowser";
           "${modifier}+Shift+n" = "exec makoctl restore";
-          "${modifier}+Shift+e" = "exec ${lockCmd}";
+          "${modifier}+Shift+e" =
+            "exec swaylock -f -i ${./../bg.jpg} --indicator-radius 100 --indicator-thickness 7 --ring-color bb9af7 --key-hl-color 9ece6a";
           "${modifier}+minus" = "scratchpad show";
           "${modifier}+Shift+minus" = "move scratchpad";
           "${modifier}+t" = "floating disable";
@@ -129,7 +130,7 @@ in
           command = "systemctl --user import-environment DISPLAY WAYLAND_DISPLAY SWAYSOCK && systemctl --user start tmux-autostart";
         }
         {
-          command = "${pkgs.swayidle}/bin/swayidle -w timeout 300 '${lockCmd}' before-sleep '${lockCmd}' lock '${lockCmd}'";
+          command = "${pkgs.swayidle}/bin/swayidle -w timeout 300 'swaylock -f -i ${./../bg.jpg} --indicator-radius 100 --indicator-thickness 7 --ring-color bb9af7 --key-hl-color 9ece6a' before-sleep 'swaylock -f -i ${./../bg.jpg} --indicator-radius 100 --indicator-thickness 7 --ring-color bb9af7 --key-hl-color 9ece6a' lock 'swaylock -f -i ${./../bg.jpg} --indicator-radius 100 --indicator-thickness 7 --ring-color bb9af7 --key-hl-color 9ece6a'";
         }
         { command = "qutebrowser"; }
         { command = "swaymsg 'workspace number 2: comms; exec foot -e attach-tmux comms'"; }

@@ -48,7 +48,6 @@
   security.pam.services.swaylock = {
     fprintAuth = false;
   };
-  programs.hyprlock.enable = true;
 
   # Polkit rule to permit wheel group users to enroll/manage fingerprints
   security.polkit.extraConfig = ''
