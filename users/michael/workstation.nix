@@ -68,8 +68,6 @@ in
   # GUI-Only Packages
   home.packages = with pkgs; [
     foot
-    ghostty
-    alacritty
     fuzzel
     aerc
     neomutt
