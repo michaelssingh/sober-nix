@@ -179,14 +179,14 @@ type showItem struct {
 func (s showItem) Title() string {
 	prov := s.show.Provider
 	provBadge := ""
-	if strings.EqualFold(prov, "gogoanime") {
-		provBadge = lipgloss.NewStyle().Foreground(lipgloss.Color("#ff9e64")).Render("[GOGO]") + " "
-	} else if strings.EqualFold(prov, "allanime") {
-		provBadge = lipgloss.NewStyle().Foreground(lipgloss.Color("#7aa2f7")).Render("[ALLANIME]") + " "
+	if strings.EqualFold(prov, "vidsrc") {
+		provBadge = lipgloss.NewStyle().Foreground(lipgloss.Color("#bb9af7")).Bold(true).Render("[VIDSRC]") + " "
+	} else if strings.EqualFold(prov, "anidb") {
+		provBadge = lipgloss.NewStyle().Foreground(lipgloss.Color("#7aa2f7")).Bold(true).Render("[ANIDB]") + " "
 	} else if prov != "" {
-		provBadge = lipgloss.NewStyle().Foreground(lipgloss.Color("#bb9af7")).Render("[" + strings.ToUpper(prov) + "]") + " "
+		provBadge = lipgloss.NewStyle().Foreground(lipgloss.Color("#7dcfff")).Bold(true).Render("[" + strings.ToUpper(prov) + "]") + " "
 	}
-	return provBadge + s.show.Name
+	return provBadge + html.UnescapeString(s.show.Name)
 }
 func (s showItem) Description() string {
 	var parts []string
@@ -2579,7 +2579,6 @@ func (m model) View() string {
 		tabs = append(tabs, render("Search [2]", 2))
 		tabs = append(tabs, render("Logs [3]", 3))
 		tabs = append(tabs, render("Config [4]", 4))
-		tabs = append(tabs, render("Live Sports [5]", 5))
 	}
 	if m.state == stateHistory {
 		baseTabs(1)
@@ -2592,6 +2591,7 @@ func (m model) View() string {
 		showTabs = true
 	} else if m.state == stateConfig {
 		baseTabs(4)
+		showTabs = true
 	}
 
 	listHeight := m.dynamicListHeight()
@@ -3694,7 +3694,7 @@ func (m model) renderShowDetailsPanel(show AnimeShow, coverArtANSI string, width
 
 	rightPanelContent := fmt.Sprintf(
 		"%s\n\n%s\n\n%s\n%s",
-		titleStyle.Render(show.Name),
+		titleStyle.Render(html.UnescapeString(show.Name)),
 		metaSection,
 		headerStyle.Render(synopsisHeader),
 		truncatedDesc,
