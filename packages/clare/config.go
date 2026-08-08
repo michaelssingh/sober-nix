@@ -50,7 +50,7 @@ func getDefaultConfig() Config {
 		SkipFillers:       false,
 		PreferredMode:     "sub",
 		PreferredQuality:  "best",
-		DisabledProviders: []string{"flikhub", "gogoanime"},
+		DisabledProviders: []string{},
 	}
 }
 

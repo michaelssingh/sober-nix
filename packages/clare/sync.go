@@ -503,12 +503,12 @@ func pullFromAniList(token string, positions map[string]ShowState) (bool, error)
 						titleToSearch = entry.Media.Title.Romaji
 					}
 					if titleToSearch != "" {
-						debugLog("[INFO] PullSync: show MAL ID %s (%q) not cached locally. Searching AllAnime...", malIDStr, titleToSearch)
+						debugLog("[INFO] PullSync: show MAL ID %s (%q) not cached locally. Searching AniDB/VidSrc...", malIDStr, titleToSearch)
 						shows, err := searchAnime(titleToSearch, "sub")
 						if err == nil {
 							for _, s := range shows {
 								if s.MALID == malIDStr {
-									debugLog("[INFO] PullSync: found match for %q on AllAnime: %s (%s). Fetching episodes to cache it...", titleToSearch, s.Name, s.ID)
+									debugLog("[INFO] PullSync: found match for %q: %s (%s). Fetching episodes to cache it...", titleToSearch, s.Name, s.ID)
 									// Fetch episode list, which automatically caches the show details
 									_, _, err := fetchEpisodeList(s.ID, "sub")
 									if err == nil {
@@ -524,12 +524,10 @@ func pullFromAniList(token string, positions map[string]ShowState) (bool, error)
 				}
 
 				if found {
-					// Cap the restored episode at the AllAnime arc count so resume
-					// never points past a valid episode for multi-arc shows.
 					restoredEp := entry.Progress
 					if cached, _, ok := loadShowCache(showID); ok {
 						if arcCount := cached.EpCount(); arcCount > 0 && restoredEp > arcCount {
-							debugLog("[INFO] PullSync: AniList progress %d exceeds AllAnime arc count %d for %s — capping at arc count for resume", restoredEp, arcCount, showName)
+							debugLog("[INFO] PullSync: AniList progress %d exceeds show count %d for %s — capping at count for resume", restoredEp, arcCount, showName)
 							restoredEp = arcCount
 						}
 					}

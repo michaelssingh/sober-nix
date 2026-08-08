@@ -105,14 +105,8 @@ func PreflightStreamURLWithTimeout(streamURL string, headers map[string]string, 
 func getRefererForURL(urlVal string) string {
 	if strings.Contains(urlVal, "mp4upload.com") {
 		return "https://www.mp4upload.com/"
-	} else if strings.Contains(urlVal, "flikhub") || strings.Contains(urlVal, "kotocdn") || strings.Contains(urlVal, "megap") {
-		return "https://megaplay.buzz/"
-	} else if strings.Contains(urlVal, "allanime") || strings.Contains(urlVal, "alltropic") || strings.Contains(urlVal, "ok.ru") {
-		return "https://youtu-chan.com/"
-	} else if strings.Contains(urlVal, "cloudorchestranova") || strings.Contains(urlVal, "zealotsofzenith") {
-		return "https://cloudorchestranova.com/"
-	} else if strings.Contains(urlVal, "nextgen") || strings.Contains(urlVal, "quietmidnight") || strings.Contains(urlVal, "influencerstrategy") || strings.Contains(urlVal, "profitablelaunchsystem") || strings.Contains(urlVal, "vaplayer") || strings.Contains(urlVal, ".site/") {
-		return "https://nextgencloudfabric.com/"
+	} else if strings.Contains(urlVal, "vidsrc") {
+		return "https://vidsrc.net/"
 	}
 	return StreamReferer
 }
@@ -125,10 +119,7 @@ func NewMultiProviderResolver() *MultiProviderResolver {
 	cfg := loadConfig()
 	allProviders := []Provider{
 		&AniDBProvider{},
-		&AllAnimeProvider{},
 		&VidSrcProvider{},
-		&FlikhubProvider{},
-		&GogoanimeProvider{},
 	}
 	var active []Provider
 	for _, p := range allProviders {

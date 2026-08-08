@@ -41,7 +41,6 @@ const (
 	stateLogs
 	stateConfig
 	stateAiringSelect
-	stateLiveSports
 )
 
 // Styles for premium aesthetic
@@ -295,66 +294,7 @@ func (e episodeItem) Title() string {
 func (e episodeItem) Description() string { return e.desc }
 func (e episodeItem) FilterValue() string { return e.epNo }
 
-// ─── Live Sports list items ───────────────────────────────────────────────────
 
-type sportsEventItem struct {
-	event SportsEvent
-}
-
-func (s sportsEventItem) Title() string {
-	emoji := CategoryEmoji(s.event.Category)
-	status := ""
-	if s.event.IsLive {
-		status = lipgloss.NewStyle().Foreground(lipgloss.Color("#f7768e")).Bold(true).Render(" 🔴 LIVE")
-	} else if s.event.StartTime != "" {
-		status = lipgloss.NewStyle().Foreground(lipgloss.Color("#e0af68")).Render(" ⏰ " + s.event.StartTime)
-	}
-	catLabel := lipgloss.NewStyle().Foreground(lipgloss.Color("#7aa2f7")).Render("[" + SportsCategoryLabel(s.event.Category) + "]")
-	return fmt.Sprintf("%s %s %s%s", emoji, catLabel, s.event.Title, status)
-}
-
-func (s sportsEventItem) Description() string {
-	parts := []string{}
-	if s.event.Teams != "" && s.event.Teams != " vs " {
-		parts = append(parts, s.event.Teams)
-	}
-	parts = append(parts, fmt.Sprintf("%d stream(s)", len(s.event.Sources)))
-	return strings.Join(parts, "  •  ")
-}
-
-func (s sportsEventItem) FilterValue() string {
-	return s.event.Title + " " + s.event.Teams + " " + s.event.Category
-}
-
-type sportsStreamItem struct {
-	stream SportsStream
-}
-
-func (s sportsStreamItem) Title() string {
-	lang := ""
-	if s.stream.Language != "" && s.stream.Language != "en" {
-		lang = fmt.Sprintf(" [%s]", strings.ToUpper(s.stream.Language))
-	}
-	ready := ""
-	if s.stream.URL != "" {
-		ready = lipgloss.NewStyle().Foreground(lipgloss.Color("#9ece6a")).Render(" ✓")
-	}
-	return s.stream.Name + lang + ready
-}
-
-func (s sportsStreamItem) Description() string {
-	if s.stream.URL != "" {
-		// Show partial URL for context
-		u := s.stream.URL
-		if len(u) > 60 {
-			u = u[:60] + "..."
-		}
-		return u
-	}
-	return "Click to resolve stream"
-}
-
-func (s sportsStreamItem) FilterValue() string { return s.stream.Name }
 
 type JikanEpInfo struct {
 	Title    string
@@ -524,14 +464,6 @@ type model struct {
 	airingFocused           bool
 	dryRunStates            map[string]string
 	dryRunTested            map[string]bool
-	// Live Sports
-	sportsEvents            []SportsEvent
-	sportsEventsLoaded      bool
-	sportsEventsErr         error
-	sportsList              list.Model
-	sportsStreamList        list.Model
-	selectedSportsEvent     *SportsEvent
-	sportsStreamSelecting   bool
 }
 
 func createMinimalList(title string) list.Model {
@@ -610,8 +542,6 @@ func initialModel(initialSearch, mode, quality string, download bool) model {
 	seaList := createMinimalList("Select Season")
 	eList := createMinimalList("Select Episode")
 	soList := createMinimalList("Select Source & Resolution")
-	spList := createMinimalList("🏟️ Live Sports")
-	spStreamList := createMinimalList("📡 Select Stream")
 
 	cfg := loadConfig()
 
@@ -686,8 +616,6 @@ func initialModel(initialSearch, mode, quality string, download bool) model {
 		showTelemetry:      true, // Enabled by default
 		aniSkipReady:       make(map[string]bool),
 		clareLogChan:       make(chan string, 1000),
-		sportsList:         spList,
-		sportsStreamList:   spStreamList,
 		dryRunStates:       make(map[string]string),
 		dryRunTested:       make(map[string]bool),
 	}
@@ -1836,74 +1764,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
-	case sportsEventsMsg:
-		m.sportsEventsLoaded = true
-		m.sportsEventsErr = msg.err
-		if msg.err != nil {
-			debugLog("TUI sportsEventsMsg error: %v", msg.err)
-		} else {
-			m.sportsEvents = msg.events
-			m.rebuildSportsList()
-		}
-		return m, nil
 
-	case sportsStreamResolvedMsg:
-		if msg.err != nil {
-			debugLog("TUI sportsStreamResolvedMsg error for %s: %v", msg.streamID, msg.err)
-			m.errorPopupMsg = fmt.Sprintf("Stream resolution failed: %v", msg.err)
-			m.state = stateLiveSports
-			return m, nil
-		}
-		// Update the stream URL in-place for the matching event
-		for i, ev := range m.sportsEvents {
-			if ev.ID == msg.eventID {
-				for j, s := range ev.Sources {
-					if s.ID == msg.streamID {
-						m.sportsEvents[i].Sources[j].URL = msg.stream.URL
-					}
-				}
-			}
-		}
-
-		// Update selected show and episode metadata for sports
-		eventTitle := msg.stream.Name
-		if m.selectedSportsEvent != nil && m.selectedSportsEvent.Title != "" {
-			eventTitle = m.selectedSportsEvent.Title
-		}
-		m.selectedShow = AnimeShow{
-			ID:          msg.stream.ID,
-			Name:        eventTitle,
-			EnglishName: eventTitle,
-			Type:        "LIVE",
-			Provider:    "sports",
-		}
-		m.selectedEp = msg.stream.Name
-		m.playingShow = m.selectedShow
-		m.playingEp = m.selectedEp
-		m.playbackActive = true
-		m.mpvStatus = MpvStatus{Paused: false, Volume: 100}
-
-		// Launch MPV with low-latency live sports flags
-		extraArgs := []string{
-			"--demuxer-lavf-o-add=probesize=1000000",
-			"--demuxer-lavf-o-add=analyzeduration=1000000",
-			"--cache-pause=no",
-			"--no-correct-pts",
-			"--force-seekable=yes",
-			"--keep-open=no",
-		}
-		cmd, tempLua, tempChapters, _, _, err := getMpvCmd(msg.stream.URL, eventTitle, msg.stream.Name, "", "", extraArgs)
-		if err != nil {
-			m.loadingMsg = fmt.Sprintf("⚠ Could not build MPV command: %v", err)
-			return m, nil
-		}
-		if err := cmd.Start(); err != nil {
-			m.loadingMsg = fmt.Sprintf("⚠ MPV failed to start: %v", err)
-			return m, nil
-		}
-		m.activeCmd = cmd
-		m.state = statePlaybackActive
-		return m, tea.Batch(waitForExitCmd(cmd, tempLua, tempChapters), tickMpvStatusCmd())
 
 	case tea.MouseMsg:
 		switch m.state {
@@ -2024,16 +1885,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.recalculateSizes()
 				return m, nil
 			}
-		case "5", "f5", "ctrl+5":
-			if m.state != stateSearchInput || msg.String() == "f5" || msg.String() == "ctrl+5" {
-				m.state = stateLiveSports
-				m.sportsStreamSelecting = false
-				m.recalculateSizes()
-				if !m.sportsEventsLoaded {
-					return m, doFetchSportsEventsCmd()
-				}
-				return m, nil
-			}
+
 		case "tab":
 			if m.state == stateSearchInput {
 				m.airingFocused = !m.airingFocused
@@ -2595,13 +2447,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					nextIdx := (idx + 1) % len(qualities)
 					cfg.PreferredQuality = qualities[nextIdx]
 				case 6:
-					cfg.ToggleProvider("vidsrc")
+					cfg.ToggleProvider("anidb")
 				case 7:
-					cfg.ToggleProvider("allanime")
-				case 8:
-					cfg.ToggleProvider("flikhub")
-				case 9:
-					cfg.ToggleProvider("gogoanime")
+					cfg.ToggleProvider("vidsrc")
 				}
 				_ = saveConfig(cfg)
 				m.autoplay = cfg.Autoplay
@@ -2623,61 +2471,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 
-		case stateLiveSports:
-			if m.sportsStreamSelecting {
-				switch msg.String() {
-				case "esc":
-					m.sportsStreamSelecting = false
-					return m, nil
-				case "enter":
-					if selected, ok := m.sportsStreamList.SelectedItem().(sportsStreamItem); ok {
-						if selected.stream.URL != "" {
-							// URL already resolved, launch immediately
-							return m, doResolveSportsStreamCmd(m.selectedSportsEvent.ID, selected.stream)
-						}
-						// Needs runtime unpack
-						m.state = stateSearchRunning
-						m.loadingMsg = fmt.Sprintf("🔴 Resolving live stream: %s...", selected.stream.Name)
-						return m, doResolveSportsStreamCmd(m.selectedSportsEvent.ID, selected.stream)
-					}
-				}
-				var cmd tea.Cmd
-				m.sportsStreamList, cmd = m.sportsStreamList.Update(msg)
-				return m, cmd
-			}
 
-			switch msg.String() {
-			case "esc":
-				m.state = stateHistory
-				m.recalculateSizes()
-				return m, nil
-			case "r", "R":
-				m.sportsEventsLoaded = false
-				m.sportsEvents = nil
-				return m, doFetchSportsEventsCmd()
-			case "enter":
-				if selected, ok := m.sportsList.SelectedItem().(sportsEventItem); ok {
-					ev := selected.event
-					m.selectedSportsEvent = &ev
-					if len(ev.Sources) == 0 {
-						m.loadingMsg = "No streams available for this event."
-						return m, nil
-					}
-					if len(ev.Sources) == 1 {
-						// Single source: go straight to resolution/playback
-						m.state = stateSearchRunning
-						m.loadingMsg = fmt.Sprintf("🔴 Resolving stream: %s...", ev.Sources[0].Name)
-						return m, doResolveSportsStreamCmd(ev.ID, ev.Sources[0])
-					}
-					// Multiple sources: show stream picker
-					m.sportsStreamSelecting = true
-					m.buildSportsStreamList(ev.Sources)
-					return m, nil
-				}
-			}
-			var cmd tea.Cmd
-			m.sportsList, cmd = m.sportsList.Update(msg)
-			return m, cmd
 		}
 	}
 
@@ -2723,7 +2517,7 @@ func (m model) View() string {
 		}
 
 		titleFormatted := fmt.Sprintf("%s - Ep %s", m.playingShow.Name, m.playingEp)
-		if strings.EqualFold(m.playingShow.Type, "LIVE") || strings.EqualFold(m.playingShow.Provider, "sports") {
+		if strings.EqualFold(m.playingShow.Type, "LIVE") {
 			if m.playingEp != "" {
 				titleFormatted = fmt.Sprintf("🔴 %s (%s)", m.playingShow.Name, m.playingEp)
 			} else {
@@ -2736,7 +2530,7 @@ func (m model) View() string {
 		}
 
 		var playerContent string
-		if strings.EqualFold(m.playingShow.Type, "LIVE") || strings.EqualFold(m.playingShow.Provider, "sports") {
+		if strings.EqualFold(m.playingShow.Type, "LIVE") {
 			playerContent = fmt.Sprintf("%s %s  %s  Vol: %d%%\nPress [space] pause  •  [left/right] seek  •  [up/down] volume  •  [q/esc] stop",
 				statusStr,
 				pTitleStyle.Render(titleFormatted),
@@ -2798,10 +2592,6 @@ func (m model) View() string {
 		showTabs = true
 	} else if m.state == stateConfig {
 		baseTabs(4)
-		showTabs = true
-	} else if m.state == stateLiveSports {
-		baseTabs(5)
-		showTabs = true
 	}
 
 	listHeight := m.dynamicListHeight()
@@ -3107,10 +2897,8 @@ func (m model) View() string {
 			{"Autoskip Delay", fmt.Sprintf("%.0fs", cfg.AutoskipDelay)},
 			{"Preferred Translation Mode", strings.ToUpper(cfg.PreferredMode)},
 			{"Preferred Stream Quality", strings.ToUpper(cfg.PreferredQuality)},
+			{"Provider: AniDB (Anime)", formatBool(cfg.IsProviderEnabled("anidb"))},
 			{"Provider: VidSrc (Movies & TV)", formatBool(cfg.IsProviderEnabled("vidsrc"))},
-			{"Provider: AllAnime", formatBool(cfg.IsProviderEnabled("allanime"))},
-			{"Provider: FlikHub", formatBool(cfg.IsProviderEnabled("flikhub"))},
-			{"Provider: GogoAnime", formatBool(cfg.IsProviderEnabled("gogoanime"))},
 		}
 
 		for i, opt := range options {
@@ -3131,20 +2919,7 @@ func (m model) View() string {
 
 		s.WriteString(bodyStyle.Render(bodyContent))
 
-	case stateLiveSports:
-		if !m.sportsEventsLoaded {
-			loadStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#7aa2f7")).Bold(true)
-			s.WriteString("\n  " + m.spinner.View() + " " + loadStyle.Render("Fetching live sports events..."))
-		} else if m.sportsEventsErr != nil {
-			s.WriteString(errorStyle.Render(fmt.Sprintf("⚠ Could not load sports events: %v", m.sportsEventsErr)) + "\n")
-			s.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("#565f89")).Render("  Press r to retry."))
-		} else if len(m.sportsEvents) == 0 {
-			s.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("#565f89")).Render("  No live events right now. Press r to refresh."))
-		} else if m.sportsStreamSelecting && m.selectedSportsEvent != nil {
-			s.WriteString(m.sportsStreamList.View())
-		} else {
-			s.WriteString(m.sportsList.View())
-		}
+
 
 	case stateError:
 		s.WriteString(errorStyle.Render("Error encountered:") + "\n\n")
@@ -3727,33 +3502,7 @@ type airingSuggestionsMsg struct {
 	err   error
 }
 
-// ─── Live Sports messages & commands ─────────────────────────────────────────
 
-type sportsEventsMsg struct {
-	events []SportsEvent
-	err    error
-}
-
-type sportsStreamResolvedMsg struct {
-	eventID  string
-	streamID string
-	stream   SportsStream
-	err      error
-}
-
-func doFetchSportsEventsCmd() tea.Cmd {
-	return func() tea.Msg {
-		events, err := FetchAllSportsEvents()
-		return sportsEventsMsg{events: events, err: err}
-	}
-}
-
-func doResolveSportsStreamCmd(eventID string, stream SportsStream) tea.Cmd {
-	return func() tea.Msg {
-		resolved, err := ResolveSportsEventStream(stream)
-		return sportsStreamResolvedMsg{eventID: eventID, streamID: stream.ID, stream: resolved, err: err}
-	}
-}
 
 
 func doFetchAiringSuggestionsCmd() tea.Cmd {
@@ -4336,14 +4085,7 @@ func (m model) viewFooter() string {
 			"enter/space: toggle/cycle",
 			"q: quit",
 		)
-	case stateLiveSports:
-		return formatHelp(
-			"1-5: change tab",
-			"enter: select event/stream",
-			"r: refresh",
-			"esc: back",
-			"q: quit",
-		)
+
 	case stateError:
 		return errorStyle.Render("press enter or esc to return to search")
 	}
@@ -4368,42 +4110,6 @@ func (m *model) recalculateSizes() {
 
 	m.telemetryViewport.Width = m.width - 4
 	m.telemetryViewport.Height = listHeight
-	m.sportsList.SetSize(m.width-4, listHeight)
-	m.sportsStreamList.SetSize(m.width-4, listHeight)
-}
-
-func (m *model) rebuildSportsList() {
-	if m.sportsList.Width() == 0 {
-		m.sportsList = createMinimalList("🏟️ Live Sports")
-		m.sportsStreamList = createMinimalList("📡 Select Stream")
-	}
-	var items []list.Item
-	for _, ev := range m.sportsEvents {
-		items = append(items, sportsEventItem{event: ev})
-	}
-	liveCount := 0
-	for _, ev := range m.sportsEvents {
-		if ev.IsLive {
-			liveCount++
-		}
-	}
-	title := fmt.Sprintf("🏟️ Live Sports  (%d live)", liveCount)
-	m.sportsList.Title = title
-	m.sportsList.SetItems(items)
-	m.sportsList.SetSize(m.width-4, m.dynamicListHeight())
-}
-
-func (m *model) buildSportsStreamList(sources []SportsStream) {
-	if m.sportsStreamList.Width() == 0 {
-		m.sportsStreamList = createMinimalList("📡 Select Stream")
-	}
-	var items []list.Item
-	for _, s := range sources {
-		items = append(items, sportsStreamItem{stream: s})
-	}
-	m.sportsStreamList.Title = "📡 Select Stream"
-	m.sportsStreamList.SetItems(items)
-	m.sportsStreamList.SetSize(m.width-4, m.dynamicListHeight())
 }
 
 func (m model) getConfig() Config {
