@@ -11,7 +11,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-const Version = "0.1.44"
+const Version = "0.1.45"
 
 var EnableDryRun bool
 

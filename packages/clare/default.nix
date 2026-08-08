@@ -9,7 +9,7 @@
 
 buildGoModule {
   pname = "clare";
-  version = "0.1.44";
+  version = "0.1.45";
 
   src = ./.;
 
@@ -17,13 +17,11 @@ buildGoModule {
 
   doCheck = false;
 
-  overrideModAttrs = (
-    _: {
-      preBuild = ''
-        export HOME=$(mktemp -d)
-      '';
-    }
-  );
+  overrideModAttrs = _: {
+    preBuild = ''
+      export HOME=$(mktemp -d)
+    '';
+  };
 
   preBuild = ''
     export HOME=$(mktemp -d)
