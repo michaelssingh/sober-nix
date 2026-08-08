@@ -178,21 +178,20 @@ type showItem struct {
 }
 
 func (s showItem) Title() string {
-	prov := s.show.Provider
-	provBadge := ""
-	if strings.EqualFold(prov, "vidsrc") {
-		provBadge = lipgloss.NewStyle().Foreground(lipgloss.Color("#bb9af7")).Bold(true).Render("[VIDSRC]") + " "
-	} else if strings.EqualFold(prov, "anidb") {
-		provBadge = lipgloss.NewStyle().Foreground(lipgloss.Color("#7aa2f7")).Bold(true).Render("[ANIDB]") + " "
-	} else if prov != "" {
-		provBadge = lipgloss.NewStyle().Foreground(lipgloss.Color("#7dcfff")).Bold(true).Render("[" + strings.ToUpper(prov) + "]") + " "
-	}
-	return provBadge + html.UnescapeString(s.show.Name)
+	return html.UnescapeString(s.show.Name)
 }
 func (s showItem) Description() string {
 	var parts []string
 	if s.show.Type != "" {
 		parts = append(parts, s.show.Type)
+	}
+	prov := s.show.Provider
+	if strings.EqualFold(prov, "vidsrc") {
+		parts = append(parts, lipgloss.NewStyle().Foreground(lipgloss.Color("#bb9af7")).Bold(true).Render("VidSrc"))
+	} else if strings.EqualFold(prov, "anidb") {
+		parts = append(parts, lipgloss.NewStyle().Foreground(lipgloss.Color("#7aa2f7")).Bold(true).Render("AniDB"))
+	} else if prov != "" {
+		parts = append(parts, lipgloss.NewStyle().Foreground(lipgloss.Color("#7dcfff")).Bold(true).Render(strings.Title(prov)))
 	}
 	if s.show.Season.Quarter != "" && s.show.Season.Year > 0 {
 		parts = append(parts, fmt.Sprintf("%s %d", s.show.Season.Quarter, s.show.Season.Year))
@@ -2575,7 +2574,7 @@ func (m model) View() string {
 	if m.state == stateHistory {
 		baseTabs(1)
 		showTabs = true
-	} else if m.state == stateSearchInput || m.state == stateSearchRunning || m.state == stateShowSelect || m.state == stateEpisodeSelect || m.state == stateSourceSelect || m.state == statePlaybackPreparing {
+	} else if m.state == stateSearchInput || m.state == stateSearchRunning || m.state == stateShowSelect || m.state == stateEpisodeSelect || m.state == stateSourceSelect || m.state == statePlaybackPreparing || m.state == statePlaybackActive {
 		baseTabs(2)
 		showTabs = true
 	} else if m.state == stateLogs {
