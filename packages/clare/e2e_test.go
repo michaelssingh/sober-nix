@@ -290,9 +290,9 @@ func TestE2EFullSuite(t *testing.T) {
 		t.Logf("✓ [Metadata E2E] AniList Enrichment verified: MALID=%s, AniListID=%s, Score=%.2f, Year=%d, Genres=%v, Thumbnail=%s",
 			show.MALID, show.AniListID, show.Score, show.Season.Year, show.Genres, show.Thumbnail)
 
-		// Test Jikan episode metadata API fetching
-		if show.MALID != "" {
-			jCmd := doFetchJikanMetadata(show.MALID, 1)
+		// Test Jikan episode metadata API fetching with Kitsu fallback
+		if show.MALID != "" || show.Name != "" {
+			jCmd := doFetchJikanMetadata(show.MALID, show.Name, 1)
 			jMsg := jCmd()
 			mMsg, ok := jMsg.(jikanMetadataMsg)
 			if !ok || mMsg.err != nil {

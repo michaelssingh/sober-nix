@@ -8,6 +8,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -1222,7 +1223,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			} else {
 				// Fetch page 1 immediately
 				m.loadedJikanPages[1] = true
-				return m, doFetchJikanMetadata(m.selectedShow.MALID, 1)
+				return m, doFetchJikanMetadata(m.selectedShow.MALID, m.selectedShow.Name, 1)
 			}
 		} else if strings.HasPrefix(m.selectedShow.ID, "vidsrc:tv:") {
 			return m, doFetchTmdbSeasonDetails(m.selectedShow.ID, 1)
@@ -1281,7 +1282,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.loadedJikanPages[page] = true
 
-		return m, doFetchJikanMetadata(m.selectedShow.MALID, page)
+		return m, doFetchJikanMetadata(m.selectedShow.MALID, m.selectedShow.Name, page)
 
 	case resolvedPlaybackMsg:
 		debugLog("[INFO] resolvedPlaybackMsg: err=%v, warning=%s, tempLuaFile=%s, tempChaptersFile=%s", msg.err, msg.warning, msg.tempLuaFile, msg.tempChaptersFile)
@@ -2324,7 +2325,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						page := (val-1)/100 + 1
 						if !m.loadedJikanPages[page] {
 							m.loadedJikanPages[page] = true
-							cmds = append(cmds, doFetchJikanMetadata(m.selectedShow.MALID, page))
+							cmds = append(cmds, doFetchJikanMetadata(m.selectedShow.MALID, m.selectedShow.Name, page))
 						}
 					}
 					isMovie := strings.EqualFold(m.selectedShow.Type, "MOVIE") || strings.HasPrefix(m.selectedShow.ID, "vidsrc:") || strings.EqualFold(m.selectedShow.Provider, "vidsrc")
@@ -3215,55 +3216,128 @@ func doFetchTmdbSeasonDetails(showID string, season int) tea.Cmd {
 	}
 }
 
-func doFetchJikanMetadata(malID string, page int) tea.Cmd {
+func doFetchJikanMetadata(malID, showName string, page int) tea.Cmd {
 	return func() tea.Msg {
-		if malID == "" || malID == "0" {
-			return jikanMetadataMsg{malID: malID, page: page, err: fmt.Errorf("no MAL ID")}
-		}
-		client := newLoggingHttpClient(8 * time.Second)
-		url := fmt.Sprintf("https://api.jikan.moe/v4/anime/%s/episodes?page=%d", malID, page)
-		resp, err := client.Get(url)
-		if err != nil {
-			return jikanMetadataMsg{malID: malID, page: page, err: err}
-		}
-		defer resp.Body.Close()
-		if resp.StatusCode != http.StatusOK {
-			return jikanMetadataMsg{malID: malID, page: page, err: fmt.Errorf("status %d", resp.StatusCode)}
-		}
-		var res struct {
-			Data []struct {
-				MalID    int    `json:"mal_id"`
-				Title    string `json:"title"`
-				Aired    string `json:"aired"`
-				Synopsis string `json:"synopsis"`
-				Filler   bool   `json:"filler"`
-				Recap    bool   `json:"recap"`
-			} `json:"data"`
-		}
-		body, err := io.ReadAll(resp.Body)
-		if err != nil {
-			return jikanMetadataMsg{malID: malID, page: page, err: err}
-		}
-		if err := json.Unmarshal(body, &res); err != nil {
-			return jikanMetadataMsg{malID: malID, page: page, err: err}
-		}
 		metadata := make(map[string]JikanEpInfo)
-		for _, d := range res.Data {
-			epNum := fmt.Sprintf("%d", d.MalID)
-			airedStr := d.Aired
-			if len(airedStr) >= 10 {
-				airedStr = airedStr[:10]
-			}
-			metadata[epNum] = JikanEpInfo{
-				Title:    d.Title,
-				Aired:    airedStr,
-				Synopsis: d.Synopsis,
-				Filler:   d.Filler,
-				Recap:    d.Recap,
+		if malID != "" && malID != "0" {
+			client := newLoggingHttpClient(4 * time.Second)
+			url := fmt.Sprintf("https://api.jikan.moe/v4/anime/%s/episodes?page=%d", malID, page)
+			req, err := http.NewRequest("GET", url, nil)
+			if err == nil {
+				req.Header.Set("User-Agent", UserAgent)
+				resp, err := client.Do(req)
+				if err == nil {
+					defer resp.Body.Close()
+					if resp.StatusCode == http.StatusOK {
+						var res struct {
+							Data []struct {
+								MalID    int    `json:"mal_id"`
+								Title    string `json:"title"`
+								Aired    string `json:"aired"`
+								Synopsis string `json:"synopsis"`
+								Filler   bool   `json:"filler"`
+								Recap    bool   `json:"recap"`
+							} `json:"data"`
+						}
+						body, _ := io.ReadAll(resp.Body)
+						if json.Unmarshal(body, &res) == nil && len(res.Data) > 0 {
+							for _, d := range res.Data {
+								epNum := fmt.Sprintf("%d", d.MalID)
+								airedStr := d.Aired
+								if len(airedStr) >= 10 {
+									airedStr = airedStr[:10]
+								}
+								metadata[epNum] = JikanEpInfo{
+									Title:    d.Title,
+									Aired:    airedStr,
+									Synopsis: d.Synopsis,
+									Filler:   d.Filler,
+									Recap:    d.Recap,
+								}
+							}
+							return jikanMetadataMsg{malID: malID, page: page, metadata: metadata}
+						}
+					}
+				}
 			}
 		}
-		return jikanMetadataMsg{malID: malID, page: page, metadata: metadata}
+
+		// Fallback to Kitsu API for episode titles if Jikan fails or MAL ID is unavailable
+		if showName != "" {
+			kitsuMeta, err := fetchKitsuEpisodeMetadata(showName)
+			if err == nil && len(kitsuMeta) > 0 {
+				debugLog("[INFO] Successfully fetched %d episode titles from Kitsu fallback for %s", len(kitsuMeta), showName)
+				return jikanMetadataMsg{malID: malID, page: page, metadata: kitsuMeta}
+			}
+		}
+
+		return jikanMetadataMsg{malID: malID, page: page, err: fmt.Errorf("metadata fetch failed")}
 	}
+}
+
+func fetchKitsuEpisodeMetadata(showName string) (map[string]JikanEpInfo, error) {
+	cleanTitle := showName
+	if idx := strings.Index(cleanTitle, "("); idx > 0 {
+		cleanTitle = strings.TrimSpace(cleanTitle[:idx])
+	}
+	searchURL := fmt.Sprintf("https://kitsu.io/api/edge/anime?filter[text]=%s", url.QueryEscape(cleanTitle))
+	body, err := doHTTPReqWithRetry("GET", searchURL, nil, map[string]string{"User-Agent": UserAgent})
+	if err != nil {
+		return nil, err
+	}
+	var searchRes struct {
+		Data []struct {
+			ID string `json:"id"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(body, &searchRes); err != nil || len(searchRes.Data) == 0 {
+		return nil, fmt.Errorf("no kitsu anime found for %s", cleanTitle)
+	}
+
+	kitsuID := searchRes.Data[0].ID
+	episodesURL := fmt.Sprintf("https://kitsu.io/api/edge/anime/%s/episodes?page[limit]=20", kitsuID)
+	epBody, err := doHTTPReqWithRetry("GET", episodesURL, nil, map[string]string{"User-Agent": UserAgent})
+	if err != nil {
+		return nil, err
+	}
+
+	var epRes struct {
+		Data []struct {
+			Attributes struct {
+				Number         int    `json:"number"`
+				CanonicalTitle string `json:"canonicalTitle"`
+				Synopsis       string `json:"synopsis"`
+				Airdate        string `json:"airdate"`
+				Titles         struct {
+					En string `json:"en"`
+				} `json:"titles"`
+			} `json:"attributes"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(epBody, &epRes); err != nil {
+		return nil, err
+	}
+
+	metadata := make(map[string]JikanEpInfo)
+	for _, ep := range epRes.Data {
+		title := ep.Attributes.Titles.En
+		if title == "" {
+			title = ep.Attributes.CanonicalTitle
+		}
+		if title == "" {
+			continue
+		}
+		epNum := fmt.Sprintf("%d", ep.Attributes.Number)
+		metadata[epNum] = JikanEpInfo{
+			Title:    title,
+			Synopsis: ep.Attributes.Synopsis,
+			Aired:    ep.Attributes.Airdate,
+		}
+	}
+	if len(metadata) == 0 {
+		return nil, fmt.Errorf("no kitsu episode titles found")
+	}
+	return metadata, nil
 }
 
 type episodeSynopsisMsg struct {
