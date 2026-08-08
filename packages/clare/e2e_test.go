@@ -1,0 +1,344 @@
+package main
+
+import (
+	"os"
+	"os/exec"
+	"strings"
+	"testing"
+	"time"
+
+	tea "github.com/charmbracelet/bubbletea"
+)
+
+// TestE2EFullSuite executes a comprehensive end-to-end test suite for Clare.
+func TestE2EFullSuite(t *testing.T) {
+	_ = InitLogger("")
+
+	t.Run("01_AniDB_Provider_Pipeline", func(t *testing.T) {
+		p := &AniDBProvider{}
+		if p.Name() != "anidb" {
+			t.Fatalf("expected provider name 'anidb', got %s", p.Name())
+		}
+
+		shows, err := p.Search("Sakamoto Days", "sub")
+		if err != nil || len(shows) == 0 {
+			t.Fatalf("AniDB search failed for 'Sakamoto Days': %v", err)
+		}
+		if !strings.HasPrefix(shows[0].ID, "anidb:") {
+			t.Fatalf("expected show ID prefix 'anidb:', got %s", shows[0].ID)
+		}
+		t.Logf("✓ [AniDB E2E] Search found %d shows. Top: %s (%s)", len(shows), shows[0].Name, shows[0].ID)
+
+		show, eps, err := p.FetchEpisodes(shows[0].ID, "sub")
+		if err != nil || len(eps) == 0 {
+			t.Fatalf("AniDB episode fetch failed for %s: %v", shows[0].ID, err)
+		}
+		t.Logf("✓ [AniDB E2E] Fetched %d episodes for %s", len(eps), show.Name)
+
+		streams, err := p.ResolveStreams(shows[0].ID, "sub", "1", "best")
+		if err != nil || len(streams) == 0 {
+			t.Fatalf("AniDB stream resolution failed: %v", err)
+		}
+		t.Logf("✓ [AniDB E2E] Resolved stream URL: %s", streams[0].URL)
+
+		headers := map[string]string{
+			"User-Agent": UserAgent,
+			"Referer":    getRefererForURL(streams[0].URL),
+		}
+		if err := PreflightStreamURLWithTimeout(streams[0].URL, headers, 15*time.Second); err != nil {
+			t.Fatalf("AniDB stream preflight HTTP check failed: %v", err)
+		}
+		t.Logf("✓ [AniDB E2E] Preflight HTTP check 200 OK verified!")
+	})
+
+	t.Run("02_VidSrc_Movie_And_TV_Pipeline", func(t *testing.T) {
+		p := &VidSrcProvider{}
+		if p.Name() != "vidsrc" {
+			t.Fatalf("expected provider name 'vidsrc', got %s", p.Name())
+		}
+
+		// Test Movie Resolution
+		movieStreams, err := p.ResolveStreams("vidsrc:movie:603", "sub", "1", "best")
+		if err != nil || len(movieStreams) == 0 {
+			t.Fatalf("VidSrc movie stream resolution failed: %v", err)
+		}
+		t.Logf("✓ [VidSrc E2E] Movie (The Matrix) stream resolved: %s", movieStreams[0].URL)
+
+		// Test TV Series Episode Resolution
+		tvShow, tvEps, err := p.FetchEpisodes("vidsrc:tv:2190", "sub")
+		if err != nil || len(tvEps) == 0 {
+			t.Fatalf("VidSrc TV episode fetch failed: %v", err)
+		}
+		t.Logf("✓ [VidSrc E2E] TV Show %s returned %d episodes", tvShow.Name, len(tvEps))
+
+		tvStreams, err := p.ResolveStreams("vidsrc:tv:2190", "sub", "S02E01", "best")
+		if err != nil || len(tvStreams) == 0 {
+			t.Fatalf("VidSrc TV S02E01 stream resolution failed: %v", err)
+		}
+		t.Logf("✓ [VidSrc E2E] TV (South Park S02E01) stream resolved: %s", tvStreams[0].URL)
+
+		tvHeaders := map[string]string{
+			"User-Agent": UserAgent,
+			"Referer":    getRefererForURL(tvStreams[0].URL),
+		}
+		if err := PreflightStreamURLWithTimeout(tvStreams[0].URL, tvHeaders, 15*time.Second); err != nil {
+			t.Logf("⚠️ [VidSrc E2E] TV S02E01 preflight note: %v", err)
+		} else {
+			t.Logf("✓ [VidSrc E2E] TV S02E01 preflight HTTP check 200 OK verified!")
+		}
+	})
+
+	t.Run("03_MultiProviderResolver_Fallback", func(t *testing.T) {
+		resolver := NewMultiProviderResolver()
+		if resolver == nil || len(resolver.providers) != 2 {
+			t.Fatalf("expected 2 active providers in MultiProviderResolver")
+		}
+
+		show, stream, err := resolver.ResolveWithFallback("Sakamoto Days", "sub", "1", "best")
+		if err != nil || stream.URL == "" {
+			t.Fatalf("ResolveWithFallback failed: %v", err)
+		}
+		t.Logf("✓ [Resolver E2E] Multi-provider resolved %s via provider '%s': %s", show.Name, stream.Provider, stream.URL)
+	})
+
+	t.Run("04_Headless_MPV_IPC_Control", func(t *testing.T) {
+		mpvPath, err := exec.LookPath("mpv")
+		if err != nil {
+			t.Skip("mpv binary not found in PATH, skipping live MPV IPC test")
+		}
+
+		streamURL := "https://hls.anidb.app/stream/test/master.m3u8"
+		cmd, luaFile, chapFile, _, _, err := getMpvCmd(
+			streamURL, "E2E Test Show", "1", "58939", "24 min",
+			[]string{
+				"--vo=null",
+				"--ao=null",
+				"--idle=no",
+				"--keep-open=no",
+				"--no-terminal",
+			},
+		)
+		if err != nil {
+			t.Fatalf("getMpvCmd failed: %v", err)
+		}
+
+		socketPath := getMpvSocketPath()
+
+		defer func() {
+			if luaFile != "" {
+				_ = os.Remove(luaFile)
+			}
+			if chapFile != "" {
+				_ = os.Remove(chapFile)
+			}
+		}()
+
+		if err := cmd.Start(); err != nil {
+			t.Fatalf("failed to start headless mpv command (%s): %v", mpvPath, err)
+		}
+		defer func() {
+			if cmd.Process != nil {
+				_ = cmd.Process.Kill()
+				_ = cmd.Wait()
+			}
+		}()
+
+		time.Sleep(500 * time.Millisecond)
+
+		ipc, err := NewMPVIPCClient(socketPath)
+		if err != nil {
+			t.Logf("⚠️ MPV IPC Socket connect note (%s): %v", socketPath, err)
+		} else {
+			defer ipc.Close()
+
+			_ = ipc.Seek(10.0)
+			health, _ := ipc.InspectHealth()
+			t.Logf("✓ [MPV IPC E2E] Socket connection verified! Health stats: %+v", health)
+		}
+	})
+
+	t.Run("05_Full_TUI_Interactive_User_Flow", func(t *testing.T) {
+		m := initialModel("", "sub", "best", false)
+
+		// 1. Switch to Search tab ('2')
+		res, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'2'}})
+		m2 := res.(model)
+		if m2.state != stateSearchInput {
+			t.Fatalf("expected state stateSearchInput (1), got %v", m2.state)
+		}
+
+		// 2. Perform search via doSearch
+		searchCmd := doSearch("Sakamoto Days", "sub")
+		searchMsg := searchCmd()
+		sResMsg, ok := searchMsg.(searchResultMsg)
+		if !ok || sResMsg.err != nil || len(sResMsg.shows) == 0 {
+			t.Fatalf("doSearch failed: %v", sResMsg.err)
+		}
+
+		res, _ = m2.Update(sResMsg)
+		m3 := res.(model)
+		if m3.state != stateShowSelect {
+			t.Fatalf("expected state stateShowSelect (3), got %v", m3.state)
+		}
+		t.Logf("✓ [TUI E2E] Transitioned to stateShowSelect with search results")
+
+		// 3. Select show & fetch episodes
+		topShow := sResMsg.shows[0]
+		epCmd := doFetchEpisodes(topShow.ID, "sub")
+		epMsg := epCmd()
+		eResMsg, ok := epMsg.(episodesResultMsg)
+		if !ok || eResMsg.err != nil || len(eResMsg.episodes) == 0 {
+			t.Fatalf("doFetchEpisodes failed: %v", eResMsg.err)
+		}
+
+		res, _ = m3.Update(eResMsg)
+		m4 := res.(model)
+		if m4.state != stateEpisodeSelect {
+			t.Fatalf("expected state stateEpisodeSelect (5), got %v", m4.state)
+		}
+		t.Logf("✓ [TUI E2E] Transitioned to stateEpisodeSelect with %d episodes", len(eResMsg.episodes))
+
+		// 4. Prepare playback
+		playCmd := doPreparePlayback(m4.selectedShow, m4.episodes[0], "Ep 1", "sub", "best", false)
+		playMsg := playCmd()
+		pResMsg, ok := playMsg.(resolvedPlaybackMsg)
+		if !ok || pResMsg.err != nil || pResMsg.cmd == nil {
+			t.Fatalf("doPreparePlayback failed: %v", pResMsg.err)
+		}
+
+		res, _ = m4.Update(pResMsg)
+		m5 := res.(model)
+		if !m5.playbackActive {
+			t.Fatalf("expected playbackActive=true after resolvedPlaybackMsg, got false")
+		}
+		t.Logf("✓ [TUI E2E] Full interactive TUI user flow successfully completed!")
+	})
+
+	t.Run("06_State_Persistence_And_Position_Sync", func(t *testing.T) {
+		tmpDir, err := os.MkdirTemp("", "clare-e2e-state-*")
+		if err != nil {
+			t.Fatalf("failed to create temp state dir: %v", err)
+		}
+		defer os.RemoveAll(tmpDir)
+
+		origDir := os.Getenv("CLARE_STATE_DIR")
+		os.Setenv("CLARE_STATE_DIR", tmpDir)
+		defer os.Setenv("CLARE_STATE_DIR", origDir)
+
+		showID := "anidb:4556"
+		epNo := "1"
+
+		// 1. Record search
+		_ = recordSearch("Sakamoto Days")
+		searches, err := loadSearchHistory()
+		if err != nil || len(searches) == 0 || searches[0] != "Sakamoto Days" {
+			t.Fatalf("expected search history to contain 'Sakamoto Days', got %v (err: %v)", searches, err)
+		}
+
+		// 2. Save position
+		posData := PositionsData{
+			showID: ShowState{
+				ResumeState: &ResumeState{
+					Episode:         1.0,
+					PositionSeconds: 345.5,
+					TotalSeconds:    1440.0,
+				},
+				CompletedEpisodes: []float64{1.0},
+			},
+		}
+		if err := savePositions(posData); err != nil {
+			t.Fatalf("savePositions failed: %v", err)
+		}
+
+		loadedPositions, err := loadPositions()
+		if err != nil || loadedPositions[showID].ResumeState == nil || loadedPositions[showID].ResumeState.PositionSeconds != 345.5 {
+			t.Fatalf("expected loaded positions to contain position 345.5, got %+v (err: %v)", loadedPositions[showID], err)
+		}
+		t.Logf("✓ [Persistence E2E] Playback positions saved & recovered: %.1fs", loadedPositions[showID].ResumeState.PositionSeconds)
+
+		// 3. Record watch history
+		if err := recordWatch(showID, "Sakamoto Days", epNo); err != nil {
+			t.Fatalf("recordWatch failed: %v", err)
+		}
+
+		loadedHist, err := loadHistory()
+		if err != nil || len(loadedHist) == 0 || loadedHist[0].ShowID != showID {
+			t.Fatalf("expected loaded history to contain show %s, got %+v (err: %v)", showID, loadedHist, err)
+		}
+		t.Logf("✓ [Persistence E2E] Watch history entry saved & verified!")
+	})
+
+	t.Run("07_AniList_And_Jikan_Metadata_Enrichment", func(t *testing.T) {
+		show := AnimeShow{Name: "Sakamoto Days"}
+		enrichShowMetadata(&show)
+
+		if show.MALID == "" {
+			t.Errorf("expected MALID to be populated")
+		}
+		if show.AniListID == "" {
+			t.Errorf("expected AniListID to be populated")
+		}
+		if show.Thumbnail == "" {
+			t.Errorf("expected Thumbnail URL to be populated")
+		}
+		if show.Description == "" {
+			t.Errorf("expected Description synopsis to be populated")
+		}
+		if show.Score == 0 {
+			t.Errorf("expected average score to be populated")
+		}
+		t.Logf("✓ [Metadata E2E] AniList Enrichment verified: MALID=%s, AniListID=%s, Score=%.2f, Year=%d, Genres=%v, Thumbnail=%s",
+			show.MALID, show.AniListID, show.Score, show.Season.Year, show.Genres, show.Thumbnail)
+
+		// Test Jikan episode metadata API fetching
+		if show.MALID != "" {
+			jCmd := doFetchJikanMetadata(show.MALID, 1)
+			jMsg := jCmd()
+			mMsg, ok := jMsg.(jikanMetadataMsg)
+			if !ok || mMsg.err != nil {
+				t.Logf("⚠️ [Metadata E2E] Jikan episode metadata note: %v", mMsg.err)
+			} else {
+				t.Logf("✓ [Metadata E2E] Jikan fetched %d episode details (Top Ep 1: Title=%q, Aired=%s)",
+					len(mMsg.metadata), mMsg.metadata["1"].Title, mMsg.metadata["1"].Aired)
+			}
+		}
+	})
+
+	t.Run("08_AniSkip_And_Chapter_File_Generation", func(t *testing.T) {
+		show := AnimeShow{Name: "Fullmetal Alchemist: Brotherhood"}
+		enrichShowMetadata(&show)
+		if show.MALID == "" && show.AniListID == "" {
+			t.Fatalf("expected AniList metadata enrichment for Fullmetal Alchemist: Brotherhood")
+		}
+
+		skipTimes := fetchAniSkipTimes("5114", "1", 1440.0)
+		t.Logf("✓ [AniSkip E2E] AniSkip API returned %d skip intervals", len(skipTimes))
+
+		_, luaFile, chapFile, _, _, err := getMpvCmd(
+			"https://example.com/test.m3u8", show.Name, "1", "5114", "24 min", nil,
+		)
+		if err != nil {
+			t.Fatalf("getMpvCmd failed: %v", err)
+		}
+
+		defer func() {
+			if luaFile != "" {
+				_ = os.Remove(luaFile)
+			}
+			if chapFile != "" {
+				_ = os.Remove(chapFile)
+			}
+		}()
+
+		if chapFile != "" {
+			content, err := os.ReadFile(chapFile)
+			if err != nil {
+				t.Fatalf("failed to read generated chapters file: %v", err)
+			}
+			if !strings.Contains(string(content), "CHAPTER") {
+				t.Fatalf("chapters file missing CHAPTER header: %s", string(content))
+			}
+			t.Logf("✓ [AniSkip E2E] Generated MPV chapters file (%d bytes) verified!", len(content))
+		}
+	})
+}
