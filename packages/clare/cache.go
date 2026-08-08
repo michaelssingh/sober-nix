@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -64,6 +65,46 @@ func saveJikanCache(malID string, data map[string]JikanEpInfo) error {
 	encoder := json.NewEncoder(f)
 	encoder.SetIndent("", "  ")
 	return encoder.Encode(data)
+}
+
+func loadEpisodeMetadataCache(showID, malID string) (map[string]JikanEpInfo, error) {
+	if showID != "" {
+		cleanID := strings.ReplaceAll(showID, ":", "_")
+		path := filepath.Join(getCacheDir(), "episodes", cleanID+".json")
+		if f, err := os.Open(path); err == nil {
+			var data map[string]JikanEpInfo
+			if json.NewDecoder(f).Decode(&data) == nil && len(data) > 0 {
+				f.Close()
+				return data, nil
+			}
+			f.Close()
+		}
+	}
+	if malID != "" && malID != "0" {
+		return loadJikanCache(malID)
+	}
+	return nil, nil
+}
+
+func saveEpisodeMetadataCache(showID, malID string, data map[string]JikanEpInfo) error {
+	if len(data) == 0 {
+		return nil
+	}
+	if showID != "" {
+		cleanID := strings.ReplaceAll(showID, ":", "_")
+		path := filepath.Join(getCacheDir(), "episodes", cleanID+".json")
+		_ = os.MkdirAll(filepath.Dir(path), 0o755)
+		if f, err := os.Create(path); err == nil {
+			encoder := json.NewEncoder(f)
+			encoder.SetIndent("", "  ")
+			_ = encoder.Encode(data)
+			f.Close()
+		}
+	}
+	if malID != "" && malID != "0" {
+		_ = saveJikanCache(malID, data)
+	}
+	return nil
 }
 
 // Show Cache (AllAnime)

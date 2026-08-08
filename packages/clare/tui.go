@@ -1207,26 +1207,24 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.fetchingSynopsis = make(map[string]bool)
 
 		// Load Jikan cache if MAL ID is present
-		if m.selectedShow.MALID != "" && m.selectedShow.MALID != "0" {
-			if cacheData, err := loadJikanCache(m.selectedShow.MALID); err == nil && len(cacheData) > 0 {
-				for k, v := range cacheData {
-					m.episodeDetails[k] = v
-				}
-				for _, ep := range m.episodes {
-					epNum := int(parseEpisodeNumber(ep))
-					if epNum > 0 {
-						page := (epNum-1)/100 + 1
-						m.loadedJikanPages[page] = true
-					}
-				}
-				m.refreshEpisodeListItems()
-			} else {
-				// Fetch page 1 immediately
-				m.loadedJikanPages[1] = true
-				return m, doFetchJikanMetadata(m.selectedShow.MALID, m.selectedShow.Name, 1)
+		if cacheData, err := loadEpisodeMetadataCache(m.selectedShow.ID, m.selectedShow.MALID); err == nil && len(cacheData) > 0 {
+			for k, v := range cacheData {
+				m.episodeDetails[k] = v
 			}
+			for _, ep := range m.episodes {
+				epNum := int(parseEpisodeNumber(ep))
+				if epNum > 0 {
+					page := (epNum-1)/100 + 1
+					m.loadedJikanPages[page] = true
+				}
+			}
+			m.refreshEpisodeListItems()
 		} else if strings.HasPrefix(m.selectedShow.ID, "vidsrc:tv:") {
 			return m, doFetchTmdbSeasonDetails(m.selectedShow.ID, 1)
+		} else {
+			// Fetch metadata via Jikan or Kitsu fallback
+			m.loadedJikanPages[1] = true
+			return m, doFetchJikanMetadata(m.selectedShow.MALID, m.selectedShow.Name, 1)
 		}
 
 		// Rebuild the list items with current (empty/fallback) titles
@@ -1714,9 +1712,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		for k, v := range msg.metadata {
 			m.episodeDetails[k] = v
-			cacheData[k] = v
 		}
-		_ = saveJikanCache(msg.malID, cacheData)
+		_ = saveEpisodeMetadataCache(m.selectedShow.ID, msg.malID, m.episodeDetails)
 		m.refreshEpisodeListItems()
 
 		// Trigger lazy-loading of synopsis for the currently selected episode
@@ -1746,14 +1743,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				Synopsis: msg.synopsis,
 			}
 		}
-		cacheData, _ := loadJikanCache(m.selectedShow.MALID)
-		if cacheData == nil {
-			cacheData = make(map[string]JikanEpInfo)
-		}
-		info := cacheData[msg.epNo]
-		info.Synopsis = msg.synopsis
-		cacheData[msg.epNo] = info
-		_ = saveJikanCache(m.selectedShow.MALID, cacheData)
+		_ = saveEpisodeMetadataCache(m.selectedShow.ID, m.selectedShow.MALID, m.episodeDetails)
 		return m, nil
 
 	case tmdbSeasonDetailsMsg:
@@ -1761,6 +1751,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			for k, v := range msg.epInfo {
 				m.episodeDetails[k] = v
 			}
+			_ = saveEpisodeMetadataCache(m.selectedShow.ID, "", m.episodeDetails)
 			m.refreshEpisodeListItems()
 		}
 		return m, nil
@@ -3444,8 +3435,13 @@ func (m *model) refreshEpisodeListItems() {
 	subCount := m.selectedShow.SubCount()
 	dubCount := m.selectedShow.DubCount()
 
+	today := time.Now().Format("2006-01-02")
 	var items []list.Item
 	for _, ep := range m.episodes {
+		// Omit episodes that have not aired yet for currently airing shows
+		if info, ok := m.episodeDetails[ep]; ok && info.Aired != "" && info.Aired > today {
+			continue
+		}
 		isNext := ep == nextEp
 		title := ""
 		desc := ""
