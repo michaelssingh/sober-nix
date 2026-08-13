@@ -81,8 +81,10 @@
   sober.core.networking.secure-dns.enable = true;
   sober.core.networking.firewall.enable = true;
   sober.services.wg-fly.enable = true;
-  sober.services.wg-sober.enable = true;
-  sober.services.wg-sober.debugMode = false;
+  sober.services.wg-sober.enable = false;
+  sober.services.wg-sober-oci.enable = true;
+  sober.services.wg-sober-oci.debugMode = true;
+  sober.services.wg-sober-oci.killSwitch = false;
 
   programs.nh = {
     enable = true;
