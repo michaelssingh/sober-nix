@@ -90,7 +90,9 @@ in
       postUp = ''
         ${pkgs.iproute2}/bin/ip route add 10.13.13.0/24 dev ${cfg.interface} || true
         ${pkgs.systemd}/bin/resolvectl dns ${cfg.interface} 1.1.1.1#cloudflare-dns.com 1.0.0.1#cloudflare-dns.com
-        ${pkgs.systemd}/bin/resolvectl default-route ${cfg.interface} false
+        ${pkgs.systemd}/bin/resolvectl default-route ${cfg.interface} ${
+          if cfg.debugMode then "false" else "true"
+        }
         ${pkgs.systemd}/bin/resolvectl domain ${cfg.interface} "~."
         ${pkgs.systemd}/bin/resolvectl dnssec ${cfg.interface} yes
         ${pkgs.systemd}/bin/resolvectl dnsovertls ${cfg.interface} yes 

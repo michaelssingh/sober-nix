@@ -14,15 +14,16 @@ sudo mkdir -p /etc/wireguard
 if [ ! -f /etc/wireguard/private.key ]; then
   (umask 077 && sudo wg genkey | sudo tee /etc/wireguard/private.key > /dev/null)
 fi
+IFACE=$(ip route show default | awk '{print $5}')
 PRIVKEY=$(sudo cat /etc/wireguard/private.key)
 
-sudo bash -c "cat << 'EOF' > /etc/wireguard/wg0.conf
+sudo bash -c "cat << EOF > /etc/wireguard/wg0.conf
 [Interface]
 Address = 10.13.13.1/24, fd00::1/64
 ListenPort = 51820
-PrivateKey = ${PRIVKEY}
-PostUp = sysctl -w net.ipv4.ip_forward=1; iptables -A FORWARD -i wg0 -j ACCEPT; iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
-PostDown = iptables -D FORWARD -i wg0 -j ACCEPT; iptables -t nat -D POSTROUTING -o eth0 -j MASQUERADE
+PrivateKey = \${PRIVKEY}
+PostUp = sysctl -w net.ipv4.ip_forward=1; iptables -A FORWARD -i wg0 -j ACCEPT; iptables -t nat -A POSTROUTING -o \${IFACE} -j MASQUERADE
+PostDown = iptables -D FORWARD -i wg0 -j ACCEPT; iptables -t nat -D POSTROUTING -o \${IFACE} -j MASQUERADE
 
 # otus
 [Peer]
