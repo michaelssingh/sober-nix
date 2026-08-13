@@ -10,4 +10,5 @@
   wg_fly_otus = "23wz66STtDjKTiL9ipLykJy7ElCVkRGR/4js7pm7MzM=";
   wg_sober_otus = "23wz66STtDjKTiL9ipLykJy7ElCVkRGR/4js7pm7MzM=";
   wg_sober_glaucidium = "BgF0yad/27+0o74CldVXUWtkS+h4VsT1nAPEkKD3VHo=";
+  wg_sober_oci = "4gS/CQp/hiMCSwKoEOmKhompbOqpDruQZcuIWLaxXDo=";
 }

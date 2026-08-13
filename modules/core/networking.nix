@@ -106,7 +106,7 @@
                 ${trustedOutputRules}
 
                 # Whitelist WireGuard VPN server gateway endpoint IPs (wg-sober, wg-fly, glaucidium OCI)
-                ip daddr { 37.16.11.12, 209.177.156.188, 150.136.242.79 } accept
+                ip daddr { 37.16.11.12, 209.177.156.188, 150.136.242.79, 132.145.210.96 } accept
 
                 # Allow local network subnets for captive portals and LAN access
                 ip daddr { 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16 } accept
