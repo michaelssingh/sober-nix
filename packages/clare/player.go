@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	_ "embed"
 	"encoding/json"
 	"fmt"
@@ -41,8 +42,70 @@ type AniSkipResponse struct {
 	Results []AniSkipResult `json:"results"`
 }
 
-func fetchAniSkipTimes(malID string, epNo string, durationSeconds float64) []AniSkipResult {
-	if malID == "" || malID == "0" || epNo == "" {
+func resolveMALIDByTitle(title string) string {
+	if title == "" {
+		return ""
+	}
+	cleanTitle := title
+	if idx := strings.Index(cleanTitle, "("); idx > 0 {
+		cleanTitle = strings.TrimSpace(cleanTitle[:idx])
+	}
+	query := `
+	query ($search: String) {
+		Media(search: $search, type: ANIME) {
+			idMal
+		}
+	}`
+	payload := map[string]interface{}{
+		"query": query,
+		"variables": map[string]interface{}{
+			"search": cleanTitle,
+		},
+	}
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return ""
+	}
+
+	req, err := http.NewRequest("POST", "https://graphql.anilist.co", bytes.NewBuffer(body))
+	if err != nil {
+		return ""
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("User-Agent", UserAgent)
+
+	client := &http.Client{Timeout: 5 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return ""
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return ""
+	}
+
+	var res struct {
+		Data struct {
+			Media struct {
+				IDMal *int `json:"idMal"`
+			} `json:"Media"`
+		} `json:"data"`
+	}
+	respBody, err := io.ReadAll(resp.Body)
+	if err == nil && json.Unmarshal(respBody, &res) == nil && res.Data.Media.IDMal != nil && *res.Data.Media.IDMal > 0 {
+		return fmt.Sprintf("%d", *res.Data.Media.IDMal)
+	}
+	return ""
+}
+
+func fetchAniSkipTimes(malID string, epNo string, durationSeconds float64, showTitle ...string) []AniSkipResult {
+	if epNo == "" {
+		return nil
+	}
+	if (malID == "" || malID == "0") && len(showTitle) > 0 && showTitle[0] != "" {
+		malID = resolveMALIDByTitle(showTitle[0])
+	}
+	if malID == "" || malID == "0" {
 		return nil
 	}
 	cleanEp := ""
@@ -177,9 +240,9 @@ func getMpvCmd(streamURL string, title string, epNo string, malID string, durati
 	tempChaptersFile := ""
 	var times []AniSkipResult
 	isMovie := strings.HasPrefix(streamURL, "vidsrc:") || strings.Contains(streamURL, "vaplayer") || strings.EqualFold(epNo, "Movie")
-	if malID != "" && malID != "0" && !isMovie {
-		debugLog("getMpvCmd: fetching AniSkip skip times for malID=%s, epNo=%s", malID, epNo)
-		times = fetchAniSkipTimes(malID, epNo, durationSeconds)
+	if !isMovie {
+		debugLog("getMpvCmd: fetching AniSkip skip times for malID=%s, epNo=%s, title=%s", malID, epNo, title)
+		times = fetchAniSkipTimes(malID, epNo, durationSeconds, title)
 		if len(times) > 0 {
 			var ffmetadata strings.Builder
 			ffmetadata.WriteString(";FFMETADATA1\n")
@@ -317,14 +380,7 @@ local skip_times_json = %q
 		}
 	}
 
-	mediaTitle := title
-	if epNo != "" && !strings.EqualFold(epNo, "Movie") {
-		if strings.HasPrefix(strings.ToUpper(epNo), "S") {
-			mediaTitle = fmt.Sprintf("%s - %s", title, epNo)
-		} else if epNo != "1" && !strings.Contains(strings.ToLower(title), "movie") {
-			mediaTitle = fmt.Sprintf("%s - Episode %s", title, epNo)
-		}
-	}
+	mediaTitle := formatMediaTitle(title, epNo)
 
 	args := []string{
 		"--tls-verify=no",
@@ -666,7 +722,7 @@ func loadFileInMpv(streamURL, title, epNo, malID string, extraArgs []string, dur
 		debugLog("loadFileInMpv: loaded next episode %s from the beginning", epNo)
 	}
 
-	fullTitle := fmt.Sprintf("%s - Episode %s", title, epNo)
+	fullTitle := formatMediaTitle(title, epNo)
 	_, _ = sendMpvCommand(conn, []interface{}{"set_property", "force-media-title", fullTitle})
 
 	for _, arg := range extraArgs {
@@ -681,6 +737,19 @@ func loadFileInMpv(streamURL, title, epNo, malID string, extraArgs []string, dur
 	_, _ = sendMpvCommand(conn, []interface{}{"set_property", "pause", false})
 
 	return nil
+}
+
+func formatMediaTitle(title, epNo string) string {
+	if epNo == "" || strings.EqualFold(epNo, "Movie") {
+		return title
+	}
+	if strings.HasPrefix(strings.ToUpper(epNo), "S") || strings.Contains(strings.ToLower(epNo), "episode") {
+		return fmt.Sprintf("%s - %s", title, epNo)
+	}
+	if !strings.Contains(strings.ToLower(title), "movie") {
+		return fmt.Sprintf("%s - Episode %s", title, epNo)
+	}
+	return title
 }
 
 func getMpvSocketPath() string {

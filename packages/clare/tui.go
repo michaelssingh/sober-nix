@@ -1717,12 +1717,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		// Trigger lazy-loading of synopsis for the currently selected episode
 		selectedItem := m.episodeList.SelectedItem()
-		if selectedItem != nil && m.selectedShow.MALID != "" && m.selectedShow.MALID != "0" {
+		if selectedItem != nil {
 			if epItem, ok := selectedItem.(episodeItem); ok {
 				if info, ok := m.episodeDetails[epItem.epNo]; !ok || info.Synopsis == "" {
 					if !m.fetchingSynopsis[epItem.epNo] {
 						m.fetchingSynopsis[epItem.epNo] = true
-						return m, doFetchEpisodeSynopsis(m.selectedShow.MALID, epItem.epNo)
+						return m, doFetchEpisodeSynopsis(m.selectedShow.MALID, epItem.epNo, m.selectedShow.Name)
 					}
 				}
 			}
@@ -2291,12 +2291,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 			// Trigger lazy-loading of synopsis for selected episode
 			selectedItem := m.episodeList.SelectedItem()
-			if selectedItem != nil && m.selectedShow.MALID != "" && m.selectedShow.MALID != "0" {
+			if selectedItem != nil {
 				if epItem, ok := selectedItem.(episodeItem); ok {
 					if info, ok := m.episodeDetails[epItem.epNo]; !ok || info.Synopsis == "" {
 						if !m.fetchingSynopsis[epItem.epNo] {
 							m.fetchingSynopsis[epItem.epNo] = true
-							cmds = append(cmds, doFetchEpisodeSynopsis(m.selectedShow.MALID, epItem.epNo))
+							cmds = append(cmds, doFetchEpisodeSynopsis(m.selectedShow.MALID, epItem.epNo, m.selectedShow.Name))
 						}
 					}
 				}
@@ -2558,7 +2558,6 @@ func (m model) View() string {
 		MarginRight(1)
 
 	var tabs []string
-	showTabs := false
 	baseTabs := func(active int) {
 		render := func(label string, idx int) string {
 			if idx == active {
@@ -2573,26 +2572,17 @@ func (m model) View() string {
 	}
 	if m.state == stateHistory {
 		baseTabs(1)
-		showTabs = true
-	} else if m.state == stateSearchInput || m.state == stateSearchRunning || m.state == stateShowSelect || m.state == stateEpisodeSelect || m.state == stateSourceSelect || m.state == statePlaybackPreparing || m.state == statePlaybackActive {
-		baseTabs(2)
-		showTabs = true
 	} else if m.state == stateLogs {
 		baseTabs(3)
-		showTabs = true
 	} else if m.state == stateConfig {
 		baseTabs(4)
-		showTabs = true
+	} else {
+		baseTabs(2)
 	}
-
 	listHeight := m.dynamicListHeight()
 
-	if showTabs {
-		logoStr := titleStyle.Render(" クレア ")
-		s.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, logoStr+"   ", lipgloss.JoinHorizontal(lipgloss.Top, tabs...)) + "\n")
-	} else {
-		s.WriteString(titleStyle.Render(" クレア ") + "\n")
-	}
+	logoStr := titleStyle.Render(" クレア ")
+	s.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, logoStr+"   ", lipgloss.JoinHorizontal(lipgloss.Top, tabs...)) + "\n")
 
 	bodyStyle := lipgloss.NewStyle().Height(listHeight)
 
@@ -2917,15 +2907,35 @@ func (m model) View() string {
 		s.WriteString(fmt.Sprintf("  %v\n\n", m.err))
 	}
 
+	var footerBlocks []string
 	if m.playbackActive {
-		s.WriteString("\n" + playerView)
+		footerBlocks = append(footerBlocks, playerView)
 	}
-
 	if helpText := m.viewFooter(); helpText != "" {
-		s.WriteString("\n" + helpText)
+		footerBlocks = append(footerBlocks, helpText)
 	}
 
-	out := s.String()
+	contentSoFar := s.String()
+	var out string
+	if len(footerBlocks) > 0 {
+		footerStr := strings.Join(footerBlocks, "\n")
+		contentLines := strings.Count(contentSoFar, "\n")
+		footerLines := lipgloss.Height(footerStr)
+		targetTotal := m.height
+		if targetTotal < 10 {
+			targetTotal = 10
+		}
+		neededPadding := targetTotal - contentLines - footerLines
+		if neededPadding > 0 {
+			contentSoFar += strings.Repeat("\n", neededPadding)
+		} else if !strings.HasSuffix(contentSoFar, "\n") {
+			contentSoFar += "\n"
+		}
+		out = contentSoFar + footerStr
+	} else {
+		out = contentSoFar
+	}
+
 	if m.errorPopupMsg != "" {
 		out = m.renderErrorModal(out)
 	}
@@ -3336,41 +3346,86 @@ type episodeSynopsisMsg struct {
 	err      error
 }
 
-func doFetchEpisodeSynopsis(malID, epNo string) tea.Cmd {
-	return func() tea.Msg {
-		if malID == "" || malID == "0" || epNo == "" {
-			return episodeSynopsisMsg{epNo: epNo, err: fmt.Errorf("invalid arguments")}
-		}
-		epID, err := strconv.Atoi(epNo)
-		if err != nil || epID <= 0 {
-			return episodeSynopsisMsg{epNo: epNo, err: fmt.Errorf("invalid episode ID")}
-		}
+func fetchKitsuEpisodeSynopsis(showTitle, epNo string) string {
+	if showTitle == "" || epNo == "" {
+		return ""
+	}
+	cleanTitle := showTitle
+	if idx := strings.Index(cleanTitle, "("); idx > 0 {
+		cleanTitle = strings.TrimSpace(cleanTitle[:idx])
+	}
+	searchURL := fmt.Sprintf("https://kitsu.io/api/edge/anime?filter[text]=%s", url.QueryEscape(cleanTitle))
+	body, err := doHTTPReqWithRetry("GET", searchURL, nil, map[string]string{"User-Agent": UserAgent})
+	if err != nil {
+		return ""
+	}
+	var searchRes struct {
+		Data []struct {
+			ID string `json:"id"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(body, &searchRes); err != nil || len(searchRes.Data) == 0 {
+		return ""
+	}
 
-		client := newLoggingHttpClient(8 * time.Second)
-		url := fmt.Sprintf("https://api.jikan.moe/v4/anime/%s/episodes/%d", malID, epID)
-		resp, err := client.Get(url)
-		if err != nil {
-			return episodeSynopsisMsg{epNo: epNo, err: err}
-		}
-		defer resp.Body.Close()
-		if resp.StatusCode != http.StatusOK {
-			return episodeSynopsisMsg{epNo: epNo, err: fmt.Errorf("status %d", resp.StatusCode)}
-		}
-
-		var res struct {
-			Data struct {
+	kitsuID := searchRes.Data[0].ID
+	episodesURL := fmt.Sprintf("https://kitsu.io/api/edge/anime/%s/episodes?filter[number]=%s", kitsuID, epNo)
+	epBody, err := doHTTPReqWithRetry("GET", episodesURL, nil, map[string]string{"User-Agent": UserAgent})
+	if err != nil {
+		return ""
+	}
+	var epRes struct {
+		Data []struct {
+			Attributes struct {
 				Synopsis string `json:"synopsis"`
-			} `json:"data"`
-		}
-		body, err := io.ReadAll(resp.Body)
-		if err != nil {
-			return episodeSynopsisMsg{epNo: epNo, err: err}
-		}
-		if err := json.Unmarshal(body, &res); err != nil {
-			return episodeSynopsisMsg{epNo: epNo, err: err}
+			} `json:"attributes"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(epBody, &epRes); err == nil && len(epRes.Data) > 0 {
+		return strings.TrimSpace(epRes.Data[0].Attributes.Synopsis)
+	}
+	return ""
+}
+
+func doFetchEpisodeSynopsis(malID, epNo, showTitle string) tea.Cmd {
+	return func() tea.Msg {
+		if epNo == "" {
+			return episodeSynopsisMsg{epNo: epNo, err: fmt.Errorf("invalid episode number")}
 		}
 
-		return episodeSynopsisMsg{epNo: epNo, synopsis: res.Data.Synopsis}
+		// 1. Try Jikan API if MAL ID is available
+		if malID != "" && malID != "0" {
+			epID, err := strconv.Atoi(epNo)
+			if err == nil && epID > 0 {
+				client := newLoggingHttpClient(8 * time.Second)
+				reqURL := fmt.Sprintf("https://api.jikan.moe/v4/anime/%s/episodes/%d", malID, epID)
+				resp, err := client.Get(reqURL)
+				if err == nil && resp.StatusCode == http.StatusOK {
+					defer resp.Body.Close()
+					var res struct {
+						Data struct {
+							Synopsis string `json:"synopsis"`
+						} `json:"data"`
+					}
+					body, err := io.ReadAll(resp.Body)
+					if err == nil {
+						if err := json.Unmarshal(body, &res); err == nil && strings.TrimSpace(res.Data.Synopsis) != "" {
+							return episodeSynopsisMsg{epNo: epNo, synopsis: res.Data.Synopsis}
+						}
+					}
+				}
+			}
+		}
+
+		// 2. Kitsu API Fallback (for shows without MAL ID or when Jikan is 404/rate-limited)
+		if showTitle != "" {
+			syn := fetchKitsuEpisodeSynopsis(showTitle, epNo)
+			if syn != "" {
+				return episodeSynopsisMsg{epNo: epNo, synopsis: syn}
+			}
+		}
+
+		return episodeSynopsisMsg{epNo: epNo, err: fmt.Errorf("synopsis not found")}
 	}
 }
 
