@@ -73,6 +73,25 @@ in
 
   sober.theme.active = "tokyonight-storm";
 
+  home.packages = with pkgs; [ cachix ];
+
+  # Provision Cachix Auth Token from SOPS secret
+  home.activation.provisionCachixToken = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+        if ${pkgs.sops}/bin/sops -d --extract '["cachix_auth_token"]' ${../../secrets/secrets.yaml} > /tmp/cachix_token 2>/dev/null; then
+          token=$(cat /tmp/cachix_token)
+          mkdir -p ${config.home.homeDirectory}/.config/cachix
+          cat <<EOF > ${config.home.homeDirectory}/.config/cachix/cachix.dhall
+    { authToken =
+        "$token"
+    , hostname = "https://cachix.org"
+    , binaryCaches = [] : List { name : Text, secretKey : Text }
+    }
+    EOF
+          chmod 600 ${config.home.homeDirectory}/.config/cachix/cachix.dhall
+          rm -f /tmp/cachix_token
+        fi
+  '';
+
   programs.zathura = {
     enable = true;
     package = pkgs.zathura.override {
