@@ -25,4 +25,12 @@ primary_region = "ewr"
   [[services.ports]]
     port = 6167
 
-
+[[services]]
+  protocol = "tcp"
+  internal_port = 8081
+  [[services.ports]]
+    handlers = ["http"]
+    port = 80
+  [[services.ports]]
+    handlers = ["tls", "http"]
+    port = 443

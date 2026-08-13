@@ -51,7 +51,7 @@ let
     listen irc+insecure://0.0.0.0:6667
     listen unix+admin:///data/admin.sock
     listen http+insecure://0.0.0.0:8081
-    http-ingress http://sober-athene.fly.dev
+    http-ingress https://sober-athene.fly.dev
     file-upload fs /data/uploads
     db sqlite3 /data/soju.db
   '';
@@ -99,6 +99,7 @@ soberLib.mkContainerImage {
   exposedPorts = {
     "6667/tcp" = { };
     "6167/tcp" = { };
+    "8081/tcp" = { };
   };
   entrypoint = ''
     # Configure aggressive TCP keepalive settings to clean up dead connections quickly
@@ -198,4 +199,3 @@ soberLib.mkContainerImage {
     exec ${pkgs.soju}/bin/soju -config ${sojuConfig} 2>&1 | tee -a /var/log/soju.log
   '';
 }
-
