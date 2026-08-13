@@ -27,6 +27,19 @@ func getJikanCachePath(malID string) string {
 	return filepath.Join(getCacheDir(), "jikan", malID+".json")
 }
 
+func sanitizeEpInfoMap(data map[string]JikanEpInfo) map[string]JikanEpInfo {
+	if len(data) == 0 {
+		return data
+	}
+	clean := make(map[string]JikanEpInfo)
+	for k, v := range data {
+		if strings.TrimSpace(v.Title) != "" || strings.TrimSpace(v.Synopsis) != "" || strings.TrimSpace(v.Aired) != "" {
+			clean[k] = v
+		}
+	}
+	return clean
+}
+
 func loadJikanCache(malID string) (map[string]JikanEpInfo, error) {
 	if malID == "" || malID == "0" {
 		return nil, nil
@@ -45,11 +58,12 @@ func loadJikanCache(malID string) (map[string]JikanEpInfo, error) {
 	if err := json.NewDecoder(f).Decode(&data); err != nil {
 		return nil, err
 	}
-	return data, nil
+	return sanitizeEpInfoMap(data), nil
 }
 
 func saveJikanCache(malID string, data map[string]JikanEpInfo) error {
-	if malID == "" || malID == "0" || len(data) == 0 {
+	cleanData := sanitizeEpInfoMap(data)
+	if malID == "" || malID == "0" || len(cleanData) == 0 {
 		return nil
 	}
 	path := getJikanCachePath(malID)
@@ -64,7 +78,7 @@ func saveJikanCache(malID string, data map[string]JikanEpInfo) error {
 
 	encoder := json.NewEncoder(f)
 	encoder.SetIndent("", "  ")
-	return encoder.Encode(data)
+	return encoder.Encode(cleanData)
 }
 
 func loadEpisodeMetadataCache(showID, malID string) (map[string]JikanEpInfo, error) {
@@ -75,9 +89,13 @@ func loadEpisodeMetadataCache(showID, malID string) (map[string]JikanEpInfo, err
 			var data map[string]JikanEpInfo
 			if json.NewDecoder(f).Decode(&data) == nil && len(data) > 0 {
 				f.Close()
-				return data, nil
+				cleanData := sanitizeEpInfoMap(data)
+				if len(cleanData) > 0 {
+					return cleanData, nil
+				}
+			} else {
+				f.Close()
 			}
-			f.Close()
 		}
 	}
 	if malID != "" && malID != "0" {

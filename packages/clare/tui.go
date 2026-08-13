@@ -3262,8 +3262,14 @@ func doFetchJikanMetadata(malID, showName string, page int) tea.Cmd {
 			}
 		}
 
-		// Fallback to Kitsu API for episode titles if Jikan fails or MAL ID is unavailable
+		// Fallback to AniList & Kitsu API for episode titles if Jikan fails or MAL ID is unavailable
 		if showName != "" {
+			alMeta, err := fetchAniListEpisodeMetadata(showName)
+			if err == nil && len(alMeta) > 0 {
+				debugLog("[INFO] Successfully fetched %d episode titles from AniList fallback for %s", len(alMeta), showName)
+				return jikanMetadataMsg{malID: malID, page: page, metadata: alMeta}
+			}
+
 			kitsuMeta, err := fetchKitsuEpisodeMetadata(showName)
 			if err == nil && len(kitsuMeta) > 0 {
 				debugLog("[INFO] Successfully fetched %d episode titles from Kitsu fallback for %s", len(kitsuMeta), showName)
@@ -3273,6 +3279,78 @@ func doFetchJikanMetadata(malID, showName string, page int) tea.Cmd {
 
 		return jikanMetadataMsg{malID: malID, page: page, err: fmt.Errorf("metadata fetch failed")}
 	}
+}
+
+func fetchAniListEpisodeMetadata(showName string) (map[string]JikanEpInfo, error) {
+	cleanTitle := showName
+	if idx := strings.Index(cleanTitle, "("); idx > 0 {
+		cleanTitle = strings.TrimSpace(cleanTitle[:idx])
+	}
+	query := `query ($search: String) {
+		Media(search: $search, type: ANIME) {
+			streamingEpisodes {
+				title
+			}
+		}
+	}`
+	payload := map[string]any{
+		"query": query,
+		"variables": map[string]any{
+			"search": cleanTitle,
+		},
+	}
+	jsonBody, err := json.Marshal(payload)
+	if err != nil {
+		return nil, err
+	}
+
+	headers := map[string]string{
+		"Content-Type": "application/json",
+		"User-Agent":   UserAgent,
+	}
+
+	respBody, err := doHTTPReqWithRetry("POST", "https://graphql.anilist.co", jsonBody, headers)
+	if err != nil {
+		return nil, err
+	}
+
+	var alResp struct {
+		Data struct {
+			Media struct {
+				StreamingEpisodes []struct {
+					Title string `json:"title"`
+				} `json:"streamingEpisodes"`
+			} `json:"Media"`
+		} `json:"data"`
+	}
+
+	if err := json.Unmarshal(respBody, &alResp); err != nil {
+		return nil, err
+	}
+
+	eps := alResp.Data.Media.StreamingEpisodes
+	if len(eps) == 0 {
+		return nil, fmt.Errorf("no streaming episodes found on AniList for %s", cleanTitle)
+	}
+
+	metadata := make(map[string]JikanEpInfo)
+	for i, ep := range eps {
+		title := strings.TrimSpace(ep.Title)
+		epNum := fmt.Sprintf("%d", i+1)
+		if idx := strings.Index(title, " - "); idx > 0 {
+			title = strings.TrimSpace(title[idx+3:])
+		}
+		if title != "" {
+			metadata[epNum] = JikanEpInfo{
+				Title: title,
+			}
+		}
+	}
+
+	if len(metadata) == 0 {
+		return nil, fmt.Errorf("no valid episode titles extracted from AniList")
+	}
+	return metadata, nil
 }
 
 func fetchKitsuEpisodeMetadata(showName string) (map[string]JikanEpInfo, error) {
