@@ -3,6 +3,9 @@
   ...
 }:
 
+let
+  publicKeys = import ../../../lib/public-keys.nix;
+in
 {
   system.stateVersion = "26.05";
   nixpkgs.hostPlatform = lib.mkDefault "x86_64-linux";
@@ -46,10 +49,27 @@
 
   networking.firewall = {
     enable = true;
+    allowedTCPPorts = [ 22 ];
     allowedUDPPorts = [ 51820 ];
   };
 
-  services.openssh.enable = true;
+  # --- HARDENED SSH CONFIGURATION (SSH Best Practices) ---
+  services.openssh = {
+    enable = true;
+    settings = {
+      PasswordAuthentication = false;
+      KbdInteractiveAuthentication = false;
+      PermitRootLogin = "prohibit-password";
+    };
+  };
+
+  users.users.root.openssh.authorizedKeys.keys = [
+    publicKeys.glaucidium
+    publicKeys.forge
+    publicKeys.fly
+    publicKeys.nixbuild
+    publicKeys.agy
+  ];
 
   # Minimal boot and file system configuration for cloud VPS
   boot.loader.grub.enable = true;

@@ -62,6 +62,14 @@ in
     path = "/home/michael/.ssh/github";
     mode = "0600";
   };
+  sops.secrets."glaucidium.key" = {
+    path = "/home/michael/.ssh/glaucidium";
+    mode = "0600";
+  };
+  sops.secrets."oci_api_key" = {
+    path = "/home/michael/.oci/oci_api_key.pem";
+    mode = "0600";
+  };
 
   sober.theme.active = "tokyonight-storm";
 
