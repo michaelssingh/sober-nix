@@ -71,15 +71,15 @@
                 ${trustedRules}
                 
                 # Allow inbound WireGuard handshake responses on physical interfaces (wlp3s0, etc.)
-                ip saddr { 37.16.11.12, 209.177.156.188 } accept
+                ip saddr { 37.16.11.12, 209.177.156.188, 150.136.242.79, 132.145.210.96 } accept
                 udp sport 51820 accept
                 udp sport { 53, 68 } accept
 
                 # Stealth mode: drop ICMP echo requests
                 ip protocol icmp icmp type echo-request drop
                 
-                # Allow existing connections
-                ct state established,related accept
+                # Drop un-tracked inbound connections
+                ct state invalid drop
               }
 
               chain forward {
@@ -90,7 +90,10 @@
               chain output {
                 type filter hook output priority filter;
                 policy ${
-                  if config.sober.services.wg-sober.enable && config.sober.services.wg-sober.killSwitch then
+                  if
+                    (config.sober.services.wg-sober.enable && config.sober.services.wg-sober.killSwitch)
+                    || (config.sober.services.wg-sober-oci.enable && config.sober.services.wg-sober-oci.killSwitch)
+                  then
                     "drop"
                   else
                     "accept"
