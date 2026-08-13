@@ -1,4 +1,4 @@
-{ pkgs, config, lib, ... }:
+{ pkgs, config, ... }:
 
 {
   sops.secrets.anilist_token = { };
@@ -7,6 +7,29 @@
   home.sessionVariables = {
     ANILIST_TOKEN_FILE = config.sops.secrets.anilist_token.path;
     MAL_TOKEN_FILE = config.sops.secrets.mal_token.path;
+  };
+
+  # Workstation-specific Shell Functions for Livestreams
+  programs.fish.functions = {
+    live = ''
+      argparse a/audio -- $argv
+
+      # Find a matching stream in the registry
+      set -l match (grep -i "$argv" ~/git/sober-nix/modules/home/features/livestreams.txt)
+      if test -n "$match"
+        set -l url (string split "|" $match)[2]
+        
+        set -l flags
+        if set -q _flag_audio
+          set flags "--vid=no"
+        end
+
+        # Load the file with optional flags
+        mpv-queue $flags "$url"
+      else
+        echo "Stream not found: $argv"
+      end
+    '';
   };
 
   home.packages = with pkgs; [
@@ -59,7 +82,8 @@
     pkgs.ani-skip
     pkgs.tyto
     pkgs.clare
-    pkgs.ani-cli
+    pkgs.castero
+    pkgs.kjv
   ];
 
   home.file.".w3m/config".text = ''
@@ -67,4 +91,14 @@
     external_image_viewer ${pkgs.chafa}/bin/chafa
     extbrowser ${pkgs.firefox}/bin/firefox %s
   '';
+
+  # Import Castero podcasts only when the OPML configuration changes
+  home.file.".config/castero/podcasts.opml" = {
+    source = ../core/podcasts.opml;
+    onChange = ''
+      if [ -x "${pkgs.castero}/bin/castero" ]; then
+        ${pkgs.castero}/bin/castero --import "$HOME/.config/castero/podcasts.opml"
+      fi
+    '';
+  };
 }

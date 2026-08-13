@@ -2,40 +2,31 @@
 
 {
   home.packages = with pkgs; [
-    # Utilities
+    # General Utilities
+    pkgs.oci-cli
+    pkgs.flyctl
+    pkgs.rbw
+    pkgs.dict
+    pkgs.hydroxide
+    pkgs.gemini-cli
     jq
     yq-go
     htop
     bottom
     nh # Nix Helper
-
     pkgs.socat
-    pkgs.senpai
-    pkgs.harper
-    pkgs.imv
     pkgs.yazi
+    pkgs.fastfetch
+    pkgs.ripgrep-all
+
+    # Typing practice tools
     pkgs.typioca
     pkgs.gtypist
     pkgs.ttyper
     pkgs.tt
-
-    # Media
-    pkgs.castero
-    pkgs.kjv
-
   ];
 
   home.file.".dictrc".text = ''
     server dict.org
   '';
-
-  # Import Castero podcasts only when the OPML configuration changes
-  home.file.".config/castero/podcasts.opml" = {
-    source = ./podcasts.opml;
-    onChange = ''
-      if [ -x "${pkgs.castero}/bin/castero" ]; then
-        ${pkgs.castero}/bin/castero --import "$HOME/.config/castero/podcasts.opml"
-      fi
-    '';
-  };
 }

@@ -34,7 +34,7 @@ nix run github:michaelssingh/sober-nix#clare
 ```
 
 ### 2. Declarative Installation (NixOS / Home Manager)
-Add `pkgs.clare` to your Home Manager configuration (`modules/home/features/media-cli.nix`):
+Add `pkgs.clare` to your Home Manager configuration (`modules/home/features/media.nix`):
 
 ```nix
 home.packages = [

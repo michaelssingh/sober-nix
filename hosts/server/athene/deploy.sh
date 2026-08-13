@@ -19,6 +19,7 @@ echo "🔨 1/3: Building $IMAGE_ATTR via nixbuild.net..."
 echo "🚀 2/3: Pushing image to Fly registry..."
 FLY_TOKEN=$(fly tokens create deploy -a "$APP_NAME" --expiry 30m 2>/dev/null)
 nix run nixpkgs#skopeo --extra-experimental-features 'nix-command flakes' -- copy \
+  --insecure-policy \
   docker-archive:$(readlink -f "$DIR/../../../result") \
   docker://$REGISTRY \
   --dest-creds "x:$FLY_TOKEN"

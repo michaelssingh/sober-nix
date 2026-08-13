@@ -29,7 +29,7 @@ in
 
   programs.newsboat = {
     enable = true;
-    urls = builtins.map toNewsboatUrl (lib.toList subscriptions);
+    urls = map toNewsboatUrl (lib.toList subscriptions);
     extraConfig = ''
       # Default browser: w3m
       browser "${pkgs.w3m}/bin/w3m %u"

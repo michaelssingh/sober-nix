@@ -18,7 +18,7 @@ in
     ../../modules/home/core/mosh.nix
     ../../modules/home/core/irc
 
-    # Workstation only modules
+    ../../modules/home/features/workstation.nix
     ../../modules/home/desktop/sway
     ../../modules/home/desktop/qutebrowser
     ../../modules/home/desktop/firefox/firefox.nix
@@ -64,27 +64,6 @@ in
   };
 
   sober.theme.active = "tokyonight-storm";
-
-  # GUI-Only Packages
-  home.packages = with pkgs; [
-    foot
-    fuzzel
-    aerc
-    neomutt
-    swaylock
-    swayidle
-    inputs.nixpkgs-pinned.legacyPackages.${pkgs.stdenv.hostPlatform.system}.transmission_4
-    stig
-    chawan
-    dict
-    rbw
-    terminus_font
-    spleen
-    qutebrowser
-    antigravity
-    strix-paste
-    nheko
-  ];
 
   programs.zathura = {
     enable = true;

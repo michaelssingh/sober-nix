@@ -16,11 +16,6 @@
       flake = false;
     };
 
-    ani-cli = {
-      url = "github:pystardust/ani-cli";
-      flake = false;
-    };
-
     nixpkgs-pinned = {
       url = "github:nixos/nixpkgs/4a3fc4cf736b7d2d288d7a8bf775ac8d4c0920b4";
     };
@@ -262,6 +257,20 @@
             }
           ];
         };
+        glaucidium = nixpkgs.lib.nixosSystem {
+          specialArgs = { inherit inputs user; };
+
+          modules = [
+            sops-nix.nixosModules.sops
+            ./hosts/server/glaucidium/nixos.nix
+            {
+              nixpkgs.overlays = [
+                overlays.additions
+                overlays.modifications
+              ];
+            }
+          ];
+        };
         ninox-installer = ninoxInstaller;
       };
 
@@ -270,9 +279,6 @@
         appservice-mgr = pkgs.callPackage ./tools/appservice-mgr { };
         tyto = pkgs.callPackage ./packages/tyto { };
         clare = pkgs.callPackage ./packages/clare { };
-        ani-cli = pkgs.callPackage ./packages/ani-cli {
-          src = inputs.ani-cli;
-        };
         antigravity = pkgs.callPackage ./packages/antigravity { };
         strix-paste = pkgs.callPackage ./packages/strix-paste { };
         matrirc = pkgs.callPackage ./packages/matrirc { };
