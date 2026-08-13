@@ -14,6 +14,14 @@ in
   programs.qutebrowser = {
     enable = true;
     settings = {
+      content = {
+        autoplay = true;
+        media.audio_video_api = true;
+        media.audio_capture = true;
+        media.video_capture = true;
+        pdfjs = true;
+      };
+
       colors = {
         tabs = {
           bar.bg = colors.bg;
@@ -68,12 +76,15 @@ in
       qt.args =
         if (osConfig.networking.hostName or "") == "ninox" then
           [
+            "ignore-gpu-blocklist"
             "enable-gpu-rasterization"
-            "enable-features=VaapiVideoDecoder,VaapiVideoEncoder,CanvasOopRasterization"
+            "enable-zero-copy"
+            "ozone-platform-hint=auto"
+            "enable-features=VaapiVideoDecoder,VaapiVideoEncoder,CanvasOopRasterization,OverlayScrollbar"
           ]
         else
           [
-            # Disable GPU acceleration on lower-powered hosts like otus
+            # Smooth software rendering fallbacks for lower-powered hosts like otus
             "disable-gpu"
             "disable-gpu-compositing"
             "disable-gpu-rasterization"
@@ -89,6 +100,8 @@ in
 
     keyBindings = {
       normal = {
+        "M" = "spawn mpv {url}";
+        ",m" = "hint links spawn mpv {hint-url}";
         ",v" = "spawn --userscript play-smart";
         ",pw" = "spawn --userscript qute-rbw.py";
       };

@@ -14,6 +14,7 @@
     ../../../modules/services/greetd.nix
     ../../../modules/services/wg-fly.nix
     ../../../modules/services/wg-sober.nix
+    ../../../modules/services/wg-sober-oci.nix
   ];
 
   home-manager.backupFileExtension = "backup";
