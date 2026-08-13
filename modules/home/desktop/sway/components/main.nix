@@ -7,6 +7,7 @@
 }:
 let
   colors = config.sober.theme.current.colors;
+  termCmd = if ((osConfig.networking.hostName or "") == "otus") then "foot" else "ghostty";
 in
 {
   wayland.windowManager.sway = {
@@ -37,7 +38,7 @@ in
       };
 
       modifier = "Mod4";
-      terminal = "ghostty";
+      terminal = termCmd;
       focus.followMouse = false;
       window.titlebar = false;
 
@@ -60,20 +61,27 @@ in
           border = colors.blue;
           background = colors.blue;
           text = colors.bg;
-          indicator = colors.magenta;
+          indicator = colors.blue;
           childBorder = colors.blue;
         };
-        unfocused = {
-          border = colors.bg;
+        focusedInactive = {
+          border = colors.black;
           background = colors.bg;
           text = colors.comment;
-          indicator = colors.bg;
-          childBorder = colors.bg;
+          indicator = colors.black;
+          childBorder = colors.black;
+        };
+        unfocused = {
+          border = colors.black;
+          background = colors.bg;
+          text = colors.comment;
+          indicator = colors.black;
+          childBorder = colors.black;
         };
         urgent = {
           border = colors.red;
           background = colors.red;
-          text = colors.bg;
+          text = colors.fg;
           indicator = colors.red;
           childBorder = colors.red;
         };
@@ -84,30 +92,35 @@ in
           modifier = config.wayland.windowManager.sway.config.modifier;
         in
         lib.mkOptionDefault {
-          # Brightness (Ideapad Keys)
-          "XF86MonBrightnessUp" = "exec brightnessctl set 5%+";
-          "XF86MonBrightnessDown" = "exec brightnessctl set 5%-";
+          # Focus movements
+          "${modifier}+h" = "focus left";
+          "${modifier}+j" = "focus down";
+          "${modifier}+k" = "focus up";
+          "${modifier}+l" = "focus right";
 
-          # Volume (Pipewire/Wireplumber)
-          "XF86AudioRaiseVolume" = "exec wpctl set-volume -l 1.0 @DEFAULT_AUDIO_SINK@ 5%+";
+          # Move containers
+          "${modifier}+Shift+h" = "move left";
+          "${modifier}+Shift+j" = "move down";
+          "${modifier}+Shift+k" = "move up";
+          "${modifier}+Shift+l" = "move right";
+
+          # Layout toggles
+          "${modifier}+s" = "layout stacking";
+          "${modifier}+w" = "layout tabbed";
+
+          # Media Controls
+          "XF86AudioRaiseVolume" = "exec wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+";
           "XF86AudioLowerVolume" = "exec wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-";
           "XF86AudioMute" = "exec wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle";
-          "XF86AudioMicMute" = "exec wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle";
-
-          # IdeaPad System Keys
-          "F5" = "exec swaymsg reload";
-          "XF86TouchpadToggle" = "input \"type:touchpad\" events toggle";
-          "XF86RFKill" = "exec rfkill toggle all";
-          "F9" =
-            "exec swaylock -f -i ${./../bg.jpg} --indicator-radius 100 --indicator-thickness 7 --ring-color bb9af7 --key-hl-color 9ece6a";
-          "XF86Display" = "exec wlr-randr --output eDP-1 --toggle";
+          "XF86MonBrightnessUp" = "exec brightnessctl set +5%";
+          "XF86MonBrightnessDown" = "exec brightnessctl set 5%-";
 
           # Screenshots
           "Print" = "exec grimshot --notify savecopy anything";
 
           "${modifier}+Return" = null;
           "${modifier}+c" = "exec makoctl dismiss --all";
-          "${modifier}+z" = "exec ghostty";
+          "${modifier}+z" = "exec ${termCmd}";
           "${modifier}+d" = "exec fuzzel";
           "${modifier}+Shift+d" = "exec dict-lookup";
           "${modifier}+b" = "exec qutebrowser";
@@ -139,10 +152,10 @@ in
           command = "${pkgs.swayidle}/bin/swayidle -w timeout 300 'swaylock -f -i ${./../bg.jpg} --indicator-radius 100 --indicator-thickness 7 --ring-color bb9af7 --key-hl-color 9ece6a' before-sleep 'swaylock -f -i ${./../bg.jpg} --indicator-radius 100 --indicator-thickness 7 --ring-color bb9af7 --key-hl-color 9ece6a' lock 'swaylock -f -i ${./../bg.jpg} --indicator-radius 100 --indicator-thickness 7 --ring-color bb9af7 --key-hl-color 9ece6a'";
         }
         { command = "qutebrowser"; }
-        { command = "swaymsg 'workspace number 2: comms; exec ghostty -e attach-tmux comms'"; }
-        { command = "swaymsg 'workspace number 9: sys; exec ghostty -e attach-tmux sys'"; }
+        { command = "swaymsg 'workspace number 2: comms; exec ${termCmd} -e attach-tmux comms'"; }
+        { command = "swaymsg 'workspace number 9: sys; exec ${termCmd} -e attach-tmux sys'"; }
         {
-          command = "swaymsg 'workspace number 10: hack; exec ghostty -e attach-tmux hack; exec zathura \"/home/michael/git/books/K&R2\"'";
+          command = "swaymsg 'workspace number 10: hack; exec ${termCmd} -e attach-tmux hack; exec zathura \"/home/michael/git/books/K&R2\"'";
         }
         { command = "swaymsg workspace number 1"; }
       ];

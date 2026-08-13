@@ -1,10 +1,12 @@
 {
   config,
   lib,
+  osConfig ? { },
   ...
 }:
 let
   colors = config.sober.theme.current.colors;
+  termCmd = if ((osConfig.networking.hostName or "") == "otus") then "foot" else "ghostty";
 in
 {
   programs.fuzzel = {
@@ -12,7 +14,7 @@ in
     settings = {
       main = {
         font = "Inter:size=11";
-        terminal = "ghostty";
+        terminal = termCmd;
         prompt = "'❯ '";
       };
       # --- Official Tokyo Night Fuzzel Logic (Ref: extras/fuzzel/) ---
