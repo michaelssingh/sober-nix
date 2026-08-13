@@ -100,10 +100,10 @@ in
 
     keyBindings = {
       normal = {
-        "M" = "spawn mpv {url}";
-        ",m" = "hint links spawn mpv {hint-url}";
+        "M" = "spawn --userscript view_in_mpv";
+        ",m" = "hint links spawn --userscript view_in_mpv";
         ",v" = "spawn --userscript play-smart";
-        ",pw" = "spawn --userscript qute-rbw.py";
+        ",pw" = "spawn --userscript qute-bitwarden";
       };
     };
   };
