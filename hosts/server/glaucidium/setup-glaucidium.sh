@@ -7,9 +7,12 @@ set -euo pipefail
 
 echo "=== [1/4] Installing Required Packages ==="
 sudo apt-get update -qq
-sudo apt-get install -y wireguard wireguard-tools iptables iptables-persistent dnsmasq
+sudo curl -fsSL https://pkg.cloudflareclient.com/pubkey.gpg | sudo gpg --yes --dearmor --output /usr/share/keyrings/cloudflare-warp-archive-keyring.gpg
+echo "deb [signed-by=/usr/share/keyrings/cloudflare-warp-archive-keyring.gpg] https://pkg.cloudflareclient.com/ noble main" | sudo tee /etc/apt/sources.list.d/cloudflare-warp.list
+sudo apt-get update -qq
+sudo apt-get install -y wireguard wireguard-tools iptables iptables-persistent dnsmasq redsocks cloudflare-warp ipset bind9-host
 
-echo "=== [2/4] Configuring WireGuard Server Interface (wg0) & DNSmasq ==="
+echo "=== [2/4] Configuring WireGuard Server Interface (wg0) & Services ==="
 sudo mkdir -p /etc/wireguard
 if [ ! -f /etc/wireguard/private.key ]; then
   (umask 077 && sudo wg genkey | sudo tee /etc/wireguard/private.key > /dev/null)
@@ -44,15 +47,58 @@ server=1.1.1.1
 server=1.0.0.1
 EOF"
 
+sudo warp-cli --accept-tos registration new 2>/dev/null || true
+sudo warp-cli --accept-tos mode proxy 2>/dev/null || true
+sudo warp-cli --accept-tos proxy port 4000 2>/dev/null || true
+sudo warp-cli --accept-tos connect 2>/dev/null || true
+
+sudo bash -c "cat << EOF > /etc/redsocks.conf
+base {
+ log_debug = off;
+ log_info = on;
+ log = \"syslog:daemon\";
+ daemon = on;
+ user = redsocks;
+ group = redsocks;
+ redirector = iptables;
+}
+
+redsocks {
+ local_ip = 0.0.0.0;
+ local_port = 12345;
+ ip = 127.0.0.1;
+ port = 4000;
+ type = socks5;
+}
+EOF"
+
 sudo chmod 600 /etc/wireguard/wg0.conf
 sudo systemctl enable --now wg-quick@wg0
-sudo systemctl restart dnsmasq
+sudo systemctl restart dnsmasq redsocks
+
+sudo ipset create vpn_bypass hash:ip 2>/dev/null || true
+
+sudo bash -c "cat << 'EOF' > /usr/local/bin/update-vpn-bypass.sh
+#!/bin/bash
+DOMAINS=\"imgur.com i.imgur.com reddit.com www.reddit.com v.redd.it i.redd.it anidb.net api.anidb.net\"
+for domain in \$DOMAINS; do
+  ips=\$(host -t A \$domain 1.1.1.1 2>/dev/null | grep \"has address\" | awk '{print \$NF}')
+  for ip in \$ips; do
+    ipset add vpn_bypass \$ip 2>/dev/null || true
+  done
+done
+EOF"
+
+sudo chmod +x /usr/local/bin/update-vpn-bypass.sh
+sudo /usr/local/bin/update-vpn-bypass.sh
 
 echo "=== [3/4] Hardening Host Firewall (IPTables) ==="
 sudo sysctl -w net.ipv4.ip_forward=1
 sudo iptables -I INPUT 5 -p udp --dport 51820 -j ACCEPT 2>/dev/null || true
 sudo iptables -I INPUT 5 -i wg0 -p udp --dport 53 -j ACCEPT 2>/dev/null || true
 sudo iptables -I INPUT 5 -i wg0 -p tcp --dport 53 -j ACCEPT 2>/dev/null || true
+sudo iptables -I INPUT 5 -i wg0 -p tcp --dport 12345 -j ACCEPT 2>/dev/null || true
+sudo iptables -t nat -I PREROUTING 1 -i wg0 -p tcp -m set --match-set vpn_bypass dst -j REDIRECT --to-ports 12345 2>/dev/null || true
 sudo mkdir -p /etc/iptables
 sudo iptables-save | sudo tee /etc/iptables/rules.v4 > /dev/null
 
