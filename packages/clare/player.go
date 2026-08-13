@@ -393,11 +393,22 @@ local skip_times_json = %q
 		keepOpenFlag,
 	}
 
-	if strings.Contains(streamURL, "m3u8") || strings.Contains(streamURL, "kotocdn") || strings.Contains(streamURL, "flikhub") {
+	isDirectHLS := strings.Contains(streamURL, "m3u8") ||
+		strings.Contains(streamURL, "vidsrc") ||
+		strings.Contains(streamURL, "cloudorchestranova") ||
+		strings.Contains(streamURL, "zealotsofzenith") ||
+		strings.Contains(streamURL, "nextgen") ||
+		strings.Contains(streamURL, "vaplayer") ||
+		strings.Contains(streamURL, "kotocdn") ||
+		strings.Contains(streamURL, "flikhub") ||
+		strings.Contains(streamURL, "megap")
+
+	if isDirectHLS {
 		args = append(args, "--no-ytdl")
 		args = append(args, "--demuxer-lavf-o-add=allowed_segment_extensions=ALL")
-		args = append(args, "--demuxer-lavf-o-add=probesize=10000000")
-		args = append(args, "--demuxer-lavf-o-add=analyzeduration=10000000")
+		args = append(args, "--demuxer-lavf-o-add=probesize=1000000")
+		args = append(args, "--demuxer-lavf-o-add=analyzeduration=1000000")
+		args = append(args, "--demuxer-lavf-o-add=fflags=+nobuffer")
 	} else {
 		args = append(args, "--ytdl-raw-options=user-agent="+UserAgent+",referer="+referer+",extractor-args=generic:impersonate")
 	}
