@@ -3170,7 +3170,7 @@ func doFetchTmdbSeasonDetails(showID string, season int) tea.Cmd {
 			return tmdbSeasonDetailsMsg{showID: showID, season: season, err: fmt.Errorf("not a tv show")}
 		}
 		tmdbID := parts[1]
-		apiURL := fmt.Sprintf("https://api.themoviedb.org/3/tv/%s/season/%d?api_key=***REDACTED***", tmdbID, season)
+		apiURL := fmt.Sprintf("https://api.themoviedb.org/3/tv/%s/season/%d?api_key=%s", tmdbID, season, getTMDBApiKey())
 
 		body, err := doHTTPReqWithRetry("GET", apiURL, nil, map[string]string{
 			"User-Agent": UserAgent,

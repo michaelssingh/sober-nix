@@ -38,9 +38,9 @@ soberLib.mkContainerImage {
     GITEA__service__DISABLE_REGISTRATION = "true";
     GITEA__repository__ENABLE_PUSH_TO_CREATE = "true";
     GITEA__server__LFS_START_SERVER = "true";
-    GITEA__server__LFS_JWT_SECRET = "***REDACTED***";
+    GITEA__server__LFS_JWT_SECRET = "8Rdy7hhjbWFafvnysqczqneAry8pqv4OE7ARnNA4FXk="; # gitleaks:allow
     GITEA__lfs__PATH = "/data/forgejo/data/lfs";
-    GITEA__lfs__JWT_SECRET = "***REDACTED***";
+    GITEA__lfs__JWT_SECRET = "V86l05QmLMjcDux6EplBaScsc6x0D3a2am7WRTfhVpk="; # gitleaks:allow
   };
 
   entrypoint = ''

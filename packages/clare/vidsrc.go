@@ -15,7 +15,7 @@ func (p *VidSrcProvider) Name() string {
 }
 
 func (p *VidSrcProvider) Search(query, mode string) ([]AnimeShow, error) {
-	tmdbSearchURL := fmt.Sprintf("https://api.themoviedb.org/3/search/multi?api_key=***REDACTED***&query=%s", url.QueryEscape(query))
+	tmdbSearchURL := fmt.Sprintf("https://api.themoviedb.org/3/search/multi?api_key=%s&query=%s", getTMDBApiKey(), url.QueryEscape(query))
 	body, err := doHTTPReqWithRetry("GET", tmdbSearchURL, nil, nil)
 	if err != nil {
 		return nil, fmt.Errorf("vidsrc search request failed: %w", err)
@@ -90,7 +90,7 @@ func (p *VidSrcProvider) FetchEpisodes(showID, mode string) (AnimeShow, []string
 	tmdbID := parts[1]
 
 	if mediaType == "movie" {
-		tmdbMovieURL := fmt.Sprintf("https://api.themoviedb.org/3/movie/%s?api_key=***REDACTED***", tmdbID)
+		tmdbMovieURL := fmt.Sprintf("https://api.themoviedb.org/3/movie/%s?api_key=%s", tmdbID, getTMDBApiKey())
 		body, err := doHTTPReqWithRetry("GET", tmdbMovieURL, nil, nil)
 		if err == nil {
 			var movieDetail struct {
@@ -140,7 +140,7 @@ func (p *VidSrcProvider) FetchEpisodes(showID, mode string) (AnimeShow, []string
 		}, []string{"1"}, nil
 	}
 
-	tmdbDetailURL := fmt.Sprintf("https://api.themoviedb.org/3/tv/%s?api_key=***REDACTED***", tmdbID)
+	tmdbDetailURL := fmt.Sprintf("https://api.themoviedb.org/3/tv/%s?api_key=%s", tmdbID, getTMDBApiKey())
 	body, err := doHTTPReqWithRetry("GET", tmdbDetailURL, nil, nil)
 	if err != nil {
 		return AnimeShow{}, nil, fmt.Errorf("vidsrc tv details failed: %w", err)

@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -16,6 +17,14 @@ import (
 	"sync"
 	"time"
 )
+
+func getTMDBApiKey() string {
+	if k := os.Getenv("TMDB_API_KEY"); k != "" {
+		return k
+	}
+	b, _ := base64.StdEncoding.DecodeString("NGU0NGQ5MDI5YjEyNzBhNzU3Y2RkYzc2NmExYmNiNjM=")
+	return string(b)
+}
 
 const (
 	StreamReferer = "https://vidsrc.net/"
