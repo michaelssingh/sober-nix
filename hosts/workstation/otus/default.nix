@@ -51,8 +51,8 @@
   sober.services.wg-fly.enable = true;
   sober.services.wg-sober.enable = false;
   sober.services.wg-sober-oci.enable = true;
-  sober.services.wg-sober-oci.debugMode = true;
-  sober.services.wg-sober-oci.killSwitch = false;
+  sober.services.wg-sober-oci.debugMode = false;
+  sober.services.wg-sober-oci.killSwitch = true;
 
   programs.nh = {
     enable = true;
