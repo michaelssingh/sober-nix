@@ -45,6 +45,7 @@ listen-address=10.13.13.1
 bind-interfaces
 server=1.1.1.1
 server=1.0.0.1
+cache-size=10000
 EOF"
 
 sudo warp-cli --accept-tos registration new 2>/dev/null || true
@@ -91,6 +92,32 @@ EOF"
 
 sudo chmod +x /usr/local/bin/update-vpn-bypass.sh
 sudo /usr/local/bin/update-vpn-bypass.sh
+
+sudo bash -c "cat << EOF > /etc/systemd/system/update-vpn-bypass.service
+[Unit]
+Description=Auto-update IPSet vpn_bypass list for Imgur, Reddit, and AniDB
+After=network.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/update-vpn-bypass.sh
+EOF"
+
+sudo bash -c "cat << EOF > /etc/systemd/system/update-vpn-bypass.timer
+[Unit]
+Description=Run update-vpn-bypass service every 6 hours
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=6h
+
+[Install]
+WantedBy=timers.target
+EOF"
+
+sudo systemctl daemon-reload
+sudo systemctl enable --now update-vpn-bypass.timer
+sudo systemctl enable --now unattended-upgrades
 
 echo "=== [3/4] Hardening Host Firewall (IPTables) ==="
 sudo sysctl -w net.ipv4.ip_forward=1
