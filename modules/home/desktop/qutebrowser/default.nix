@@ -16,7 +16,6 @@ in
     settings = {
       content = {
         autoplay = true;
-        media.audio_video_api = true;
         media.audio_capture = true;
         media.video_capture = true;
         pdfjs = true;
