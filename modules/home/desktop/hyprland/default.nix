@@ -78,13 +78,13 @@
         "${pkgs.swaynotificationcenter}/bin/swaync"
       ];
 
-      # Input Configuration (Fast keyboard repeat & touchpad)
+      # Input Configuration (Fast keyboard repeat & touchpad matching Sway)
       input = {
         repeat_delay = 250;
         repeat_rate = 45;
         follow_mouse = 0;
         touchpad = {
-          natural_scroll = true;
+          natural_scroll = false;
           tap-to-click = true;
         };
       };
