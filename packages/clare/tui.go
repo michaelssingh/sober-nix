@@ -3880,19 +3880,59 @@ func (m *model) triggerAutoplayAction() tea.Cmd {
 	var nextEpNo string
 	if currIdx >= 0 && currIdx+1 < len(playingEpisodes) {
 		nextEpNo = playingEpisodes[currIdx+1]
-	} else {
-		// Fallback: try parsing next number if current isn't in list or list is incomplete
-		currEpVal := parseEpisodeNumber(m.playingEp)
-		totalEps := playingShow.EpCount()
-		if totalEps == 0 {
-			totalEps = 1000
+	} else if currIdx < 0 {
+		// Current episode not found in list — try to find it by prefix match or exact match
+		epUpper := strings.ToUpper(strings.TrimSpace(m.playingEp))
+		for i, ep := range playingEpisodes {
+			if strings.EqualFold(ep, epUpper) {
+				currIdx = i
+				break
+			}
 		}
-		if currEpVal > 0 && int(currEpVal) < totalEps {
-			nextEpVal := currEpVal + 1.0
-			if nextEpVal == float64(int(nextEpVal)) {
-				nextEpNo = fmt.Sprintf("%d", int(nextEpVal))
-			} else {
-				nextEpNo = fmt.Sprintf("%.1f", nextEpVal)
+		if currIdx >= 0 && currIdx+1 < len(playingEpisodes) {
+			nextEpNo = playingEpisodes[currIdx+1]
+		}
+	}
+
+	// Fallback: if we still don't have a next episode, try incrementing
+	if nextEpNo == "" {
+		epUpper := strings.ToUpper(strings.TrimSpace(m.playingEp))
+		if strings.HasPrefix(epUpper, "S") && strings.Contains(epUpper, "E") {
+			var s, e int
+			if _, err := fmt.Sscanf(epUpper, "S%dE%d", &s, &e); err == nil {
+				candidate := fmt.Sprintf("S%02dE%02d", s, e+1)
+				// Check if candidate exists in the episode list
+				for _, ep := range playingEpisodes {
+					if strings.EqualFold(ep, candidate) {
+						nextEpNo = candidate
+						break
+					}
+				}
+				// If not found, try next season's first episode
+				if nextEpNo == "" {
+					candidate = fmt.Sprintf("S%02dE%02d", s+1, 1)
+					for _, ep := range playingEpisodes {
+						if strings.EqualFold(ep, candidate) {
+							nextEpNo = candidate
+							break
+						}
+					}
+				}
+			}
+		} else {
+			// Plain numeric episode fallback (anime)
+			currEpVal := parseEpisodeNumber(m.playingEp)
+			totalEps := playingShow.EpCount()
+			if totalEps == 0 {
+				totalEps = 1000
+			}
+			if currEpVal > 0 && int(currEpVal) < totalEps {
+				nextEpVal := currEpVal + 1.0
+				if nextEpVal == float64(int(nextEpVal)) {
+					nextEpNo = fmt.Sprintf("%d", int(nextEpVal))
+				} else {
+					nextEpNo = fmt.Sprintf("%.1f", nextEpVal)
+				}
 			}
 		}
 	}

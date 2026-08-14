@@ -245,8 +245,8 @@ func fetchTVSkipTimes(tmdbID string, seasonStr string, epNo string) []AniSkipRes
 		cleanEp = "1"
 	}
 
-	client := newLoggingHttpClient(3 * time.Second)
-	apiURL := fmt.Sprintf("https://api.introdb.com/v1/skip?tmdb_id=%s&season=%s&episode=%s", tmdbID, season, cleanEp)
+	client := &http.Client{Timeout: 2 * time.Second}
+	apiURL := fmt.Sprintf("https://api.introdb.app/v1/skip?tmdb_id=%s&season=%s&episode=%s", tmdbID, season, cleanEp)
 	req, err := http.NewRequest("GET", apiURL, nil)
 	if err != nil {
 		return nil

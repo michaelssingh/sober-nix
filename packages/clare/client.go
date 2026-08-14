@@ -399,6 +399,9 @@ func fetchEpisodeList(showID, mode string) (AnimeShow, []string, error) {
 }
 
 func enrichShowMetadata(show *AnimeShow) {
+	if show.Provider == "vidsrc" || strings.HasPrefix(show.ID, "vidsrc:") {
+		return
+	}
 	cleanTitle := show.Name
 	if idx := strings.Index(cleanTitle, "("); idx > 0 {
 		cleanTitle = strings.TrimSpace(cleanTitle[:idx])
