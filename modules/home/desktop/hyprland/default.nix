@@ -78,6 +78,7 @@
       window-padding-x = 8;
       window-padding-y = 8;
       mouse-scroll-multiplier = 0.4;
+      window-decoration = false;
     };
   };
 
@@ -287,18 +288,15 @@
         "$mainMod, mouse:272, movewindow"
         "$mainMod, mouse:273, resizewindow"
       ];
-
-      windowrulev2 = [
-        "workspace 3, class:^(org.qutebrowser.qutebrowser)$"
-        "workspace 10, class:^(org.pwmt.zathura)$"
-      ];
     };
 
     extraConfig = ''
-      windowrule = match:class ^(mpv)$, float 1
-      windowrule = match:class ^(pavucontrol)$, float 1
-      windowrule = match:title ^(Picture-in-Picture)$, float 1
-      windowrule = match:class ^(mpv)$, center 1
+      windowrule = workspace 3, ^(org.qutebrowser.qutebrowser)$
+      windowrule = workspace 10, ^(org.pwmt.zathura)$
+      windowrule = float, ^(mpv)$
+      windowrule = float, ^(pavucontrol)$
+      windowrule = float, title:^(Picture-in-Picture)$
+      windowrule = center, ^(mpv)$
     '';
   };
 }
