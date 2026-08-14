@@ -166,7 +166,7 @@
 
         # 3. hack session
         if ! tmux has-session -t hack 2>/dev/null; then
-          tmux new-session -d -s hack -n editor -c /home/michael/git/learn/c 'nvim .'
+          tmux new-session -d -s hack -n editor -c /home/michael/git/learn/C 'nvim .'
         fi
       ''}";
     };
