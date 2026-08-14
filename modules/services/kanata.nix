@@ -28,8 +28,12 @@
       kernelModules = [ "uinput" ];
       systemd.services.kanata = {
         description = "Kanata Keyboard Remapper (initrd)";
-        wantedBy = [ "initrd.target" ];
+        unitConfig = {
+          DefaultDependencies = false;
+        };
+        wantedBy = [ "initrd-root-device.target" ];
         before = [ "sysinit.target" ];
+        after = [ "systemd-udevd.service" ];
         serviceConfig = {
           ExecStart = "${pkgs.kanata}/bin/kanata --cfg ${pkgs.writeText "kanata.kbd" (builtins.readFile ./kanata.kbd)} --devices /dev/input/by-path/platform-i8042-serio-0-event-kbd --passthrough";
           Restart = "always";
