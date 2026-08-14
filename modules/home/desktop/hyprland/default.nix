@@ -27,16 +27,41 @@
     brightnessctl
     playerctl
     (pkgs.writeShellScriptBin "launch-workspaces" ''
-      hyprctl dispatch exec [workspace 2] 'ghostty -e attach-tmux comms'
-      sleep 0.2
-      hyprctl dispatch exec [workspace 3] 'qutebrowser'
-      sleep 0.2
-      hyprctl dispatch exec [workspace 9] 'ghostty -e attach-tmux sys'
-      sleep 0.2
-      hyprctl dispatch exec [workspace 10] 'zathura "/home/michael/git/books/programming-languages/K&R.epub"'
-      sleep 0.2
-      hyprctl dispatch exec [workspace 10] 'ghostty -e attach-tmux hack'
-      sleep 0.2
+      CLIENTS=$(${pkgs.hyprland}/bin/hyprctl clients -j 2>/dev/null || echo "[]")
+
+      has_ws() {
+          echo "$CLIENTS" | ${pkgs.jq}/bin/jq -e ".[] | select(.workspace.id == $1)" >/dev/null 2>&1
+      }
+
+      has_ws_class() {
+          echo "$CLIENTS" | ${pkgs.jq}/bin/jq -e ".[] | select(.workspace.id == $1 and (.class | ascii_downcase | contains(\"$2\")))" >/dev/null 2>&1
+      }
+
+      if ! has_ws 2; then
+          hyprctl dispatch exec [workspace 2] 'ghostty -e attach-tmux comms'
+          sleep 0.2
+      fi
+
+      if ! has_ws 3; then
+          hyprctl dispatch exec [workspace 3] 'qutebrowser'
+          sleep 0.2
+      fi
+
+      if ! has_ws 9; then
+          hyprctl dispatch exec [workspace 9] 'ghostty -e attach-tmux sys'
+          sleep 0.2
+      fi
+
+      if ! has_ws_class 10 "zathura"; then
+          hyprctl dispatch exec [workspace 10] 'zathura "/home/michael/git/books/programming-languages/K&R.epub"'
+          sleep 0.2
+      fi
+
+      if ! has_ws_class 10 "ghostty"; then
+          hyprctl dispatch exec [workspace 10] 'ghostty -e attach-tmux hack'
+          sleep 0.2
+      fi
+
       hyprctl dispatch workspace 1
     '')
   ];
