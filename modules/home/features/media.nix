@@ -93,12 +93,12 @@
     extbrowser ${pkgs.firefox}/bin/firefox %s
   '';
 
-  # Import Castero podcasts only when the OPML configuration changes
+  # Import Castero podcasts OPML configuration
   home.file.".config/castero/podcasts.opml" = {
     source = ../core/podcasts.opml;
     onChange = ''
-      if [ -x "${pkgs.castero}/bin/castero" ]; then
-        ${pkgs.castero}/bin/castero --import "$HOME/.config/castero/podcasts.opml"
+      if [ -x "${pkgs.castero}/bin/castero" ] && [ -n "$DISPLAY" -o -n "$WAYLAND_DISPLAY" ]; then
+        TERM=xterm-256color ${pkgs.castero}/bin/castero --import "$HOME/.config/castero/podcasts.opml" >/dev/null 2>&1 || true
       fi
     '';
   };

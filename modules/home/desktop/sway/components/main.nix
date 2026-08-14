@@ -162,7 +162,6 @@ in
     };
 
     extraConfig = ''
-      exec sway-audio-idle-inhibit
       title_align center
 
       output * bg ${./../bg.jpg} fill
@@ -175,12 +174,12 @@ in
       gaps outer 0
       for_window [app_id="waybar"] floating_disable
 
-      # Target window workspaces
+      # Target window workspaces & idle inhibition
       for_window [class="mpv"] move to workspace number 1
-      for_window [app_id="mpv"] move to workspace number 1
-      for_window [app_id="qutebrowser"] move to workspace number 3: www
-      for_window [class="firefox"] move to workspace number 3: www
-      for_window [app_id="firefox"] move to workspace number 3: www
+      for_window [app_id="mpv"] move to workspace number 1; idle_inhibit focus
+      for_window [app_id="qutebrowser"] move to workspace number 3: www; idle_inhibit focus
+      for_window [class="firefox"] move to workspace number 3: www; idle_inhibit focus
+      for_window [app_id="firefox"] move to workspace number 3: www; idle_inhibit focus
     '';
   };
 }
