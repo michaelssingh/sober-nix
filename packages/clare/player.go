@@ -293,7 +293,7 @@ func getMpvCmd(streamURL string, title string, epNo string, malID string, durati
 	tempChaptersFile := ""
 	var times []AniSkipResult
 	isMovie := strings.EqualFold(epNo, "Movie") || (strings.EqualFold(epNo, "1") && strings.Contains(strings.ToLower(title), "movie"))
-	isVidSrc := strings.HasPrefix(streamURL, "vidsrc:") || strings.HasPrefix(malID, "vidsrc:")
+	isVidSrc := strings.HasPrefix(streamURL, "vidsrc:") || strings.HasPrefix(malID, "vidsrc:") || strings.Contains(streamURL, "influencerstrategy") || strings.Contains(streamURL, "nextgen") || strings.Contains(streamURL, "vaplayer") || strings.Contains(streamURL, ".site/")
 
 	if isVidSrc && !isMovie {
 		tmdbID := strings.TrimPrefix(malID, "vidsrc:tv:")
@@ -764,11 +764,25 @@ func queryMediaTitle() (string, error) {
 }
 
 func loadFileInMpv(streamURL, title, epNo, malID string, extraArgs []string, durationSeconds float64, skipTimesJSON string) error {
-	conn, err := net.DialTimeout("unix", getMpvSocketPath(), 100*time.Millisecond)
+	conn, err := net.DialTimeout("unix", getMpvSocketPath(), 200*time.Millisecond)
 	if err != nil {
 		return err
 	}
 	defer conn.Close()
+
+	referer := StreamReferer
+	if strings.Contains(streamURL, "mp4upload.com") {
+		referer = "https://www.mp4upload.com/"
+	} else if strings.Contains(streamURL, "cloudorchestranova") || strings.Contains(streamURL, "zealotsofzenith") || strings.Contains(streamURL, "vidsrc") {
+		referer = "https://cloudorchestranova.com/"
+	} else if strings.Contains(streamURL, "nextgen") || strings.Contains(streamURL, "quietmidnight") || strings.Contains(streamURL, "influencerstrategy") || strings.Contains(streamURL, "vaplayer") || strings.Contains(streamURL, ".site/") {
+		referer = "https://nextgencloudfabric.com/"
+	}
+
+	if referer != "" {
+		_, _ = sendMpvCommand(conn, []interface{}{"set_property", "referrer", referer})
+	}
+	_, _ = sendMpvCommand(conn, []interface{}{"set_property", "user-agent", UserAgent})
 
 	startSeconds := 0.0
 	positions, posErr := loadPositions()

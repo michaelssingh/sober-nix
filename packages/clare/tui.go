@@ -3037,13 +3037,13 @@ func doPreparePlayback(selectedShow AnimeShow, epNo, epTitle, mode, quality stri
 			if errDub != nil {
 				return resolvedPlaybackMsg{err: errDub}
 			}
-			cmd, tempLua, tempChapters, durationSeconds, skipTimesJSON, err = playSingleCmd(dubStream, showTitle, epNo, selectedShow.MALID, selectedShow.Duration)
+			cmd, tempLua, tempChapters, durationSeconds, skipTimesJSON, err = playSingleCmd(dubStream, showTitle, epNo, selectedShow.ID, selectedShow.Duration)
 		} else {
 			subStream, errSub := resolveStreamURL(selectedShow.ID, "sub", epNo, quality)
 			if errSub != nil {
 				return resolvedPlaybackMsg{err: errSub}
 			}
-			cmd, tempLua, tempChapters, durationSeconds, skipTimesJSON, err = playSingleCmd(subStream, showTitle, epNo, selectedShow.MALID, selectedShow.Duration)
+			cmd, tempLua, tempChapters, durationSeconds, skipTimesJSON, err = playSingleCmd(subStream, showTitle, epNo, selectedShow.ID, selectedShow.Duration)
 		}
 
 		return resolvedPlaybackMsg{cmd: cmd, tempLuaFile: tempLua, tempChaptersFile: tempChapters, durationSeconds: durationSeconds, skipTimesJSON: skipTimesJSON, err: err}
