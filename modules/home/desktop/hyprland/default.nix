@@ -143,6 +143,14 @@
         preserve_split = true;
       };
 
+      workspace = [
+        "1, default:true"
+        "2, name:2: comms"
+        "3, name:3: www"
+        "9, name:9: sys"
+        "10, name:10: hack"
+      ];
+
       # Keybindings
       bind = [
         # Core Shortcuts
