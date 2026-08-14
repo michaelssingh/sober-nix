@@ -9,6 +9,7 @@
     ./hypridle.nix
     ./hyprpaper.nix
     ./swaync.nix
+    ../waybar.nix
   ];
 
   home.packages = with pkgs; [
