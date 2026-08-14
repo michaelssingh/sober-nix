@@ -17,7 +17,12 @@
     ../../../modules/services/wg-sober-oci.nix
   ];
 
-  home-manager.backupFileExtension = "backup";
+  programs.hyprland = {
+    enable = true;
+    xwayland.enable = true;
+  };
+  security.pam.services.hyprlock = { };
+  sober.services.greetd.command = "Hyprland";
 
   # --- HOSTNAME & NETWORKING ---
   networking = {

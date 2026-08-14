@@ -228,7 +228,7 @@
               home-manager.useGlobalPkgs = true;
               home-manager.useUserPackages = true;
               home-manager.extraSpecialArgs = { inherit inputs user; };
-              home-manager.users.${user} = import ./users/${user}/workstation.nix;
+              home-manager.users.${user} = import ./users/${user}/otus.nix;
             }
           ];
         };
@@ -253,7 +253,7 @@
               home-manager.useGlobalPkgs = true;
               home-manager.useUserPackages = true;
               home-manager.extraSpecialArgs = { inherit inputs user; };
-              home-manager.users.${user} = import ./users/${user}/workstation.nix;
+              home-manager.users.${user} = import ./users/${user}/ninox.nix;
             }
           ];
         };

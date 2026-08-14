@@ -34,7 +34,9 @@ age key (`~/.config/sops/age/keys.txt`) is used exclusively by **Home Manager**.
 3. Re-encrypt secrets: `sops updatekeys secrets/secrets.yaml`
 4. Commit and redeploy.
 
-
+## Desktop Environment Architecture
+- **Ninox**: Runs **Hyprland** ecosystem (`Hyprland`, `hyprlock`, `hypridle`, `hyprpaper`, `swaync`, `rofi`, `waybar`). Defined in `modules/home/desktop/hyprland/` and `users/michael/ninox.nix`.
+- **Otus**: Runs **Sway** ecosystem (`sway`, `swaylock`, `swayidle`, `swaybg`, `mako`, `foot`). Defined in `modules/home/desktop/sway/` and `users/michael/otus.nix`. Note: `otus` uses `foot` terminal.
 
 ## Git & Branching Strategy
 - `main`: Production branch. Only merge "known good" configurations here.

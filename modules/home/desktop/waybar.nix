@@ -12,6 +12,7 @@ in
         height = 22;
         position = "bottom";
         modules-left = [
+          "hyprland/workspaces"
           "sway/workspaces"
           "sway/mode"
         ];
@@ -24,6 +25,12 @@ in
           "battery"
           "tray"
         ];
+
+        "hyprland/workspaces" = {
+          disable-scroll = true;
+          all-outputs = true;
+          format = "{name}";
+        };
 
         "sway/workspaces" = {
           disable-scroll = true;

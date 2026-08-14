@@ -20,7 +20,6 @@ in
     ../../modules/home/core/irc
 
     ../../modules/home/features/workstation.nix
-    ../../modules/home/desktop/sway
     ../../modules/home/desktop/qutebrowser
     ../../modules/home/desktop/firefox/firefox.nix
     ../../modules/home/core/email.nix
