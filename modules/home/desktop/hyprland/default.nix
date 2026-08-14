@@ -131,9 +131,13 @@
       bind = [
         # Core Shortcuts
         "$mainMod, RETURN, exec, ghostty"
+        "$mainMod, Z, exec, ghostty"
+        "$mainMod, B, exec, qutebrowser"
         "$mainMod, Q, killactive,"
         "$mainMod SHIFT, E, exit,"
         "$mainMod, D, exec, rofi -show drun"
+        "$mainMod, C, exec, swaync-client -t -sw"
+        "$mainMod SHIFT, N, exec, swaync-client -rs"
         "$mainMod, F, togglefloating,"
         "$mainMod, SPACE, fullscreen, 0"
         "$mainMod, L, exec, hyprlock"
@@ -179,6 +183,17 @@
         "$mainMod SHIFT, 8, movetoworkspace, 8"
         "$mainMod SHIFT, 9, movetoworkspace, 9"
         "$mainMod SHIFT, 0, movetoworkspace, 10"
+      ];
+
+      binde = [
+        ", XF86AudioRaiseVolume, exec, wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+"
+        ", XF86AudioLowerVolume, exec, wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-"
+        ", XF86MonBrightnessUp, exec, brightnessctl set +5%"
+        ", XF86MonBrightnessDown, exec, brightnessctl set 5%-"
+      ];
+
+      bindl = [
+        ", XF86AudioMute, exec, wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"
       ];
     };
 
