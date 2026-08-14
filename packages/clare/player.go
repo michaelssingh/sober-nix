@@ -142,7 +142,7 @@ func fetchAniSkipTimes(malID string, epNo string, durationSeconds float64, showT
 		epLen = 1440
 	}
 
-	// Try v2 first (supports mixed-op, mixed-ed, recap, episodeLength), then v1 (supports op, ed)
+	// Request all supported skip types (op, ed, mixed-op, mixed-ed, recap, ncop, nced, preview)
 	var body []byte
 	endpoints := []struct {
 		ver string
@@ -150,7 +150,7 @@ func fetchAniSkipTimes(malID string, epNo string, durationSeconds float64, showT
 	}{
 		{
 			ver: "v2",
-			url: fmt.Sprintf("https://api.aniskip.com/v2/skip-times/%s/%s?types=op&types=ed&types=mixed-op&types=mixed-ed&types=recap&episodeLength=%d", cleanMALID, cleanEp, epLen),
+			url: fmt.Sprintf("https://api.aniskip.com/v2/skip-times/%s/%s?types=op&types=ed&types=mixed-op&types=mixed-ed&types=recap&types=ncop&types=nced&types=preview&episodeLength=%d", cleanMALID, cleanEp, epLen),
 		},
 		{
 			ver: "v1",
@@ -327,10 +327,10 @@ func getMpvCmd(streamURL string, title string, epNo string, malID string, durati
 		edStart := -1.0
 		edEnd := -1.0
 		for _, t := range times {
-			if t.SkipType == "op" || t.SkipType == "mixed-op" {
+			if t.SkipType == "op" || t.SkipType == "mixed-op" || t.SkipType == "ncop" {
 				opStart = t.Interval.StartTime
 				opEnd = t.Interval.EndTime
-			} else if t.SkipType == "ed" || t.SkipType == "mixed-ed" {
+			} else if t.SkipType == "ed" || t.SkipType == "mixed-ed" || t.SkipType == "nced" {
 				edStart = t.Interval.StartTime
 				edEnd = t.Interval.EndTime
 			}
