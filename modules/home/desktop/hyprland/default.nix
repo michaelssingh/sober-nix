@@ -131,13 +131,13 @@
           "liner, 1, 1, 1, 1"
         ];
         animation = [
-          "windows, 1, 4, wind, slide"
-          "windowsIn, 1, 4, winIn, slide"
-          "windowsOut, 1, 4, winOut, slide"
-          "windowsMove, 1, 4, wind, slide"
+          "windows, 1, 3, wind, slide"
+          "windowsIn, 1, 3, winIn, slide"
+          "windowsOut, 1, 3, winOut, slide"
+          "windowsMove, 1, 1, default"
           "border, 1, 1, liner"
-          "fade, 1, 4, default"
-          "workspaces, 1, 4, wind, slide"
+          "fade, 1, 3, default"
+          "workspaces, 1, 3, wind, slide"
         ];
       };
 
