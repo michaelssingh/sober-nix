@@ -29,7 +29,7 @@
     enable = true;
     enableFishIntegration = true;
     settings = {
-      theme = "tokyonight";
+      theme = "TokyoNight Storm";
       font-family = "FiraCode Nerd Font Mono";
       font-size = 12;
       background-opacity = 0.92;
