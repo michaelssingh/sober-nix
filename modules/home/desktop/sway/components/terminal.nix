@@ -77,7 +77,7 @@ in
         "17=${colors.magenta2}"
       ];
       gtk-single-instance = true;
-      window-decoration = true;
+      window-decoration = false;
       confirm-close-surface = false;
     };
   };
