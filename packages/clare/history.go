@@ -137,6 +137,7 @@ func recordWatch(showID, showName, episode string) error {
 
 type ResumeState struct {
 	Episode         float64 `json:"episode"`
+	EpisodeStr      string  `json:"episode_str,omitempty"`
 	PositionSeconds float64 `json:"position_seconds"`
 	TotalSeconds    float64 `json:"total_seconds"`
 }

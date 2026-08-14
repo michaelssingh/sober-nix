@@ -154,6 +154,7 @@ local function update_position()
         else
             show.resume_state = {
                 episode = ep_no,
+                episode_str = ep_str,
                 position_seconds = time,
                 total_seconds = duration
             }

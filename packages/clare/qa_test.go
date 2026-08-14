@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os"
 	"os/exec"
 	"testing"
 )
@@ -124,5 +125,54 @@ func TestQAFullPipeline(t *testing.T) {
 			t.Fatalf("MPV command flag validation failed: %v | Output: %s", err, string(out))
 		}
 		t.Logf("✓ MPV binary successfully accepted all generated TV & Movie arguments!")
+	})
+
+	t.Run("08_Episode_Parsing_And_Resume_Position_Lookup", func(t *testing.T) {
+		// 1. Verify TV episode numbers parse uniquely per season/episode
+		s1e1 := parseEpisodeNumber("S01E01")
+		s1e2 := parseEpisodeNumber("S01E02")
+		s2e1 := parseEpisodeNumber("S02E01")
+		s2e5 := parseEpisodeNumber("S02E05")
+
+		if s1e1 == s2e1 || s2e1 == s2e5 || s1e1 == s1e2 {
+			t.Fatalf("parseEpisodeNumber produced duplicate values for TV episodes: S01E01=%f, S01E02=%f, S02E01=%f, S02E05=%f", s1e1, s1e2, s2e1, s2e5)
+		}
+		t.Logf("✓ TV episode numbers parsed uniquely: S01E01=%f, S01E02=%f, S02E01=%f, S02E05=%f", s1e1, s1e2, s2e1, s2e5)
+
+		// 2. Verify resume position lookup for TV show with EpisodeStr
+		tmpDir, err := os.MkdirTemp("", "clare-resume-test-*")
+		if err != nil {
+			t.Fatalf("failed to create temp state dir: %v", err)
+		}
+		defer os.RemoveAll(tmpDir)
+
+		origDir := os.Getenv("CLARE_STATE_DIR")
+		os.Setenv("CLARE_STATE_DIR", tmpDir)
+		defer os.Setenv("CLARE_STATE_DIR", origDir)
+
+		posData := PositionsData{
+			"vidsrc:tv:2190": ShowState{
+				ResumeState: &ResumeState{
+					Episode:         20005.0,
+					EpisodeStr:      "S02E05",
+					PositionSeconds: 450.5,
+					TotalSeconds:    1320.0,
+				},
+			},
+		}
+		if err := savePositions(posData); err != nil {
+			t.Fatalf("failed to save test positions: %v", err)
+		}
+
+		cmd, lua, _, startSec, _, err := getMpvCmd("https://influencerstrategygroup.site/test/master.m3u8", "South Park - Ep S02E05: City on the Edge of Forever", "S02E05", "vidsrc:tv:2190", "22 min", nil)
+		if err != nil || cmd == nil {
+			t.Fatalf("getMpvCmd failed for S02E05: %v", err)
+		}
+		_ = os.Remove(lua)
+
+		if startSec == 0 {
+			t.Fatalf("Expected S02E05 to resume at 450.5s, got %f", startSec)
+		}
+		t.Logf("✓ TV show resume position lookup verified: S02E05 resumed at %fs", startSec)
 	})
 }

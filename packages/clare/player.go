@@ -389,11 +389,12 @@ func getMpvCmd(streamURL string, title string, epNo string, malID string, durati
 	luaContent := fmt.Sprintf(`
 local mal_id = %q
 local ep_no = %f
+local ep_str = %q
 local jikan_duration = %f
 local auto_skip = %t
 local autoskip_delay = %f
 local skip_times_json = %q
-`, malID, epVal, durationSeconds, cfg.Autoskip, cfg.AutoskipDelay, string(skipTimesJSON)) + savePositionLua
+`, malID, epVal, epNo, durationSeconds, cfg.Autoskip, cfg.AutoskipDelay, string(skipTimesJSON)) + savePositionLua
 
 	tmpFile, err := os.CreateTemp("", "clare-save-position-*.lua")
 	if err != nil {
@@ -477,10 +478,31 @@ local skip_times_json = %q
 	startSeconds := 0.0
 	positions, err := loadPositions()
 	if err == nil && positions != nil && malID != "" {
-		if showState, ok := positions[malID]; ok && showState.ResumeState != nil {
-			reqEp := parseEpisodeNumber(epNo)
-			if showState.ResumeState.Episode == reqEp {
-				startSeconds = showState.ResumeState.PositionSeconds
+		keysToTry := []string{malID, stripProviderPrefix(malID)}
+		var showState ShowState
+		foundState := false
+		for _, k := range keysToTry {
+			if k != "" {
+				if st, ok := positions[k]; ok && st.ResumeState != nil {
+					showState = st
+					foundState = true
+					break
+				}
+			}
+		}
+		if foundState && showState.ResumeState != nil {
+			res := showState.ResumeState
+			matches := false
+			if res.EpisodeStr != "" && strings.EqualFold(res.EpisodeStr, epNo) {
+				matches = true
+			} else {
+				reqEp := parseEpisodeNumber(epNo)
+				if res.Episode == reqEp || (isMovie && (res.Episode == 0 || reqEp == 0)) {
+					matches = true
+				}
+			}
+			if matches && res.PositionSeconds > 0 {
+				startSeconds = res.PositionSeconds
 			}
 		}
 	}

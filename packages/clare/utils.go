@@ -66,6 +66,14 @@ func formatMediaTitle(title, epNo string) string {
 }
 
 func parseEpisodeNumber(ep string) float64 {
+	epUpper := strings.ToUpper(strings.TrimSpace(ep))
+	if strings.HasPrefix(epUpper, "S") && strings.Contains(epUpper, "E") {
+		var s, e int
+		if _, err := fmt.Sscanf(epUpper, "S%dE%d", &s, &e); err == nil {
+			return float64(s*10000 + e)
+		}
+	}
+
 	var numStr strings.Builder
 	hasDot := false
 	for _, r := range ep {
