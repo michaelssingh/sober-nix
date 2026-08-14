@@ -3,8 +3,11 @@ package main
 import (
 	"flag"
 	"fmt"
+	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"path/filepath"
+	"runtime/pprof"
 	"strings"
 	"time"
 
@@ -32,9 +35,21 @@ func main() {
 	versionFlag := flag.Bool("version", false, "Print version and exit")
 	debugFlag := flag.Bool("debug", false, "Enable verbose debug logging")
 	dryRunFlag := flag.Bool("dry-run", false, "Enable dry-run checks on streams before playing")
+	pprofFlag := flag.Bool("pprof", false, "Enable CPU and memory pprof profiling (writes clare_cpu.pprof and starts http://localhost:6060/debug/pprof/)")
 	flag.Parse()
 
 	EnableDryRun = *dryRunFlag
+
+	if *pprofFlag {
+		go func() {
+			_ = http.ListenAndServe("localhost:6060", nil)
+		}()
+		f, err := os.Create("clare_cpu.pprof")
+		if err == nil {
+			_ = pprof.StartCPUProfile(f)
+			defer pprof.StopCPUProfile()
+		}
+	}
 
 	if *versionFlag {
 		fmt.Printf("clare %s\n", Version)
