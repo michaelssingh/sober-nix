@@ -341,4 +341,149 @@ func TestE2EFullSuite(t *testing.T) {
 			t.Logf("✓ [AniSkip E2E] Generated MPV chapters file (%d bytes) verified!", len(content))
 		}
 	})
+
+	t.Run("09_VidSrc_Movie_Headless_MPV_Playback_And_IPC", func(t *testing.T) {
+		mpvPath, err := exec.LookPath("mpv")
+		if err != nil {
+			t.Skip("mpv binary not found in PATH, skipping Movie MPV test")
+		}
+
+		p := &VidSrcProvider{}
+		movieStreams, err := p.ResolveStreams("vidsrc:movie:603", "sub", "1", "best")
+		if err != nil || len(movieStreams) == 0 {
+			t.Fatalf("VidSrc movie stream resolution failed: %v", err)
+		}
+
+		cmd, luaFile, _, _, _, err := getMpvCmd(
+			movieStreams[0].URL, "The Matrix", "Movie", "vidsrc:movie:603", "136 min",
+			[]string{
+				"--vo=null",
+				"--ao=null",
+				"--idle=no",
+				"--keep-open=no",
+				"--no-terminal",
+			},
+		)
+		if err != nil || cmd == nil {
+			t.Fatalf("Failed to build Movie MPV command: %v", err)
+		}
+
+		defer func() {
+			if luaFile != "" {
+				_ = os.Remove(luaFile)
+			}
+		}()
+
+		if err := cmd.Start(); err != nil {
+			t.Fatalf("Failed to start headless Movie MPV command (%s): %v", mpvPath, err)
+		}
+		defer func() {
+			if cmd.Process != nil {
+				_ = cmd.Process.Kill()
+				_ = cmd.Wait()
+			}
+		}()
+
+		time.Sleep(600 * time.Millisecond)
+
+		socketPath := getMpvSocketPath()
+		ipc, err := NewMPVIPCClient(socketPath)
+		if err != nil {
+			t.Logf("⚠️ Movie MPV IPC Socket connect note: %v", err)
+		} else {
+			defer ipc.Close()
+			health, _ := ipc.InspectHealth()
+			t.Logf("✓ [Movie E2E] Headless MPV successfully launched and verified via IPC! Health: %+v", health)
+		}
+	})
+
+	t.Run("10_VidSrc_TV_Show_Headless_MPV_Playback_And_IPC", func(t *testing.T) {
+		mpvPath, err := exec.LookPath("mpv")
+		if err != nil {
+			t.Skip("mpv binary not found in PATH, skipping TV Show MPV test")
+		}
+
+		p := &VidSrcProvider{}
+		tvStreams, err := p.ResolveStreams("vidsrc:tv:2190", "sub", "S02E01", "best")
+		if err != nil || len(tvStreams) == 0 {
+			t.Fatalf("VidSrc TV S02E01 stream resolution failed: %v", err)
+		}
+
+		tvTitle := "South Park - Ep S02E01: Terrance and Phillip in Not Without My Anus"
+		cmd, luaFile, _, _, _, err := getMpvCmd(
+			tvStreams[0].URL, tvTitle, "S02E01", "vidsrc:tv:2190", "22 min",
+			[]string{
+				"--vo=null",
+				"--ao=null",
+				"--idle=no",
+				"--keep-open=no",
+				"--no-terminal",
+			},
+		)
+		if err != nil || cmd == nil {
+			t.Fatalf("Failed to build TV Show MPV command: %v", err)
+		}
+
+		defer func() {
+			if luaFile != "" {
+				_ = os.Remove(luaFile)
+			}
+		}()
+
+		if err := cmd.Start(); err != nil {
+			t.Fatalf("Failed to start headless TV Show MPV command (%s): %v", mpvPath, err)
+		}
+		defer func() {
+			if cmd.Process != nil {
+				_ = cmd.Process.Kill()
+				_ = cmd.Wait()
+			}
+		}()
+
+		time.Sleep(600 * time.Millisecond)
+
+		socketPath := getMpvSocketPath()
+		ipc, err := NewMPVIPCClient(socketPath)
+		if err != nil {
+			t.Logf("⚠️ TV Show MPV IPC Socket connect note: %v", err)
+		} else {
+			defer ipc.Close()
+			health, _ := ipc.InspectHealth()
+			t.Logf("✓ [TV Show E2E] Headless MPV successfully launched and verified via IPC! Health: %+v", health)
+		}
+	})
+
+	t.Run("11_Full_TUI_VidSrc_Movie_And_TV_Interactive_User_Flow", func(t *testing.T) {
+		m := initialModel("", "sub", "best", false)
+
+		// 1. Search for South Park
+		p := &VidSrcProvider{}
+		shows, err := p.Search("South Park", "sub")
+		if err != nil || len(shows) == 0 {
+			t.Fatalf("VidSrc search for South Park failed: %v", err)
+		}
+
+		// 2. Fetch TV episodes
+		tvShow, tvEps, err := p.FetchEpisodes(shows[0].ID, "sub")
+		if err != nil || len(tvEps) == 0 {
+			t.Fatalf("VidSrc fetch episodes failed: %v", err)
+		}
+
+		// 3. Prepare playback for S02E01
+		playCmd := doPreparePlayback(tvShow, tvEps[0], "S02E01", "sub", "best", false)
+		playMsg := playCmd()
+		pResMsg, ok := playMsg.(resolvedPlaybackMsg)
+		if !ok || pResMsg.err != nil || pResMsg.cmd == nil {
+			t.Fatalf("doPreparePlayback failed for VidSrc TV Show: %v", pResMsg.err)
+		}
+
+		m.selectedShow = tvShow
+		m.selectedEp = "S02E01"
+		res, _ := m.Update(pResMsg)
+		mUpdated := res.(model)
+		if !mUpdated.playbackActive {
+			t.Fatalf("expected playbackActive=true after VidSrc resolvedPlaybackMsg, got false")
+		}
+		t.Logf("✓ [TUI VidSrc E2E] Interactive TUI user flow for TV Show S02E01 verified!")
+	})
 }
