@@ -73,7 +73,11 @@ in
 
   sober.theme.active = "tokyonight-storm";
 
-  home.packages = with pkgs; [ cachix ];
+  home.packages = with pkgs; [
+    cachix
+    seahorse
+    libsecret
+  ];
 
   # Provision Cachix Auth Token from SOPS secret
   home.activation.provisionCachixToken = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
