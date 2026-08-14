@@ -1,6 +1,8 @@
-{ config, ... }:
+{ config, lib, ... }:
 let
   colors = config.sober.theme.current.colors;
+  isHyprland = config.wayland.windowManager.hyprland.enable;
+  workspaceModule = if isHyprland then "hyprland/workspaces" else "sway/workspaces";
 in
 {
   programs.waybar = {
@@ -11,11 +13,7 @@ in
         layer = "top";
         height = 22;
         position = "bottom";
-        modules-left = [
-          "hyprland/workspaces"
-          "sway/workspaces"
-          "sway/mode"
-        ];
+        modules-left = [ workspaceModule ] ++ lib.optionals (!isHyprland) [ "sway/mode" ];
         modules-center = [ "clock" ];
         modules-right = [
           "custom/hosts"
@@ -30,6 +28,7 @@ in
           disable-scroll = true;
           all-outputs = true;
           format = "{name}";
+          on-click = "activate";
         };
 
         "sway/workspaces" = {
@@ -138,7 +137,7 @@ in
       * { border: none; border-radius: 0; font-family: "JetBrainsMono Nerd Font"; font-size: 13px; }
       window#waybar { background: ${colors.bg_dark}; color: ${colors.fg}; }
       #workspaces button { color: ${colors.comment}; padding: 0 5px; }
-      #workspaces button.focused { color: ${colors.magenta}; }
+      #workspaces button.focused, #workspaces button.active { color: ${colors.magenta}; }
       #custom-hosts, #cpu, #memory, #disk, #temperature, #pulseaudio, #backlight, #network, #battery, #tray {
         padding: 0 8px; color: ${colors.fg};
       }
