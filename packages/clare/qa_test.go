@@ -85,4 +85,41 @@ func TestQAFullPipeline(t *testing.T) {
 		}
 		t.Logf("✓ TUI initial state & rendering verified!")
 	})
+
+	t.Run("07_VidSrc_Movie_And_TV_MPV_Command_Build", func(t *testing.T) {
+		// 1. Movie Test
+		movieShow := AnimeShow{
+			ID:   "vidsrc:movie:603",
+			Name: "The Matrix",
+			Type: "MOVIE",
+		}
+		movieStream := "https://nextgenmarketinghub.site/mKTGUdZlu/pl/test/master.m3u8"
+		movieCmd, movieLua, _, _, _, err := getMpvCmd(movieStream, movieShow.Name, "Movie", movieShow.ID, "", nil)
+		if err != nil || movieCmd == nil {
+			t.Fatalf("Failed to generate MPV command for Movie: %v", err)
+		}
+		_ = exec.Command("rm", "-f", movieLua)
+		t.Logf("✓ Movie MPV command build verified! Args count: %d", len(movieCmd.Args))
+
+		// 2. TV Show Test (South Park with full episode title)
+		tvShow := AnimeShow{
+			ID:   "vidsrc:tv:2190",
+			Name: "South Park",
+			Type: "TV Series",
+		}
+		tvStream := "https://influencerstrategygroup.site/2anMY6het/pl/test/master.m3u8"
+		fullEpTitle := "South Park - Ep S28E01: Twisted Christian"
+		tvCmd, tvLua, tvChap, _, _, err := getMpvCmd(tvStream, fullEpTitle, "S28E01", tvShow.ID, "22 min", nil)
+		if err != nil || tvCmd == nil {
+			t.Fatalf("Failed to generate MPV command for TV Show: %v", err)
+		}
+		_ = exec.Command("rm", "-f", tvLua, tvChap)
+
+		// Verify title formatting retains full episode name
+		formattedTitle := formatMediaTitle(fullEpTitle, "S28E01")
+		if formattedTitle != fullEpTitle {
+			t.Fatalf("Expected formatMediaTitle to retain full episode title %q, got %q", fullEpTitle, formattedTitle)
+		}
+		t.Logf("✓ TV Show MPV command build & full episode title retention verified: %s", formattedTitle)
+	})
 }

@@ -49,13 +49,20 @@ func formatMediaTitle(title, epNo string) string {
 	if title == "" {
 		return "Clare Media"
 	}
-	if epNo == "" || strings.EqualFold(epNo, "Movie") || strings.EqualFold(epNo, "1") {
+	if strings.Contains(title, " - Ep ") || strings.Contains(title, " - S") {
 		return title
 	}
-	if strings.HasPrefix(strings.ToUpper(epNo), "S") && strings.Contains(strings.ToUpper(epNo), "E") {
-		return fmt.Sprintf("%s - %s", title, epNo)
+	if epNo == "" || strings.EqualFold(epNo, "Movie") {
+		return title
 	}
-	return fmt.Sprintf("%s - Episode %s", title, epNo)
+	cleanEp := epNo
+	if strings.HasPrefix(strings.ToLower(cleanEp), "ep ") {
+		cleanEp = cleanEp[3:]
+	}
+	if strings.HasPrefix(strings.ToUpper(cleanEp), "S") && strings.Contains(strings.ToUpper(cleanEp), "E") {
+		return fmt.Sprintf("%s - %s", title, cleanEp)
+	}
+	return fmt.Sprintf("%s - Ep %s", title, cleanEp)
 }
 
 func parseEpisodeNumber(ep string) float64 {
