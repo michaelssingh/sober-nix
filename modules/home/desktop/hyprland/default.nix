@@ -25,6 +25,20 @@
     wl-clipboard
   ];
 
+  programs.ghostty = {
+    enable = true;
+    enableFishIntegration = true;
+    settings = {
+      theme = "tokyonight";
+      font-family = "FiraCode Nerd Font Mono";
+      font-size = 12;
+      background-opacity = 0.92;
+      cursor-style = "block";
+      window-padding-x = 8;
+      window-padding-y = 8;
+    };
+  };
+
   wayland.windowManager.hyprland = {
     enable = true;
     configType = "hyprlang";
@@ -117,7 +131,7 @@
       # Keybindings
       bind = [
         # Core Shortcuts
-        "$mainMod, RETURN, exec, foot"
+        "$mainMod, RETURN, exec, ghostty"
         "$mainMod, Q, killactive,"
         "$mainMod SHIFT, E, exit,"
         "$mainMod, D, exec, rofi -show drun"
