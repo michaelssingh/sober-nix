@@ -30,15 +30,6 @@ in
           format = "{name}";
           sort-by-number = true;
           on-click = "activate";
-          persistent-workspaces = {
-            "*" = [
-              1
-              2
-              3
-              9
-              10
-            ];
-          };
         };
 
         "sway/workspaces" = {
