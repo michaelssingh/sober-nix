@@ -1186,7 +1186,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return valI < valJ
 		})
 
-		if m.triggerAutoplay {
+		if m.triggerAutoplay && m.playbackActive {
 			m.triggerAutoplay = false
 			m.playingShow = msg.show
 			m.playingEpisodes = msg.episodes
@@ -1196,6 +1196,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 		}
+		m.triggerAutoplay = false
 
 		m.selectedShow = msg.show
 		m.allEpisodes = msg.episodes
@@ -1267,13 +1268,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		// If autoplay was triggered, fetch next stream immediately
-		if m.triggerAutoplay {
+		if m.triggerAutoplay && m.playbackActive {
 			m.triggerAutoplay = false
 			cmd := m.triggerAutoplayAction()
 			if cmd != nil {
 				return m, cmd
 			}
 		}
+		m.triggerAutoplay = false
 
 		// Determine which page to fetch first
 		lastEp := ""
@@ -3030,6 +3032,8 @@ func doPreparePlayback(selectedShow AnimeShow, epNo, epTitle, mode, quality stri
 		showTitle := selectedShow.Name
 		if epTitle != "" {
 			showTitle = fmt.Sprintf("%s - Ep %s: %s", selectedShow.Name, epNo, epTitle)
+		} else if epNo != "" && !strings.EqualFold(epNo, "Movie") {
+			showTitle = fmt.Sprintf("%s - Ep %s", selectedShow.Name, epNo)
 		}
 
 		if mode == "dub" {
@@ -3990,8 +3994,34 @@ func (m *model) triggerAutoplayAction() tea.Cmd {
 		m.state = statePlaybackPreparing
 		m.loadingMsg = fmt.Sprintf("Autoplay: Preparing playback for Episode %s...", nextEpNo)
 		epTitle := ""
-		if info, ok := m.episodeDetails[nextEpNo]; ok {
+		if info, ok := m.episodeDetails[nextEpNo]; ok && info.Title != "" {
 			epTitle = info.Title
+		} else if strings.HasPrefix(playingShow.ID, "vidsrc:tv:") {
+			// Extract season from nextEpNo (e.g. S02E05)
+			var s, e int
+			if _, err := fmt.Sscanf(strings.ToUpper(nextEpNo), "S%dE%d", &s, &e); err == nil {
+				cleanID := strings.TrimPrefix(playingShow.ID, "vidsrc:tv:")
+				cleanID = strings.TrimPrefix(cleanID, "vidsrc:")
+				apiURL := fmt.Sprintf("https://api.themoviedb.org/3/tv/%s/season/%d?api_key=%s", cleanID, s, getTMDBApiKey())
+				body, err := doHTTPReqWithRetry("GET", apiURL, nil, map[string]string{"User-Agent": UserAgent})
+				if err == nil {
+					var seasonData struct {
+						Episodes []struct {
+							EpisodeNumber int    `json:"episode_number"`
+							Name          string `json:"name"`
+						} `json:"episodes"`
+					}
+					if json.Unmarshal(body, &seasonData) == nil {
+						for _, epItem := range seasonData.Episodes {
+							if epItem.EpisodeNumber == e {
+								epTitle = epItem.Name
+								m.episodeDetails[nextEpNo] = JikanEpInfo{Title: epItem.Name}
+								break
+							}
+						}
+					}
+				}
+			}
 		}
 		return doPreparePlayback(playingShow, nextEpNo, epTitle, playingMode, m.quality, m.download)
 	}

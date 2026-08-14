@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -101,10 +102,19 @@ func fetchAniSkipTimes(malID string, epNo string, durationSeconds float64, showT
 	if epNo == "" {
 		return nil
 	}
-	if (malID == "" || malID == "0") && len(showTitle) > 0 && showTitle[0] != "" {
-		malID = resolveMALIDByTitle(showTitle[0])
+	cleanMALID := stripProviderPrefix(malID)
+	if _, err := strconv.Atoi(cleanMALID); err != nil {
+		if len(showTitle) > 0 && showTitle[0] != "" {
+			tName := showTitle[0]
+			if idx := strings.Index(tName, " - Ep "); idx > 0 {
+				tName = tName[:idx]
+			}
+			if resolved := resolveMALIDByTitle(tName); resolved != "" {
+				cleanMALID = resolved
+			}
+		}
 	}
-	if malID == "" || malID == "0" {
+	if cleanMALID == "" || cleanMALID == "0" {
 		return nil
 	}
 	cleanEp := ""
@@ -119,8 +129,8 @@ func fetchAniSkipTimes(malID string, epNo string, durationSeconds float64, showT
 		return nil
 	}
 
-	if cached := loadAniSkipCache(malID, cleanEp); cached != nil {
-		debugLog("fetchAniSkipTimes: cache hit for MAL %s Ep %s", malID, cleanEp)
+	if cached := loadAniSkipCache(cleanMALID, cleanEp); cached != nil {
+		debugLog("fetchAniSkipTimes: cache hit for MAL %s Ep %s", cleanMALID, cleanEp)
 		return cached
 	}
 
@@ -138,11 +148,11 @@ func fetchAniSkipTimes(malID string, epNo string, durationSeconds float64, showT
 	}{
 		{
 			ver: "v2",
-			url: fmt.Sprintf("https://api.aniskip.com/v2/skip-times/%s/%s?types=op&types=ed&types=mixed-op&types=mixed-ed&types=recap&episodeLength=%d", malID, cleanEp, epLen),
+			url: fmt.Sprintf("https://api.aniskip.com/v2/skip-times/%s/%s?types=op&types=ed&types=mixed-op&types=mixed-ed&types=recap&episodeLength=%d", cleanMALID, cleanEp, epLen),
 		},
 		{
 			ver: "v1",
-			url: fmt.Sprintf("https://api.aniskip.com/v1/skip-times/%s/%s?types=op&types=ed", malID, cleanEp),
+			url: fmt.Sprintf("https://api.aniskip.com/v1/skip-times/%s/%s?types=op&types=ed", cleanMALID, cleanEp),
 		},
 	}
 
