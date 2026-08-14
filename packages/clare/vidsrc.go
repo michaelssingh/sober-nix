@@ -246,7 +246,7 @@ func (p *VidSrcProvider) ResolveStreams(showID, mode, episodeNo, quality string)
 	if strings.HasPrefix(strings.ToUpper(episodeNo), "S") {
 		// "S01E03" style
 		var s, e int
-		if _, err := fmt.Sscanf(strings.ToUpper(episodeNo), "S%02dE%02d", &s, &e); err == nil {
+		if _, err := fmt.Sscanf(strings.ToUpper(episodeNo), "S%dE%d", &s, &e); err == nil {
 			season = fmt.Sprintf("%d", s)
 			episode = fmt.Sprintf("%d", e)
 		}
@@ -306,6 +306,13 @@ func resolveVaplayerStream(tmdbID, mediaType, season, episode string) ([]string,
 			Code string `json:"code"`
 			URL  string `json:"url"`
 		} `json:"default_subs"`
+		Subtitles []struct {
+			Lang  string `json:"lang"`
+			Code  string `json:"code"`
+			URL   string `json:"url"`
+			File  string `json:"file"`
+			Label string `json:"label"`
+		} `json:"subtitles"`
 	}
 	if err := json.Unmarshal(body, &resp); err != nil {
 		return nil, nil, fmt.Errorf("vaplayer API parse failed: %w", err)
@@ -319,14 +326,34 @@ func resolveVaplayerStream(tmdbID, mediaType, season, episode string) ([]string,
 
 	var subs []SubtitleTrack
 	for _, s := range resp.DefaultSubs {
-		if s.URL != "" {
+		subURL := s.URL
+		if subURL != "" {
 			label := s.Lang
 			if label == "" {
 				label = s.Code
 			}
 			subs = append(subs, SubtitleTrack{
 				Label: label,
-				URL:   s.URL,
+				URL:   subURL,
+			})
+		}
+	}
+	for _, s := range resp.Subtitles {
+		subURL := s.URL
+		if subURL == "" {
+			subURL = s.File
+		}
+		if subURL != "" {
+			label := s.Label
+			if label == "" {
+				label = s.Lang
+			}
+			if label == "" {
+				label = s.Code
+			}
+			subs = append(subs, SubtitleTrack{
+				Label: label,
+				URL:   subURL,
 			})
 		}
 	}

@@ -109,8 +109,8 @@ func TestQAFullPipeline(t *testing.T) {
 			Type: "TV Series",
 		}
 		tvStream := "https://influencerstrategygroup.site/2anMY6het/pl/test/master.m3u8"
-		fullEpTitle := "South Park - Ep S28E01: Twisted Christian"
-		tvCmd, tvLua, tvChap, _, _, err := getMpvCmd(tvStream, fullEpTitle, "S28E01", tvShow.ID, "22 min", nil)
+		fullEpTitle := "South Park - Ep S02E01: Terrance and Phillip in Not Without My Anus"
+		tvCmd, tvLua, tvChap, _, _, err := getMpvCmd(tvStream, fullEpTitle, "S02E01", tvShow.ID, "22 min", nil)
 		if err != nil || tvCmd == nil {
 			t.Fatalf("Failed to generate MPV command for TV Show: %v", err)
 		}
