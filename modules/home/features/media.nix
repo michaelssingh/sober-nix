@@ -84,6 +84,7 @@
     pkgs.clare
     pkgs.castero
     pkgs.kjv
+    pkgs.sox
   ];
 
   home.file.".w3m/config".text = ''
