@@ -111,7 +111,7 @@ func TestE2EFullSuite(t *testing.T) {
 
 		streamURL := "https://hls.anidb.app/stream/test/master.m3u8"
 		cmd, luaFile, chapFile, _, _, err := getMpvCmd(
-			streamURL, "E2E Test Show", "1", "58939", "24 min",
+			streamURL, "E2E Test Show - Ep 1: The Legendary Hit Man", "1", "58939", "24 min",
 			[]string{
 				"--vo=null",
 				"--ao=null",
@@ -165,10 +165,10 @@ func TestE2EFullSuite(t *testing.T) {
 				t.Fatalf("Failed to query title from running AniDB MPV instance via IPC: %v", err)
 			}
 			titleStr := fmt.Sprintf("%v", titleVal)
-			if !strings.Contains(titleStr, "E2E Test Show") {
-				t.Fatalf("Running AniDB MPV IPC title mismatch! Expected 'E2E Test Show', got: '%s'", titleStr)
+			if !strings.Contains(titleStr, "The Legendary Hit Man") {
+				t.Fatalf("Running AniDB MPV IPC title mismatch! Expected 'The Legendary Hit Man', got: '%s'", titleStr)
 			}
-			t.Logf("✓ [AniDB MPV IPC E2E] Running MPV instance confirmed title via IPC socket: '%s'", titleStr)
+			t.Logf("✓ [AniDB MPV IPC E2E] Running MPV instance confirmed full episode title via IPC socket: '%s'", titleStr)
 		}
 	})
 

@@ -3039,9 +3039,70 @@ func doPreparePlayback(selectedShow AnimeShow, epNo, epTitle, mode, quality stri
 			return resolvedPlaybackMsg{cmd: cmd, err: nil}
 		}
 
+		resolvedEpTitle := epTitle
+		if resolvedEpTitle == "" && epNo != "" && !strings.EqualFold(epNo, "Movie") {
+			// 1. Try disk cache
+			if cacheData, err := loadEpisodeMetadataCache(selectedShow.ID, selectedShow.MALID); err == nil && len(cacheData) > 0 {
+				if info, ok := cacheData[epNo]; ok && info.Title != "" {
+					resolvedEpTitle = info.Title
+				}
+			}
+			// 2. If still empty and TV show, query TMDB
+			if resolvedEpTitle == "" && strings.HasPrefix(selectedShow.ID, "vidsrc:tv:") {
+				var s, e int
+				if _, err := fmt.Sscanf(strings.ToUpper(epNo), "S%dE%d", &s, &e); err == nil {
+					cleanID := strings.TrimPrefix(selectedShow.ID, "vidsrc:tv:")
+					cleanID = strings.TrimPrefix(cleanID, "vidsrc:")
+					apiURL := fmt.Sprintf("https://api.themoviedb.org/3/tv/%s/season/%d?api_key=%s", cleanID, s, getTMDBApiKey())
+					body, err := doHTTPReqWithRetry("GET", apiURL, nil, map[string]string{"User-Agent": UserAgent})
+					if err == nil {
+						var seasonData struct {
+							Episodes []struct {
+								EpisodeNumber int    `json:"episode_number"`
+								Name          string `json:"name"`
+							} `json:"episodes"`
+						}
+						if json.Unmarshal(body, &seasonData) == nil {
+							for _, epItem := range seasonData.Episodes {
+								if epItem.EpisodeNumber == e {
+									resolvedEpTitle = epItem.Name
+									break
+								}
+							}
+						}
+					}
+				}
+			}
+			// 3. If still empty and Anime show with MALID, query Jikan
+			if resolvedEpTitle == "" && selectedShow.MALID != "" {
+				var epVal int
+				if _, err := fmt.Sscanf(epNo, "%d", &epVal); err == nil && epVal > 0 {
+					page := (epVal-1)/100 + 1
+					apiURL := fmt.Sprintf("https://api.jikan.moe/v4/anime/%s/episodes?page=%d", selectedShow.MALID, page)
+					body, err := doHTTPReqWithRetry("GET", apiURL, nil, map[string]string{"User-Agent": UserAgent})
+					if err == nil {
+						var jikanResp struct {
+							Data []struct {
+								MalID int    `json:"mal_id"`
+								Title string `json:"title"`
+							} `json:"data"`
+						}
+						if json.Unmarshal(body, &jikanResp) == nil {
+							for _, epItem := range jikanResp.Data {
+								if epItem.MalID == epVal && epItem.Title != "" {
+									resolvedEpTitle = epItem.Title
+									break
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+
 		showTitle := selectedShow.Name
-		if epTitle != "" {
-			showTitle = fmt.Sprintf("%s - Ep %s: %s", selectedShow.Name, epNo, epTitle)
+		if resolvedEpTitle != "" {
+			showTitle = fmt.Sprintf("%s - Ep %s: %s", selectedShow.Name, epNo, resolvedEpTitle)
 		} else if epNo != "" && !strings.EqualFold(epNo, "Movie") {
 			showTitle = fmt.Sprintf("%s - Ep %s", selectedShow.Name, epNo)
 		}
