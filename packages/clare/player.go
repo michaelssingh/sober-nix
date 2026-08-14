@@ -205,33 +205,124 @@ func fetchAniSkipTimes(malID string, epNo string, durationSeconds float64, showT
 
 
 
+type IntroDBResponse struct {
+	Found   bool `json:"found"`
+	Results []struct {
+		Type     string `json:"type"`
+		Interval struct {
+			Start float64 `json:"start_time"`
+			End   float64 `json:"end_time"`
+		} `json:"interval"`
+	} `json:"results"`
+}
+
+func fetchTVSkipTimes(tmdbID string, seasonStr string, epNo string) []AniSkipResult {
+	if tmdbID == "" || epNo == "" {
+		return nil
+	}
+	season := "1"
+	episode := epNo
+
+	if strings.HasPrefix(strings.ToUpper(epNo), "S") && strings.Contains(strings.ToUpper(epNo), "E") {
+		parts := strings.Split(strings.ToUpper(epNo)[1:], "E")
+		if len(parts) == 2 {
+			season = parts[0]
+			episode = parts[1]
+		}
+	} else if seasonStr != "" {
+		season = seasonStr
+	}
+
+	cleanEp := ""
+	for _, r := range episode {
+		if r >= '0' && r <= '9' {
+			cleanEp += string(r)
+		} else if cleanEp != "" {
+			break
+		}
+	}
+	if cleanEp == "" {
+		cleanEp = "1"
+	}
+
+	client := newLoggingHttpClient(3 * time.Second)
+	apiURL := fmt.Sprintf("https://api.introdb.com/v1/skip?tmdb_id=%s&season=%s&episode=%s", tmdbID, season, cleanEp)
+	req, err := http.NewRequest("GET", apiURL, nil)
+	if err != nil {
+		return nil
+	}
+	req.Header.Set("User-Agent", UserAgent)
+	resp, err := client.Do(req)
+	if err != nil || resp.StatusCode != http.StatusOK {
+		return nil
+	}
+	body, err := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	if err != nil {
+		return nil
+	}
+
+	var res IntroDBResponse
+	if err := json.Unmarshal(body, &res); err != nil || !res.Found {
+		return nil
+	}
+
+	var results []AniSkipResult
+	for _, r := range res.Results {
+		sType := strings.ToLower(r.Type)
+		if sType == "intro" {
+			sType = "op"
+		} else if sType == "outro" {
+			sType = "ed"
+		}
+		results = append(results, AniSkipResult{
+			SkipType: sType,
+			Interval: AniSkipInterval{
+				StartTime: r.Interval.Start,
+				EndTime:   r.Interval.End,
+			},
+		})
+	}
+	return results
+}
+
 func getMpvCmd(streamURL string, title string, epNo string, malID string, durationStr string, extraArgs []string) (*exec.Cmd, string, string, float64, string, error) {
 	durationSeconds := parseJikanDuration(durationStr)
 	epVal := parseEpisodeNumber(epNo)
 
 	tempChaptersFile := ""
 	var times []AniSkipResult
-	isNonAnimeOrMovie := strings.HasPrefix(streamURL, "vidsrc:") || strings.HasPrefix(malID, "vidsrc:") || strings.HasPrefix(malID, "flikhub:") || strings.Contains(streamURL, "vaplayer") || strings.EqualFold(epNo, "Movie") || strings.EqualFold(epNo, "1") && strings.Contains(strings.ToLower(title), "movie")
-	if !isNonAnimeOrMovie {
+	isMovie := strings.EqualFold(epNo, "Movie") || (strings.EqualFold(epNo, "1") && strings.Contains(strings.ToLower(title), "movie"))
+	isVidSrc := strings.HasPrefix(streamURL, "vidsrc:") || strings.HasPrefix(malID, "vidsrc:")
+
+	if isVidSrc && !isMovie {
+		tmdbID := strings.TrimPrefix(malID, "vidsrc:tv:")
+		tmdbID = strings.TrimPrefix(tmdbID, "vidsrc:movie:")
+		tmdbID = strings.TrimPrefix(tmdbID, "vidsrc:")
+		debugLog("getMpvCmd: fetching TV skip times for TMDB %s epNo=%s, title=%s", tmdbID, epNo, title)
+		times = fetchTVSkipTimes(tmdbID, "", epNo)
+	} else if !isMovie && !isVidSrc {
 		debugLog("getMpvCmd: fetching AniSkip skip times for malID=%s, epNo=%s, title=%s", malID, epNo, title)
 		times = fetchAniSkipTimes(malID, epNo, durationSeconds, title)
-		if len(times) > 0 {
-			var ffmetadata strings.Builder
-			ffmetadata.WriteString(";FFMETADATA1\n")
+	}
 
-			opStart := -1.0
-			opEnd := -1.0
-			edStart := -1.0
-			edEnd := -1.0
-			for _, t := range times {
-				if t.SkipType == "op" || t.SkipType == "mixed-op" {
-					opStart = t.Interval.StartTime
-					opEnd = t.Interval.EndTime
-				} else if t.SkipType == "ed" || t.SkipType == "mixed-ed" {
-					edStart = t.Interval.StartTime
-					edEnd = t.Interval.EndTime
-				}
+	if len(times) > 0 {
+		var ffmetadata strings.Builder
+		ffmetadata.WriteString(";FFMETADATA1\n")
+
+		opStart := -1.0
+		opEnd := -1.0
+		edStart := -1.0
+		edEnd := -1.0
+		for _, t := range times {
+			if t.SkipType == "op" || t.SkipType == "mixed-op" {
+				opStart = t.Interval.StartTime
+				opEnd = t.Interval.EndTime
+			} else if t.SkipType == "ed" || t.SkipType == "mixed-ed" {
+				edStart = t.Interval.StartTime
+				edEnd = t.Interval.EndTime
 			}
+		}
 
 			type chap struct {
 				title string
@@ -285,9 +376,6 @@ func getMpvCmd(streamURL string, title string, epNo string, malID string, durati
 			} else {
 				debugLog("getMpvCmd: error creating temp chapters file: %v", err)
 			}
-		} else {
-			debugLog("getMpvCmd: AniSkip returned no skip times for malID=%s, epNo=%s", malID, epNo)
-		}
 	}
 
 	cfg := loadConfig()
