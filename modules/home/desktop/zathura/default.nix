@@ -3,6 +3,11 @@ let
   colors = config.sober.theme.current.colors;
 in
 {
+  home.packages = with pkgs; [
+    zathura-pdf-mupdf
+    zathura-cb
+  ];
+
   programs.zathura = {
     enable = true;
     options = {
