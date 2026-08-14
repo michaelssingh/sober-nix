@@ -1,22 +1,21 @@
-{ config, lib, ... }:
+{ config, ... }:
 let
   colors = config.sober.theme.current.colors;
-  isHyprland = config.wayland.windowManager.hyprland.enable;
-  workspaceModule = if isHyprland then "hyprland/workspaces" else "sway/workspaces";
 in
 {
   programs.waybar = {
     enable = true;
-    systemd = {
-      enable = true;
-      target = "graphical-session.target";
-    };
+    systemd.enable = true;
     settings = [
       {
         layer = "top";
         height = 22;
         position = "bottom";
-        modules-left = [ workspaceModule ] ++ lib.optionals (!isHyprland) [ "sway/mode" ];
+        modules-left = [
+          "hyprland/workspaces"
+          "sway/workspaces"
+          "sway/mode"
+        ];
         modules-center = [ "clock" ];
         modules-right = [
           "custom/hosts"
@@ -31,7 +30,6 @@ in
           disable-scroll = true;
           all-outputs = true;
           format = "{name}";
-          on-click = "activate";
         };
 
         "sway/workspaces" = {
