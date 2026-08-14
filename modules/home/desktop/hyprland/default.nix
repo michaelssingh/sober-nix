@@ -124,7 +124,6 @@
       };
 
       dwindle = {
-        pseudotile = true;
         preserve_split = true;
       };
 
@@ -138,7 +137,7 @@
         "$mainMod, F, togglefloating,"
         "$mainMod, SPACE, fullscreen, 0"
         "$mainMod, L, exec, hyprlock"
-        "$mainMod, P, exec, hyprpicker -a"
+        "$mainMod, P, pseudo,"
         "$mainMod SHIFT, S, exec, hyprshot -m region"
 
         # Focus Navigation (Vim style + Arrows)
@@ -183,7 +182,7 @@
       ];
 
       # Window Rules
-      windowrulev2 = [
+      windowrule = [
         "float, class:^(mpv)$"
         "float, class:^(pavucontrol)$"
         "float, title:^(Picture-in-Picture)$"
