@@ -102,4 +102,37 @@
       fi
     '';
   };
+
+  # Desktop entries for Rofi / Fuzzel application launchers
+  xdg.desktopEntries = {
+    clare = {
+      name = "Clare Media Player";
+      genericName = "Anime, Movies & TV Shows TUI";
+      comment = "Terminal media streaming client for anime, movies, and TV shows";
+      exec = "clare";
+      terminal = true;
+      categories = [
+        "AudioVideo"
+        "Video"
+        "Player"
+        "ConsoleOnly"
+      ];
+      type = "Application";
+      icon = "mpv";
+    };
+    castero = {
+      name = "Castero Podcasts";
+      genericName = "Terminal Podcast Client";
+      comment = "Terminal TUI podcast client";
+      exec = "castero";
+      terminal = true;
+      categories = [
+        "AudioVideo"
+        "Audio"
+        "ConsoleOnly"
+      ];
+      type = "Application";
+      icon = "multimedia-audio-player";
+    };
+  };
 }
