@@ -151,7 +151,7 @@
         "$mainMod SHIFT, N, exec, swaync-client -rs"
         "$mainMod, F, togglefloating,"
         "$mainMod, SPACE, fullscreen, 0"
-        "$mainMod, L, exec, hyprlock"
+        "$mainMod, Escape, exec, hyprlock"
         "$mainMod, P, pseudo,"
         "$mainMod SHIFT, S, exec, hyprshot -m region"
 
