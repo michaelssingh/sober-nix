@@ -2529,7 +2529,11 @@ func (m model) View() string {
 			return fmt.Sprintf("%s %s", box, name)
 		}
 
-		titleFormatted := fmt.Sprintf("%s - Ep %s", m.playingShow.Name, m.playingEp)
+		cleanEp := m.playingEp
+		if strings.HasPrefix(strings.ToLower(cleanEp), "ep ") {
+			cleanEp = cleanEp[3:]
+		}
+		titleFormatted := fmt.Sprintf("%s - Ep %s", m.playingShow.Name, cleanEp)
 		if strings.EqualFold(m.playingShow.Type, "LIVE") {
 			if m.playingEp != "" {
 				titleFormatted = fmt.Sprintf("🔴 %s (%s)", m.playingShow.Name, m.playingEp)
