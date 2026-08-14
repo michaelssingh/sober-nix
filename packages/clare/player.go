@@ -600,6 +600,10 @@ func playSingleCmd(streamURL, title, epNo, malID, durationStr string) (*exec.Cmd
 	return getMpvCmd(streamURL, title, epNo, malID, durationStr, nil)
 }
 
+func playSingleCmdWithExtra(streamURL, title, epNo, malID, durationStr string, extraArgs []string) (*exec.Cmd, string, string, float64, string, error) {
+	return getMpvCmd(streamURL, title, epNo, malID, durationStr, extraArgs)
+}
+
 
 func downloadCmd(streamURL, title, epNo string) *exec.Cmd {
 	outputName := fmt.Sprintf("%s - Episode %s", title, epNo)

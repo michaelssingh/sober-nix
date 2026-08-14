@@ -3033,17 +3033,29 @@ func doPreparePlayback(selectedShow AnimeShow, epNo, epTitle, mode, quality stri
 		}
 
 		if mode == "dub" {
-			dubStream, errDub := resolveStreamURL(selectedShow.ID, "dub", epNo, quality)
+			dubStreamObj, errDub := resolveStreamObject(selectedShow.ID, "dub", epNo, quality)
 			if errDub != nil {
 				return resolvedPlaybackMsg{err: errDub}
 			}
-			cmd, tempLua, tempChapters, durationSeconds, skipTimesJSON, err = playSingleCmd(dubStream, showTitle, epNo, selectedShow.ID, selectedShow.Duration)
+			var extraArgs []string
+			for _, sub := range dubStreamObj.Subtitles {
+				if sub.URL != "" {
+					extraArgs = append(extraArgs, "--sub-file="+sub.URL)
+				}
+			}
+			cmd, tempLua, tempChapters, durationSeconds, skipTimesJSON, err = playSingleCmdWithExtra(dubStreamObj.URL, showTitle, epNo, selectedShow.ID, selectedShow.Duration, extraArgs)
 		} else {
-			subStream, errSub := resolveStreamURL(selectedShow.ID, "sub", epNo, quality)
+			subStreamObj, errSub := resolveStreamObject(selectedShow.ID, "sub", epNo, quality)
 			if errSub != nil {
 				return resolvedPlaybackMsg{err: errSub}
 			}
-			cmd, tempLua, tempChapters, durationSeconds, skipTimesJSON, err = playSingleCmd(subStream, showTitle, epNo, selectedShow.ID, selectedShow.Duration)
+			var extraArgs []string
+			for _, sub := range subStreamObj.Subtitles {
+				if sub.URL != "" {
+					extraArgs = append(extraArgs, "--sub-file="+sub.URL)
+				}
+			}
+			cmd, tempLua, tempChapters, durationSeconds, skipTimesJSON, err = playSingleCmdWithExtra(subStreamObj.URL, showTitle, epNo, selectedShow.ID, selectedShow.Duration, extraArgs)
 		}
 
 		return resolvedPlaybackMsg{cmd: cmd, tempLuaFile: tempLua, tempChaptersFile: tempChapters, durationSeconds: durationSeconds, skipTimesJSON: skipTimesJSON, err: err}

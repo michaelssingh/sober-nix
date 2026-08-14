@@ -252,7 +252,7 @@ func (p *VidSrcProvider) ResolveStreams(showID, mode, episodeNo, quality string)
 		}
 	}
 
-	streamURLs, err := resolveVaplayerStream(tmdbID, mediaType, season, episode)
+	streamURLs, subs, err := resolveVaplayerStream(tmdbID, mediaType, season, episode)
 	if err != nil {
 		return nil, fmt.Errorf("vidsrc stream resolution failed: %w", err)
 	}
@@ -272,15 +272,15 @@ func (p *VidSrcProvider) ResolveStreams(showID, mode, episodeNo, quality string)
 			Quality:    quality,
 			URL:        u,
 			Referer:    "https://nextgencloudfabric.com/",
+			Subtitles:  subs,
 		})
 	}
 	return streams, nil
 }
 
 // resolveVaplayerStream calls the streamdata.vaplayer.ru API which returns
-// direct HLS m3u8 URLs for movies and TV episodes by TMDB ID.
-// This is the backend of the vidsrc.pm / nextgencloudfabric.com player stack.
-func resolveVaplayerStream(tmdbID, mediaType, season, episode string) ([]string, error) {
+// direct HLS m3u8 URLs and subtitle SRTs for movies and TV episodes by TMDB ID.
+func resolveVaplayerStream(tmdbID, mediaType, season, episode string) ([]string, []SubtitleTrack, error) {
 	var apiURL string
 	if mediaType == "movie" {
 		apiURL = fmt.Sprintf("https://streamdata.vaplayer.ru/api.php?tmdb=%s&type=movie", tmdbID)
@@ -293,7 +293,7 @@ func resolveVaplayerStream(tmdbID, mediaType, season, episode string) ([]string,
 		"Referer":    "https://nextgencloudfabric.com/",
 	})
 	if err != nil {
-		return nil, fmt.Errorf("vaplayer API request failed: %w", err)
+		return nil, nil, fmt.Errorf("vaplayer API request failed: %w", err)
 	}
 
 	var resp struct {
@@ -301,15 +301,35 @@ func resolveVaplayerStream(tmdbID, mediaType, season, episode string) ([]string,
 		Data       struct {
 			StreamURLs []string `json:"stream_urls"`
 		} `json:"data"`
+		DefaultSubs []struct {
+			Lang string `json:"lang"`
+			Code string `json:"code"`
+			URL  string `json:"url"`
+		} `json:"default_subs"`
 	}
 	if err := json.Unmarshal(body, &resp); err != nil {
-		return nil, fmt.Errorf("vaplayer API parse failed: %w", err)
+		return nil, nil, fmt.Errorf("vaplayer API parse failed: %w", err)
 	}
 	if resp.StatusCode != "200" && resp.StatusCode != "" {
-		return nil, fmt.Errorf("vaplayer API returned status %s", resp.StatusCode)
+		return nil, nil, fmt.Errorf("vaplayer API returned status %s", resp.StatusCode)
 	}
 	if len(resp.Data.StreamURLs) == 0 {
-		return nil, fmt.Errorf("vaplayer API returned no stream URLs")
+		return nil, nil, fmt.Errorf("vaplayer API returned no stream URLs")
 	}
-	return resp.Data.StreamURLs, nil
+
+	var subs []SubtitleTrack
+	for _, s := range resp.DefaultSubs {
+		if s.URL != "" {
+			label := s.Lang
+			if label == "" {
+				label = s.Code
+			}
+			subs = append(subs, SubtitleTrack{
+				Label: label,
+				URL:   s.URL,
+			})
+		}
+	}
+
+	return resp.Data.StreamURLs, subs, nil
 }

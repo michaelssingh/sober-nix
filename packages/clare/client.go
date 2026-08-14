@@ -309,31 +309,46 @@ func searchAnime(query, mode string) ([]AnimeShow, error) {
 		if rankI != rankJ {
 			return rankI < rankJ
 		}
-		// Provider priority: anime-native providers first, then movie/TV
-		provOrder := map[string]int{"allanime": 0, "anidb": 1, "flikhub": 2, "gogoanime": 3, "vidsrc": 4}
-		pi, piOk := provOrder[strings.ToLower(results[i].Provider)]
-		pj, pjOk := provOrder[strings.ToLower(results[j].Provider)]
-		if !piOk {
-			pi = 99
+		// Media type priority: TV/MOVIE prioritize VidSrc, ANIME prioritizes AniDB
+		isMediaI := results[i].Type == "MOVIE" || results[i].Type == "TV" || strings.EqualFold(results[i].Provider, "vidsrc")
+		isMediaJ := results[j].Type == "MOVIE" || results[j].Type == "TV" || strings.EqualFold(results[j].Provider, "vidsrc")
+
+		provOrderAnime := map[string]int{"anidb": 0, "allanime": 1, "vidsrc": 2}
+		provOrderMedia := map[string]int{"vidsrc": 0, "anidb": 1, "allanime": 2}
+
+		pi, pj := 99, 99
+		if isMediaI {
+			if val, ok := provOrderMedia[strings.ToLower(results[i].Provider)]; ok {
+				pi = val
+			}
+		} else {
+			if val, ok := provOrderAnime[strings.ToLower(results[i].Provider)]; ok {
+				pi = val
+			}
 		}
-		if !pjOk {
-			pj = 99
+		if isMediaJ {
+			if val, ok := provOrderMedia[strings.ToLower(results[j].Provider)]; ok {
+				pj = val
+			}
+		} else {
+			if val, ok := provOrderAnime[strings.ToLower(results[j].Provider)]; ok {
+				pj = val
+			}
 		}
+
 		if pi != pj {
 			return pi < pj
 		}
 		return strings.ToLower(results[i].Name) < strings.ToLower(results[j].Name)
 	})
 
-	// Deduplicate: keep one entry per (normalised-title, type) pair.
-	// After sorting the preferred provider is already first, so we keep the
-	// first occurrence and discard later duplicates with the same title+type.
+	// Deduplicate: keep one entry per (normalised-title, type, provider) tuple.
 	seen := make(map[string]struct{})
 	var deduped []AnimeShow
 	for _, show := range results {
 		enrichShowMetadata(&show)
 		_ = saveShowCache(show.ID, show, nil)
-		key := strings.ToLower(strings.TrimSpace(show.Name)) + "|" + strings.ToLower(show.Type)
+		key := strings.ToLower(strings.TrimSpace(show.Name)) + "|" + strings.ToLower(show.Type) + "|" + strings.ToLower(show.Provider)
 		if _, exists := seen[key]; exists {
 			continue
 		}
@@ -592,6 +607,19 @@ func prefetchEpisodeStream(showID, mode, epNo, quality string) {
 			_, _ = resolveStreamURL(showID, mode, epNo, quality)
 		}
 	}()
+}
+
+func resolveStreamObject(showID, mode, episodeNo, quality string) (ResolvedStream, error) {
+	streams, err := fetchAllResolvedStreams(showID, mode, episodeNo, "")
+	if err != nil {
+		return ResolvedStream{}, err
+	}
+	for _, s := range streams {
+		if s.URL != "" {
+			return s, nil
+		}
+	}
+	return ResolvedStream{}, fmt.Errorf("no stream objects resolved for episode %s (%s)", episodeNo, mode)
 }
 
 func resolveStreamURL(showID, mode, episodeNo, quality string) (string, error) {

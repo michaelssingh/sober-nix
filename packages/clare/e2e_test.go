@@ -486,4 +486,27 @@ func TestE2EFullSuite(t *testing.T) {
 		}
 		t.Logf("✓ [TUI VidSrc E2E] Interactive TUI user flow for TV Show S02E01 verified!")
 	})
+
+	t.Run("12_VidSrc_Subtitles_And_Captions_Verification", func(t *testing.T) {
+		p := &VidSrcProvider{}
+		tvStreams, err := p.ResolveStreams("vidsrc:tv:2190", "sub", "S28E01", "best")
+		if err != nil || len(tvStreams) == 0 {
+			t.Fatalf("VidSrc TV stream resolution failed: %v", err)
+		}
+
+		if len(tvStreams[0].Subtitles) == 0 {
+			t.Fatalf("Expected VidSrc TV stream to return subtitle caption tracks, got 0")
+		}
+
+		subTrack := tvStreams[0].Subtitles[0]
+		t.Logf("✓ [Captions E2E] Resolved subtitle track: Label=%s, URL=%s", subTrack.Label, subTrack.URL)
+
+		headers := map[string]string{
+			"User-Agent": UserAgent,
+		}
+		if err := PreflightStreamURLWithTimeout(subTrack.URL, headers, 10*time.Second); err != nil {
+			t.Fatalf("Subtitle track preflight HTTP check failed: %v", err)
+		}
+		t.Logf("✓ [Captions E2E] Subtitle file HTTP 200 OK verified!")
+	})
 }
