@@ -12,7 +12,6 @@ in
         height = 22;
         position = "bottom";
         modules-left = [
-          "hyprland/workspaces"
           "sway/workspaces"
           "sway/mode"
         ];
@@ -25,12 +24,6 @@ in
           "battery"
           "tray"
         ];
-
-        "hyprland/workspaces" = {
-          disable-scroll = true;
-          all-outputs = true;
-          format = "{name}";
-        };
 
         "sway/workspaces" = {
           disable-scroll = true;
@@ -138,7 +131,7 @@ in
       * { border: none; border-radius: 0; font-family: "JetBrainsMono Nerd Font"; font-size: 13px; }
       window#waybar { background: ${colors.bg_dark}; color: ${colors.fg}; }
       #workspaces button { color: ${colors.comment}; padding: 0 5px; }
-      #workspaces button.focused, #workspaces button.active { color: ${colors.magenta}; }
+      #workspaces button.focused { color: ${colors.magenta}; }
       #custom-hosts, #cpu, #memory, #disk, #temperature, #pulseaudio, #backlight, #network, #battery, #tray {
         padding: 0 8px; color: ${colors.fg};
       }
