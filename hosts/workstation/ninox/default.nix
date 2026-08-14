@@ -60,6 +60,29 @@
     algorithm = "zstd";
     memoryPercent = 50;
   };
+  boot.kernel.sysctl = {
+    "vm.swappiness" = 180;
+    "vm.watermark_boost_factor" = 0;
+    "vm.watermark_scale_factor" = 125;
+    "vm.page-cluster" = 0;
+  };
+
+  # --- HARDWARE GRAPHICS & VA-API ---
+  hardware.graphics = {
+    enable = true;
+    enable32Bit = true;
+    extraPackages = with pkgs; [
+      libva
+      libvdpau-va-gl
+      libva-vdpau-driver
+    ];
+  };
+
+  # --- THINKPAD FAN CONTROL & ACPI ---
+  boot.kernelModules = [ "thinkpad_acpi" ];
+  boot.extraModprobeConfig = ''
+    options thinkpad_acpi fan_control=1 experimental=1
+  '';
 
   # --- BOOTLOADER, PLYMOUTH & KERNEL ---
   boot.kernelPackages = pkgs.linuxPackages_latest;

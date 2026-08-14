@@ -38,6 +38,8 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    nixos-hardware.url = "github:NixOS/nixos-hardware/master";
+
     neomutt-src = {
       url = "github:neomutt/neomutt/20260504";
       flake = false;
@@ -237,6 +239,7 @@
           specialArgs = { inherit inputs user; };
 
           modules = [
+            inputs.nixos-hardware.nixosModules.lenovo-thinkpad-t14-amd-gen2
             disko.nixosModules.disko
             sops-nix.nixosModules.sops
             ./hosts/workstation/ninox/default.nix
