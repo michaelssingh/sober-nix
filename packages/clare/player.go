@@ -615,7 +615,7 @@ func queryBoolProperty(conn net.Conn, prop string) (bool, error) {
 }
 
 func queryMpvStatus() (MpvStatus, error) {
-	conn, err := net.DialTimeout("unix", getMpvSocketPath(), 100*time.Millisecond)
+	conn, err := net.DialTimeout("unix", getMpvSocketPath(), 300*time.Millisecond)
 	if err != nil {
 		return MpvStatus{}, err
 	}
@@ -647,7 +647,7 @@ func queryMpvStatus() (MpvStatus, error) {
 }
 
 func executeMpvAction(cmd []interface{}) error {
-	conn, err := net.DialTimeout("unix", getMpvSocketPath(), 100*time.Millisecond)
+	conn, err := net.DialTimeout("unix", getMpvSocketPath(), 300*time.Millisecond)
 	if err != nil {
 		return err
 	}
@@ -657,7 +657,7 @@ func executeMpvAction(cmd []interface{}) error {
 }
 
 func queryMediaTitle() (string, error) {
-	conn, err := net.DialTimeout("unix", getMpvSocketPath(), 100*time.Millisecond)
+	conn, err := net.DialTimeout("unix", getMpvSocketPath(), 300*time.Millisecond)
 	if err != nil {
 		return "", err
 	}

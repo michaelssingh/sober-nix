@@ -565,33 +565,41 @@ func initialModel(initialSearch, mode, quality string, download bool) model {
 	if err == nil {
 		titleVal, errTitle := queryMediaTitle()
 		if errTitle == nil && titleVal != "" {
-			parts := strings.Split(titleVal, " - Episode ")
-			if len(parts) == 2 {
-				showName := parts[0]
-				epNo := parts[1]
+			showName := titleVal
+			epNo := "1"
+			if idx := strings.Index(titleVal, " - Episode "); idx > 0 {
+				showName = titleVal[:idx]
+				epNo = titleVal[idx+len(" - Episode "):]
+			} else if idx := strings.Index(titleVal, " - "); idx > 0 {
+				showName = titleVal[:idx]
+				epNo = titleVal[idx+3:]
+			}
 
-				var foundShow AnimeShow
-				var found bool
-				hist, _ := loadHistory()
-				for _, h := range hist {
-					if h.ShowName == showName {
-						foundShow = AnimeShow{
-							ID:   h.ShowID,
-							Name: h.ShowName,
-						}
-						found = true
-						break
+			var foundShow AnimeShow
+			var found bool
+			hist, _ := loadHistory()
+			for _, h := range hist {
+				if strings.EqualFold(h.ShowName, showName) || strings.EqualFold(h.ShowID, showName) {
+					foundShow = AnimeShow{
+						ID:   h.ShowID,
+						Name: h.ShowName,
 					}
-				}
-
-				if found {
-					activeShow = foundShow
-					activeEp = epNo
-					reattachedStatus = status
-					isReattached = true
-					debugLog("[INFO] Reattached to running MPV: %s (Ep %s)", showName, epNo)
+					found = true
+					break
 				}
 			}
+			if !found {
+				foundShow = AnimeShow{
+					ID:   "reattached",
+					Name: showName,
+				}
+			}
+
+			activeShow = foundShow
+			activeEp = epNo
+			reattachedStatus = status
+			isReattached = true
+			debugLog("[INFO] Reattached to running MPV socket: %s (Ep %s)", showName, epNo)
 		}
 	} else {
 		if _, statErr := os.Stat(getMpvSocketPath()); statErr == nil {
@@ -649,10 +657,8 @@ func initialModel(initialSearch, mode, quality string, download bool) model {
 	if initialSearch != "" {
 		m.state = stateSearchRunning
 		m.loadingMsg = fmt.Sprintf("Searching for %q...", initialSearch)
-	} else if len(m.historyItems) == 0 {
-		m.state = stateSearchInput
-		m.searchHistory, _ = loadSearchHistory()
-		m.searchHistoryIndex = -1
+	} else {
+		m.state = stateHistory
 	}
 
 	return m
@@ -1406,6 +1412,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.playingShow = m.selectedShow
 		m.playingEp = m.selectedEp
 		m.mpvStatus = MpvStatus{Paused: false, Volume: 100}
+		m.recalculateSizes()
 
 		if m.selectedShow.ID != "" {
 			m.state = stateEpisodeSelect
@@ -1492,6 +1499,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case playbackFinishedMsg:
 		debugLog("TUI playbackFinishedMsg: err=%v, tempLuaFile=%s, tempChaptersFile=%s", msg.err, msg.tempLuaFile, msg.tempChaptersFile)
 		m.playbackActive = false
+		m.recalculateSizes()
 		if msg.tempLuaFile != "" {
 			_ = os.Remove(msg.tempLuaFile)
 			if m.tempLuaFile == msg.tempLuaFile {
@@ -2092,11 +2100,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					return m, doSearch(query, "sub")
 				}
 			case "esc":
-				if len(m.historyItems) > 0 {
-					m.state = stateHistory
-				} else {
-					return m, tea.Quit
-				}
+				m.searchInput.Blur()
+				m.state = stateHistory
+				m.recalculateSizes()
+				return m, nil
 			default:
 				m.searchHistoryIndex = -1
 			}
@@ -2948,6 +2955,13 @@ func (m model) View() string {
 
 	if m.errorPopupMsg != "" {
 		out = m.renderErrorModal(out)
+	}
+
+	if m.height > 0 {
+		lines := strings.Split(out, "\n")
+		if len(lines) > m.height {
+			out = strings.Join(lines[:m.height], "\n")
+		}
 	}
 
 	return out
