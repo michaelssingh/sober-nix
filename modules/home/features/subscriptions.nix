@@ -25,14 +25,6 @@
     tags = [ "science" ];
   }
   {
-    id = "UCpYfofTyvVDMwM4ttfFGqw";
-    title = "London Clojurians";
-    tags = [
-      "tech"
-      "clojure"
-    ];
-  }
-  {
     id = "UC00DrQVoCf9Liv4D0KV0rGw";
     title = "Dr Alan D. Thompson";
     tags = [
@@ -262,14 +254,6 @@
     ];
   }
   {
-    id = "UC5L_M7BF5iait4FzEbwKCAg";
-    title = "Shawn James";
-    tags = [
-      "lifestyle"
-      "building"
-    ];
-  }
-  {
     id = "UC5b_CPhlnUEUyhVzX_ARDSA";
     title = "Shayla Talei";
     tags = [ "lifestyle" ];
@@ -304,11 +288,6 @@
     id = "UC6MXTfIi_pSMxwPQDKT2VGg";
     title = "Neal Wu";
     tags = [ "tech" ];
-  }
-  {
-    id = "UC6PJ2jf1l4QB33uneB8l9oA";
-    title = "Adept HNIC";
-    tags = [ "lifestyle" ];
   }
   {
     id = "UC6ZFN9Tx6xh-skXCuRHCDpQ";
@@ -354,14 +333,6 @@
     id = "UC7KbIaEOuY7H2j-cvhJ3mYA";
     title = "Search Party";
     tags = [ "tech" ];
-  }
-  {
-    id = "UC7ewGcGDHSuyQMHv-wPshzQ";
-    title = "VanessaFortnite";
-    tags = [
-      "lifestyle"
-      "gaming"
-    ];
   }
   {
     id = "UC7u2HaYBKDaLPcWmldxgGEA";
@@ -1143,11 +1114,6 @@
     tags = [ "lifestyle" ];
   }
   {
-    id = "UCQ_KZAsNDb8y2dkjHW98gVg";
-    title = "Call For An Uprising";
-    tags = [ "lifestyle" ];
-  }
-  {
     id = "UCQoyNIJrqvotmDN4zYawhBg";
     title = "AuthenticTeeCee2.0";
     tags = [ "lifestyle" ];
@@ -1219,11 +1185,6 @@
       "science"
       "lifestyle"
     ];
-  }
-  {
-    id = "UCSLUrcByUa6L641WPik31RQ";
-    title = "Motivation Core";
-    tags = [ "lifestyle" ];
   }
   {
     id = "UCShHFwKyhcDo3g7hr4f1R8A";
@@ -1707,11 +1668,6 @@
       "lifestyle"
       "philosophy"
     ];
-  }
-  {
-    id = "UCeUOId5AD19RhxhmqV8G6wQ";
-    title = "A CALL FOR AN UPRISING";
-    tags = [ "news" ];
   }
   {
     id = "UCe_3CoEeinvPMze2u_aENBg";

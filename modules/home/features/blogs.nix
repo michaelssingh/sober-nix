@@ -122,14 +122,6 @@ _:
         ];
       }
       {
-        url = "https://www.uber.com/blog/engineering/rss/";
-        tags = [
-          "tech"
-          "distributed-systems"
-          "engineering"
-        ];
-      }
-      {
         url = "https://blog.cloudflare.com/rss/";
         tags = [
           "tech"
@@ -220,17 +212,6 @@ _:
         tags = [
           "philosophy"
           "psychology"
-        ];
-      }
-      {
-        url = "https://www.psychologytoday.com/blog/feed";
-        tags = [ "psychology" ];
-      }
-      {
-        url = "https://samharris.org/feed/";
-        tags = [
-          "philosophy"
-          "spirituality"
         ];
       }
     ];

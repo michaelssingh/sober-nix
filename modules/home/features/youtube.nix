@@ -8,7 +8,6 @@
 
 let
   theme = config.sober.theme.current;
-  inherit (theme) colors;
   subscriptions = import ./subscriptions.nix;
 
   toNewsboatUrl =
@@ -47,12 +46,12 @@ in
       ignore-article "*" "link =~ \"shorts\""
 
       # sober.theme (${theme.name}) Color Scheme
-      color listnormal        ${colors.fg} default
-      color listfocus         ${colors.black} ${colors.accent} bold
-      color listnormal_unread ${colors.cyan} default bold
-      color listfocus_unread  ${colors.black} ${colors.cyan} bold
-      color info              ${colors.yellow} ${colors.bg_dark}
-      color article           ${colors.fg} default
+      color listnormal        cyan default
+      color listfocus         black blue bold
+      color listnormal_unread cyan default bold
+      color listfocus_unread  black cyan bold
+      color info              yellow black
+      color article           default default
       color background        default default
 
       bind-key j down
