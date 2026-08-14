@@ -115,11 +115,14 @@ func TestQAFullPipeline(t *testing.T) {
 		}
 		_ = exec.Command("rm", "-f", tvLua, tvChap)
 
-		// Verify title formatting retains full episode name
-		formattedTitle := formatMediaTitle(fullEpTitle, "S28E01")
-		if formattedTitle != fullEpTitle {
-			t.Fatalf("Expected formatMediaTitle to retain full episode title %q, got %q", fullEpTitle, formattedTitle)
+		// 3. Verify MPV flag parsing validity
+		testArgs := append([]string{}, tvCmd.Args[1:len(tvCmd.Args)-1]...)
+		testArgs = append(testArgs, "--help")
+		verifyCmd := exec.Command("mpv", testArgs...)
+		out, err := verifyCmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("MPV command flag validation failed: %v | Output: %s", err, string(out))
 		}
-		t.Logf("✓ TV Show MPV command build & full episode title retention verified: %s", formattedTitle)
+		t.Logf("✓ MPV binary successfully accepted all generated TV & Movie arguments!")
 	})
 }

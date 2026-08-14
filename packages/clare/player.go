@@ -465,10 +465,7 @@ local skip_times_json = %q
 
 	if isDirectHLS {
 		args = append(args, "--no-ytdl")
-		args = append(args, "--demuxer-lavf-o-add=allowed_segment_extensions=ALL")
-		args = append(args, "--demuxer-lavf-o-add=probesize=1000000")
-		args = append(args, "--demuxer-lavf-o-add=analyzeduration=1000000")
-		args = append(args, "--demuxer-lavf-o-add=fflags=+nobuffer")
+		args = append(args, "--demuxer-lavf-o=allowed_segment_extensions=ALL,probesize=1000000,analyzeduration=1000000,fflags=+nobuffer")
 	} else {
 		args = append(args, "--ytdl-raw-options=user-agent="+UserAgent+",referer="+referer+",extractor-args=generic:impersonate")
 	}
