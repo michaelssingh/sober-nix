@@ -61,14 +61,6 @@ in
           inherit (colors) bg;
           inherit (colors) fg;
         };
-        webpage = {
-          inherit (colors) bg;
-          darkmode = {
-            enabled = false;
-            policy.page = "smart";
-          };
-          preferred_color_scheme = "light";
-        };
       };
 
       fonts.default_family = "FiraCode Nerd Font Mono";
