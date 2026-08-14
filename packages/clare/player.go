@@ -12,7 +12,6 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
-	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -204,34 +203,7 @@ func fetchAniSkipTimes(malID string, epNo string, durationSeconds float64, showT
 	return result.Results
 }
 
-func parseJikanDuration(d string) float64 {
-	d = strings.ToLower(d)
-	total := 0.0
-	r := regexp.MustCompile(`(\d+)\s*(hr|min|sec|s|m|h)`)
-	matches := r.FindAllStringSubmatch(d, -1)
-	if len(matches) > 0 {
-		for _, m := range matches {
-			var val float64
-			fmt.Sscanf(m[1], "%f", &val)
-			unit := m[2]
-			if strings.HasPrefix(unit, "h") {
-				total += val * 3600
-			} else if strings.HasPrefix(unit, "m") {
-				total += val * 60
-			} else if strings.HasPrefix(unit, "s") {
-				total += val
-			}
-		}
-		return total
-	}
-	rDigits := regexp.MustCompile(`\d+`)
-	if m := rDigits.FindString(d); m != "" {
-		var val float64
-		fmt.Sscanf(m, "%f", &val)
-		return val * 60
-	}
-	return 1440.0
-}
+
 
 func getMpvCmd(streamURL string, title string, epNo string, malID string, durationStr string, extraArgs []string) (*exec.Cmd, string, string, float64, string, error) {
 	durationSeconds := parseJikanDuration(durationStr)
@@ -750,18 +722,7 @@ func loadFileInMpv(streamURL, title, epNo, malID string, extraArgs []string, dur
 	return nil
 }
 
-func formatMediaTitle(title, epNo string) string {
-	if epNo == "" || strings.EqualFold(epNo, "Movie") {
-		return title
-	}
-	if strings.HasPrefix(strings.ToUpper(epNo), "S") || strings.Contains(strings.ToLower(epNo), "episode") {
-		return fmt.Sprintf("%s - %s", title, epNo)
-	}
-	if !strings.Contains(strings.ToLower(title), "movie") {
-		return fmt.Sprintf("%s - Episode %s", title, epNo)
-	}
-	return title
-}
+
 
 func getMpvSocketPath() string {
 	if path := os.Getenv("CLARE_MPV_SOCK"); path != "" {

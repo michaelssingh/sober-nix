@@ -12,7 +12,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -2956,18 +2955,7 @@ func (m model) View() string {
 
 
 
-func formatTime(seconds float64) string {
-	if seconds <= 0 {
-		return "00:00"
-	}
-	h := int(seconds) / 3600
-	m := (int(seconds) % 3600) / 60
-	s := int(seconds) % 60
-	if h > 0 {
-		return fmt.Sprintf("%02d:%02d:%02d", h, m, s)
-	}
-	return fmt.Sprintf("%02d:%02d", m, s)
-}
+
 
 func helpStyle(val string) string {
 	return grayColorStyle.Render(val)
@@ -3257,26 +3245,7 @@ func doFetchEpisodeSynopsis(malID, epNo, showTitle string) tea.Cmd {
 
 
 
-func parseEpisodeNumber(ep string) float64 {
-	var numStr strings.Builder
-	hasDot := false
-	for _, r := range ep {
-		if r >= '0' && r <= '9' {
-			numStr.WriteRune(r)
-		} else if r == '.' && !hasDot {
-			numStr.WriteRune(r)
-			hasDot = true
-		} else if numStr.Len() > 0 {
-			break
-		}
-	}
-	if numStr.Len() == 0 {
-		return 0
-	}
-	var val float64
-	fmt.Sscanf(numStr.String(), "%f", &val)
-	return val
-}
+
 
 func tickMpvStatusCmd() tea.Cmd {
 	return tea.Tick(500*time.Millisecond, func(t time.Time) tea.Msg {
@@ -3571,37 +3540,7 @@ func (m model) renderEpisodeDetailsPanel(width, height int) string {
 	return s.String()
 }
 
-func cleanHTML(input string) string {
-	s := html.UnescapeString(input)
-	reBr := regexp.MustCompile(`(?i)<br\s*/?>`)
-	s = reBr.ReplaceAllString(s, "\n")
-	reTags := regexp.MustCompile(`<[^>]*>`)
-	s = reTags.ReplaceAllString(s, "")
 
-	// Normalize typographic punctuation to standard ASCII
-	s = strings.ReplaceAll(s, "’", "'")
-	s = strings.ReplaceAll(s, "‘", "'")
-	s = strings.ReplaceAll(s, "“", "\"")
-	s = strings.ReplaceAll(s, "”", "\"")
-	s = strings.ReplaceAll(s, "–", "-")
-	s = strings.ReplaceAll(s, "—", "-")
-	s = strings.ReplaceAll(s, "\u2026", "...")
-
-	// Collapse runs of spaces (not newlines) and trim trailing whitespace per line
-	reSpaces := regexp.MustCompile(` {2,}`)
-	lines := strings.Split(s, "\n")
-	for i, line := range lines {
-		line = reSpaces.ReplaceAllString(line, " ")
-		lines[i] = strings.TrimRight(line, " \t")
-	}
-	s = strings.Join(lines, "\n")
-
-	// Collapse 3+ consecutive blank lines down to a single blank line
-	reBlankLines := regexp.MustCompile(`\n{3,}`)
-	s = reBlankLines.ReplaceAllString(s, "\n\n")
-
-	return strings.TrimSpace(s)
-}
 
 func nextMode(current string) string {
 	switch current {

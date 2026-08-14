@@ -7,10 +7,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"os"
 	"os/exec"
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -26,10 +24,7 @@ func getTMDBApiKey() string {
 	return string(b)
 }
 
-const (
-	StreamReferer = "https://vidsrc.net/"
-	UserAgent     = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:150.0) Gecko/20100101 Firefox/150.0"
-)
+
 
 var (
 	linkPriorities = []string{"1080p", "720p", "480p", "360p", "best"}
@@ -649,239 +644,9 @@ func selectBestLinkFromResolved(streams []ResolvedStream, requested string) stri
 	return streams[0].URL
 }
 
-func doHTTPReqWithRetry(method, url string, payload []byte, headers map[string]string) ([]byte, error) {
-	var body []byte
-	var err error
-	client := newLoggingHttpClient(10 * time.Second)
-
-	cookieVal := os.Getenv("CLARE_COOKIE")
-	if cookieVal == "" {
-		cookieVal = os.Getenv("ALLANIME_COOKIE")
-	}
-	maxAttempts := 5
-	for attempt := 1; attempt <= maxAttempts; attempt++ {
-		var req *http.Request
-		if len(payload) > 0 {
-			req, err = http.NewRequest(method, url, bytes.NewReader(payload))
-		} else {
-			req, err = http.NewRequest(method, url, nil)
-		}
-		if err != nil {
-			return nil, err
-		}
-
-		for k, v := range headers {
-			req.Header.Set(k, v)
-		}
 
 
 
-		// Log detailed request fingerprinting
-		var headerLogs []string
-		for k, v := range req.Header {
-			headerLogs = append(headerLogs, fmt.Sprintf("%s: %s", k, strings.Join(v, ",")))
-		}
-		debugLog("[API-REQ] Attempt %d/%d: %s %s | Headers: %s", attempt, maxAttempts, method, url, strings.Join(headerLogs, "; "))
-
-		var resp *http.Response
-		resp, err = client.Do(req)
-		if err == nil {
-			defer resp.Body.Close()
-			body, err = io.ReadAll(resp.Body)
-			if err == nil {
-				// Verbose error body capture
-				if resp.StatusCode != http.StatusOK {
-					bodySnippet := string(body)
-					if len(bodySnippet) > 300 {
-						bodySnippet = bodySnippet[:300] + "..."
-					}
-					debugLog("[API-RESP-ERR] Status %d on %s | Body payload: %s", resp.StatusCode, url, bodySnippet)
-				} else {
-					debugLog("[API-RESP-SUCCESS] Status 200 on %s", url)
-				}
-
-				isTransientError := (resp.StatusCode >= 500 && resp.StatusCode < 600) || resp.StatusCode == 429
-				bodyStr := string(body)
-				if !isTransientError && (strings.Contains(bodyStr, "error code: 5") || strings.Contains(bodyStr, "Too many requests")) {
-					isTransientError = true
-					sleepSec := 5
-					reSec := regexp.MustCompile(`try again in (\d+) second`)
-					if m := reSec.FindStringSubmatch(bodyStr); len(m) >= 2 {
-						if parsedSec, err := strconv.Atoi(m[1]); err == nil && parsedSec > 0 {
-							sleepSec = parsedSec + 1
-						}
-					}
-					debugLog("[API-RATE-LIMIT] Rate limit on %s. Sleeping %d seconds before retry (attempt %d/%d)...", url, sleepSec, attempt, maxAttempts)
-					time.Sleep(time.Duration(sleepSec) * time.Second)
-				}
-
-				if !isTransientError {
-					return body, nil
-				}
-				err = fmt.Errorf("transient HTTP error (status %d): %s", resp.StatusCode, strings.TrimSpace(bodyStr))
-			}
-		}
-
-		debugLog("HTTP request attempt %d/%d failed for %s: %v", attempt, maxAttempts, url, err)
-		if attempt < maxAttempts {
-			time.Sleep(time.Duration(attempt) * time.Second)
-		}
-	}
-	return nil, fmt.Errorf("after 3 attempts, request failed: %w", err)
-}
-
-type loggingRoundTripper struct {
-	next http.RoundTripper
-}
-
-func (l *loggingRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
-	var bodyBytes []byte
-	if req.Body != nil {
-		bodyBytes, _ = io.ReadAll(req.Body)
-		req.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
-	}
-
-	reqLog := getHumanReadableRequestLog(req.Method, req.URL.String(), bodyBytes)
-	debugLog("%s", reqLog)
-
-	resp, err := l.next.RoundTrip(req)
-	if err != nil {
-		debugLog("[ERROR] %s -> %v", reqLog, err)
-		return nil, err
-	}
-
-	respLog := getHumanReadableResponseLog(req.Method, req.URL.String(), resp.StatusCode)
-	debugLog("%s", respLog)
-	return resp, nil
-}
-
-func getHumanReadableRequestLog(method, urlStr string, body []byte) string {
-	u, err := url.Parse(urlStr)
-	if err != nil {
-		return fmt.Sprintf("HTTP Request: %s %s", method, urlStr)
-	}
-
-	if (strings.Contains(u.Host, "allanime") || strings.Contains(u.Host, "mkissa")) && strings.HasSuffix(u.Path, "/api") && method == "POST" {
-		var payload struct {
-			Query     string                 `json:"query"`
-			Variables map[string]interface{} `json:"variables"`
-		}
-		if json.Unmarshal(body, &payload) == nil && payload.Variables != nil {
-			if search, ok := payload.Variables["search"].(map[string]interface{}); ok {
-				if q, _ := search["query"].(string); q != "" {
-					translation := "sub"
-					if t, _ := payload.Variables["translationType"].(string); t != "" {
-						translation = t
-					}
-					return fmt.Sprintf("[API] Search Anime: %q (%s)", q, translation)
-				}
-			}
-			if showID, _ := payload.Variables["showId"].(string); showID != "" {
-				translation := "sub"
-				if t, _ := payload.Variables["translationType"].(string); t != "" {
-					translation = t
-				}
-				showName := showID
-				if cached, _, found := loadShowCache(showID); found {
-					showName = cached.Name
-				}
-				return fmt.Sprintf("[API] Fetch Episode List: %s (%s)", showName, translation)
-			}
-		}
-	}
-
-	if (strings.Contains(u.Host, "allanime") || strings.Contains(u.Host, "mkissa")) && strings.HasSuffix(u.Path, "/api") && method == "GET" {
-		q := u.Query()
-		if varsStr := q.Get("variables"); varsStr != "" {
-			var vars map[string]interface{}
-			if json.Unmarshal([]byte(varsStr), &vars) == nil {
-				showID, _ := vars["showId"].(string)
-				epNo, _ := vars["episodeString"].(string)
-				translation, _ := vars["translationType"].(string)
-				if translation == "" {
-					translation = "sub"
-				}
-				showName := showID
-				if cached, _, found := loadShowCache(showID); found {
-					showName = cached.Name
-				}
-				return fmt.Sprintf("[API] Resolve Episode %s Link: %s (%s)", epNo, showName, translation)
-			}
-		}
-	}
-
-	if (strings.Contains(u.Host, "allanime") || strings.Contains(u.Host, "mkissa")) && strings.Contains(u.Path, "clock") {
-		return "[API] Fetch Server Clock"
-	}
-
-	if u.Host == "api.jikan.moe" {
-		parts := strings.Split(u.Path, "/")
-		if len(parts) >= 4 && parts[1] == "v4" && parts[2] == "anime" {
-			malID := parts[3]
-			action := "Fetch Details"
-			if len(parts) >= 5 {
-				action = "Fetch " + strings.Title(parts[4])
-			}
-			showName := ""
-			m := loadMalIDToNameMap()
-			if name, ok := m[malID]; ok {
-				showName = name + " - "
-			}
-			pageQuery := ""
-			if page := u.Query().Get("page"); page != "" {
-				pageQuery = fmt.Sprintf(" (Page %s)", page)
-			}
-			return fmt.Sprintf("[MAL] %s: %sMAL ID: %s%s", action, showName, malID, pageQuery)
-		}
-		return fmt.Sprintf("[MAL] Request: %s %s", method, u.Path)
-	}
-
-	if u.Host == "api.aniskip.com" {
-		parts := strings.Split(u.Path, "/")
-		if len(parts) >= 5 && parts[1] == "v1" && parts[2] == "skip-times" {
-			malID := parts[3]
-			epNo := parts[4]
-			showName := ""
-			m := loadMalIDToNameMap()
-			if name, ok := m[malID]; ok {
-				showName = name + " - "
-			}
-			return fmt.Sprintf("[AniSkip] Fetch Skip Times: %sMAL ID: %s, Ep: %s", showName, malID, epNo)
-		}
-		return fmt.Sprintf("[AniSkip] Request: %s %s", method, u.Path)
-	}
-
-	cleanPath := u.Path
-	if cleanPath == "" {
-		cleanPath = "/"
-	}
-	return fmt.Sprintf("HTTP Request: %s %s%s", method, u.Host, cleanPath)
-}
-
-func getHumanReadableResponseLog(method, urlStr string, statusCode int) string {
-	u, err := url.Parse(urlStr)
-	if err != nil {
-		return fmt.Sprintf("HTTP Response: Status %d", statusCode)
-	}
-
-	prefix := "[API]"
-	if u.Host == "api.jikan.moe" {
-		prefix = "[MAL]"
-	} else if u.Host == "api.aniskip.com" {
-		prefix = "[AniSkip]"
-	}
-
-	return fmt.Sprintf("%s Response: Status %d", prefix, statusCode)
-}
-
-func newLoggingHttpClient(timeout time.Duration) *http.Client {
-	return &http.Client{
-		Timeout: timeout,
-		Transport: &loggingRoundTripper{
-			next: http.DefaultTransport,
-		},
-	}
-}
 
 type SubtitleTrack struct {
 	Label string `json:"label"`
@@ -897,12 +662,7 @@ type ResolvedStream struct {
 	Subtitles  []SubtitleTrack
 }
 
-func stripProviderPrefix(id string) string {
-	if idx := strings.Index(id, ":"); idx != -1 {
-		return id[idx+1:]
-	}
-	return id
-}
+
 
 func fetchAllResolvedStreams(showID, mode, episodeNo, providerName string) ([]ResolvedStream, error) {
 	var results []ResolvedStream
