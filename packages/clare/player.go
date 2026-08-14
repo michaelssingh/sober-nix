@@ -463,6 +463,9 @@ local skip_times_json = %q
 		"--http-header-fields=" + headerFields,
 		"--input-ipc-server=" + getMpvSocketPath(),
 		"--osc=yes",
+		"--sub-auto=fuzzy",
+		"--slang=eng,en,enUS,en-US",
+		"--alang=jpn,ja,eng,en",
 		keepOpenFlag,
 	}
 
@@ -853,6 +856,9 @@ func loadFileInMpv(streamURL, title, epNo, malID string, extraArgs []string, dur
 		if strings.HasPrefix(arg, "--audio-file=") {
 			audioPath := strings.TrimPrefix(arg, "--audio-file=")
 			_, _ = sendMpvCommand(conn, []interface{}{"audio-add", audioPath, "select"})
+		} else if strings.HasPrefix(arg, "--sub-file=") {
+			subPath := strings.TrimPrefix(arg, "--sub-file=")
+			_, _ = sendMpvCommand(conn, []interface{}{"sub-add", subPath, "select"})
 		}
 	}
 
