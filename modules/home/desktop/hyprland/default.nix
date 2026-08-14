@@ -87,7 +87,8 @@ in
       window-padding-x = 8;
       window-padding-y = 8;
       mouse-scroll-multiplier = 0.4;
-      window-decoration = false;
+      window-decoration = true;
+      confirm-close-surface = false;
     };
   };
 
