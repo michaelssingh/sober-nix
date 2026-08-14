@@ -22,8 +22,9 @@
     xwayland.enable = true;
   };
   security.pam.services.hyprlock = { };
-  sober.services.greetd.greeter = "regreet";
-  sober.services.greetd.command = "Hyprland";
+  sober.services.greetd.enable = false;
+
+  services.displayManager.gdm.enable = true;
 
   # --- HOSTNAME & NETWORKING ---
   networking = {
