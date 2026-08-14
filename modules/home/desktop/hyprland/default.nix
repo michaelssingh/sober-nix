@@ -91,10 +91,10 @@
         "hyprctl setcursor rose-pine-hyprcursor 24"
         "systemctl --user import-environment WAYLAND_DISPLAY XDG_CURRENT_DESKTOP"
         "systemctl --user start tmux-autostart"
-        "hyprctl dispatch exec [workspace name:2: comms] 'ghostty -e attach-tmux comms'"
-        "hyprctl dispatch exec [workspace name:3: www] 'qutebrowser'"
-        "hyprctl dispatch exec [workspace name:9: sys] 'ghostty -e attach-tmux sys'"
-        "hyprctl dispatch exec [workspace name:10: hack] 'ghostty -e attach-tmux hack'"
+        "hyprctl dispatch exec [workspace 2] 'ghostty -e attach-tmux comms'"
+        "hyprctl dispatch exec [workspace 3] 'qutebrowser'"
+        "hyprctl dispatch exec [workspace 9] 'ghostty -e attach-tmux sys'"
+        "hyprctl dispatch exec [workspace 10] 'ghostty -e attach-tmux hack'"
         "${pkgs.hyprpaper}/bin/hyprpaper"
         "${pkgs.hypridle}/bin/hypridle"
         "${pkgs.swaynotificationcenter}/bin/swaync"
@@ -130,14 +130,14 @@
 
         shadow = {
           enabled = true;
-          range = 12;
+          range = 15;
           render_power = 3;
           color = "rgba(1a1b26ee)";
         };
 
         blur = {
           enabled = true;
-          size = 5;
+          size = 6;
           passes = 2;
           new_optimizations = true;
         };
@@ -165,14 +165,6 @@
       dwindle = {
         preserve_split = true;
       };
-
-      workspace = [
-        "1, default:true"
-        "2, name:2: comms"
-        "3, name:3: www"
-        "9, name:9: sys"
-        "10, name:10: hack"
-      ];
 
       # Keybindings
       bind = [
@@ -214,27 +206,27 @@
 
         # Workspace Switching (1..10)
         "$mainMod, 1, workspace, 1"
-        "$mainMod, 2, workspace, name:2: comms"
-        "$mainMod, 3, workspace, name:3: www"
+        "$mainMod, 2, workspace, 2"
+        "$mainMod, 3, workspace, 3"
         "$mainMod, 4, workspace, 4"
         "$mainMod, 5, workspace, 5"
         "$mainMod, 6, workspace, 6"
         "$mainMod, 7, workspace, 7"
         "$mainMod, 8, workspace, 8"
-        "$mainMod, 9, workspace, name:9: sys"
-        "$mainMod, 0, workspace, name:10: hack"
+        "$mainMod, 9, workspace, 9"
+        "$mainMod, 0, workspace, 10"
 
         # Move Active Window to Workspace (1..10)
         "$mainMod SHIFT, 1, movetoworkspace, 1"
-        "$mainMod SHIFT, 2, movetoworkspace, name:2: comms"
-        "$mainMod SHIFT, 3, movetoworkspace, name:3: www"
+        "$mainMod SHIFT, 2, movetoworkspace, 2"
+        "$mainMod SHIFT, 3, movetoworkspace, 3"
         "$mainMod SHIFT, 4, movetoworkspace, 4"
         "$mainMod SHIFT, 5, movetoworkspace, 5"
         "$mainMod SHIFT, 6, movetoworkspace, 6"
         "$mainMod SHIFT, 7, movetoworkspace, 7"
         "$mainMod SHIFT, 8, movetoworkspace, 8"
-        "$mainMod SHIFT, 9, movetoworkspace, name:9: sys"
-        "$mainMod SHIFT, 0, movetoworkspace, name:10: hack"
+        "$mainMod SHIFT, 9, movetoworkspace, 9"
+        "$mainMod SHIFT, 0, movetoworkspace, 10"
       ];
 
       binde = [
