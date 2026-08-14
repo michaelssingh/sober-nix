@@ -28,6 +28,7 @@ in
           disable-scroll = true;
           all-outputs = true;
           format = "{name}";
+          sort-by-number = true;
           on-click = "activate";
         };
 
@@ -35,6 +36,7 @@ in
           disable-scroll = true;
           all-outputs = true;
           format = "{name}";
+          sort-by-number = true;
         };
 
         "custom/hosts" = {
