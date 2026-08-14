@@ -43,6 +43,14 @@
     };
   };
 
+  home.pointerCursor = {
+    gtk.enable = true;
+    x11.enable = true;
+    package = pkgs.bibata-cursors;
+    name = "Bibata-Modern-Ice";
+    size = 24;
+  };
+
   wayland.windowManager.hyprland = {
     enable = true;
     configType = "hyprlang";
@@ -66,10 +74,15 @@
         "GDK_BACKEND,wayland,x11"
         "CLUTTER_BACKEND,wayland"
         "MOZ_ENABLE_WAYLAND,1"
+        "XCURSOR_THEME,Bibata-Modern-Ice"
+        "XCURSOR_SIZE,24"
+        "HYPRCURSOR_THEME,Bibata-Modern-Ice"
+        "HYPRCURSOR_SIZE,24"
       ];
 
       # Autostart applications & tmux sessions
       exec-once = [
+        "hyprctl setcursor Bibata-Modern-Ice 24"
         "systemctl --user import-environment WAYLAND_DISPLAY XDG_CURRENT_DESKTOP"
         "systemctl --user start tmux-autostart"
         "hyprctl dispatch exec [workspace name:2: comms] 'ghostty -e attach-tmux comms'"
