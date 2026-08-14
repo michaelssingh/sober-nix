@@ -291,12 +291,12 @@
     };
 
     extraConfig = ''
-      windowrule = workspace 3, org.qutebrowser.qutebrowser
-      windowrule = workspace 10, org.pwmt.zathura
-      windowrule = float, mpv
-      windowrule = float, pavucontrol
-      windowrule = float, Picture-in-Picture
-      windowrule = center, mpv
+      windowrule = workspace 3, match:class ^(org.qutebrowser.qutebrowser)$
+      windowrule = workspace 10, match:class ^(org.pwmt.zathura)$
+      windowrule = float 1, match:class ^(mpv)$
+      windowrule = float 1, match:class ^(pavucontrol)$
+      windowrule = float 1, match:title ^(Picture-in-Picture)$
+      windowrule = center 1, match:class ^(mpv)$
     '';
   };
 }
