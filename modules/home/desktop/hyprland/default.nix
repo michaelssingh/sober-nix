@@ -183,10 +183,10 @@
     };
 
     extraConfig = ''
-      windowrule = float, class:^(mpv)$
-      windowrule = float, class:^(pavucontrol)$
-      windowrule = float, title:^(Picture-in-Picture)$
-      windowrule = center, class:^(mpv)$
+      windowrule = match:class ^(mpv)$, float 1
+      windowrule = match:class ^(pavucontrol)$, float 1
+      windowrule = match:title ^(Picture-in-Picture)$, float 1
+      windowrule = match:class ^(mpv)$, center 1
     '';
   };
 }
