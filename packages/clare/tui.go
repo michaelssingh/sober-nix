@@ -1330,7 +1330,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 
 				debugLog("[INFO] Attempting to load next file in existing MPV via IPC with title: %s...", mediaTitle)
-				err := loadFileInMpv(streamURL, mediaTitle, m.selectedEp, m.selectedShow.MALID, extraArgs, msg.durationSeconds, msg.skipTimesJSON)
+				err := loadFileInMpv(streamURL, mediaTitle, m.selectedEp, m.selectedShow.MALID, extraArgs, msg.durationSeconds, msg.skipTimesJSON, true)
 				if err == nil {
 					debugLog("[INFO] Successfully loaded next episode via IPC!")
 					reused = true

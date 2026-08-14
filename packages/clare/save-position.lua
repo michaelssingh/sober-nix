@@ -52,13 +52,6 @@ local pending_ep_no = nil
 local pending_duration = nil
 local pending_skip_times_json = nil
 
-mp.register_script_message("update-episode-info", function(new_mal_id, new_ep_no, new_duration, new_skip_times_json)
-    pending_mal_id = new_mal_id
-    pending_ep_no = tonumber(new_ep_no)
-    pending_duration = tonumber(new_duration)
-    pending_skip_times_json = new_skip_times_json
-end)
-
 local function apply_pending_info()
     if pending_mal_id then
         mal_id = pending_mal_id
@@ -88,6 +81,14 @@ local function apply_pending_info()
     last_time = nil
     current_skipped = {}
 end
+
+mp.register_script_message("update-episode-info", function(new_mal_id, new_ep_no, new_duration, new_skip_times_json)
+    pending_mal_id = new_mal_id
+    pending_ep_no = tonumber(new_ep_no)
+    pending_duration = tonumber(new_duration)
+    pending_skip_times_json = new_skip_times_json
+    apply_pending_info()
+end)
 
 mp.register_event("start-file", function()
     apply_pending_info()

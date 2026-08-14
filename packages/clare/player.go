@@ -798,7 +798,7 @@ func queryMediaTitle() (string, error) {
 	return result.Data, nil
 }
 
-func loadFileInMpv(streamURL, title, epNo, malID string, extraArgs []string, durationSeconds float64, skipTimesJSON string) error {
+func loadFileInMpv(streamURL, title, epNo, malID string, extraArgs []string, durationSeconds float64, skipTimesJSON string, isAutoplay ...bool) error {
 	conn, err := net.DialTimeout("unix", getMpvSocketPath(), 200*time.Millisecond)
 	if err != nil {
 		return err
@@ -820,12 +820,15 @@ func loadFileInMpv(streamURL, title, epNo, malID string, extraArgs []string, dur
 	_, _ = sendMpvCommand(conn, []interface{}{"set_property", "user-agent", UserAgent})
 
 	startSeconds := 0.0
-	positions, posErr := loadPositions()
-	if posErr == nil && positions != nil && malID != "" {
-		if showState, ok := positions[malID]; ok && showState.ResumeState != nil {
-			reqEp := parseEpisodeNumber(epNo)
-			if showState.ResumeState.Episode == reqEp {
-				startSeconds = showState.ResumeState.PositionSeconds
+	autoplayFlag := len(isAutoplay) > 0 && isAutoplay[0]
+	if !autoplayFlag {
+		positions, posErr := loadPositions()
+		if posErr == nil && positions != nil && malID != "" {
+			if showState, ok := positions[malID]; ok && showState.ResumeState != nil {
+				reqEp := parseEpisodeNumber(epNo)
+				if showState.ResumeState.Episode == reqEp {
+					startSeconds = showState.ResumeState.PositionSeconds
+				}
 			}
 		}
 	}
@@ -834,12 +837,13 @@ func loadFileInMpv(streamURL, title, epNo, malID string, extraArgs []string, dur
 	if err != nil {
 		return err
 	}
+
+	time.Sleep(150 * time.Millisecond)
+	_, _ = sendMpvCommand(conn, []interface{}{"seek", startSeconds, "absolute"})
 	if startSeconds > 0 {
-		time.Sleep(500 * time.Millisecond)
-		_, _ = sendMpvCommand(conn, []interface{}{"seek", startSeconds, "absolute"})
 		debugLog("loadFileInMpv: loaded next episode %s and seeked to position %f seconds", epNo, startSeconds)
 	} else {
-		debugLog("loadFileInMpv: loaded next episode %s from the beginning", epNo)
+		debugLog("loadFileInMpv: loaded next episode %s from the beginning (seek 0.0s)", epNo)
 	}
 
 	fullTitle := formatMediaTitle(title, epNo)
