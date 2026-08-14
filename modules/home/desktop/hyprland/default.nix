@@ -180,14 +180,13 @@
         "$mainMod SHIFT, 9, movetoworkspace, 9"
         "$mainMod SHIFT, 0, movetoworkspace, 10"
       ];
-
-      # Window Rules
-      windowrule = [
-        "float, class:^(mpv)$"
-        "float, class:^(pavucontrol)$"
-        "float, title:^(Picture-in-Picture)$"
-        "center, class:^(mpv)$"
-      ];
     };
+
+    extraConfig = ''
+      windowrule = float, class:^(mpv)$
+      windowrule = float, class:^(pavucontrol)$
+      windowrule = float, title:^(Picture-in-Picture)$
+      windowrule = center, class:^(mpv)$
+    '';
   };
 }
