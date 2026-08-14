@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 	"os"
 	"os/exec"
@@ -451,6 +452,20 @@ func TestE2EFullSuite(t *testing.T) {
 			defer ipc.Close()
 			health, _ := ipc.InspectHealth()
 			t.Logf("✓ [TV Show E2E] Headless MPV successfully launched and verified via IPC! Health: %+v", health)
+
+			// Query running MPV instance via IPC to verify media-title property is active
+			titleVal, err := ipc.GetProperty("media-title")
+			if err != nil {
+				titleVal, err = ipc.GetProperty("force-media-title")
+			}
+			if err != nil {
+				t.Fatalf("Failed to query title from running MPV instance via IPC: %v", err)
+			}
+			titleStr := fmt.Sprintf("%v", titleVal)
+			if !strings.Contains(titleStr, "South Park") || !strings.Contains(titleStr, "Terrance and Phillip") {
+				t.Fatalf("Running MPV IPC title mismatch! Expected show & ep name, got: '%s'", titleStr)
+			}
+			t.Logf("✓ [TV Show IPC E2E] Running MPV instance verified title over IPC socket: '%s'", titleStr)
 		}
 	})
 
@@ -565,5 +580,50 @@ func TestE2EFullSuite(t *testing.T) {
 			t.Fatalf("Expected MPV --force-media-title='%s', generated args: %v", expectedFullTitle, resMsg.cmd.Args)
 		}
 		t.Logf("✓ [Title E2E] doPreparePlayback correctly formatted --force-media-title='%s'", expectedFullTitle)
+
+		// 3. Launch headless MPV process and query running instance title over IPC socket
+		_, err := exec.LookPath("mpv")
+		if err != nil {
+			t.Skip("mpv binary not in PATH, skipping running MPV IPC title check")
+		}
+
+		resMsg.cmd.Args = append(resMsg.cmd.Args,
+			"--vo=null",
+			"--ao=null",
+			"--idle=no",
+			"--keep-open=no",
+			"--no-terminal",
+		)
+		if err := resMsg.cmd.Start(); err != nil {
+			t.Fatalf("Failed to start headless MPV for title verification: %v", err)
+		}
+		defer func() {
+			if resMsg.cmd.Process != nil {
+				_ = resMsg.cmd.Process.Kill()
+				_ = resMsg.cmd.Wait()
+			}
+		}()
+
+		time.Sleep(600 * time.Millisecond)
+
+		ipc, err := NewMPVIPCClient(getMpvSocketPath())
+		if err != nil {
+			t.Logf("⚠️ IPC connection to running MPV instance note: %v", err)
+		} else {
+			defer ipc.Close()
+			runningTitle, err := ipc.GetProperty("media-title")
+			if err != nil {
+				runningTitle, err = ipc.GetProperty("force-media-title")
+			}
+			if err != nil {
+				t.Fatalf("Failed to query title from running MPV instance via IPC: %v", err)
+			}
+
+			titleStr := fmt.Sprintf("%v", runningTitle)
+			if titleStr != expectedFullTitle {
+				t.Fatalf("Running MPV IPC title mismatch! Expected '%s', got '%s'", expectedFullTitle, titleStr)
+			}
+			t.Logf("✓ [Title IPC E2E] Verified title on running MPV instance via IPC socket: '%s'", titleStr)
+		}
 	})
 }
