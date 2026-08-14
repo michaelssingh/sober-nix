@@ -145,10 +145,10 @@
 
       workspace = [
         "1, default:true"
-        "name:2: comms, default:false"
-        "name:3: www, default:false"
-        "name:9: sys, default:false"
-        "name:10: hack, default:false"
+        "2, name:2: comms"
+        "3, name:3: www"
+        "9, name:9: sys"
+        "10, name:10: hack"
       ];
 
       # Keybindings
