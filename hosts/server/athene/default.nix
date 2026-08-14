@@ -90,6 +90,7 @@ soberLib.mkContainerImage {
     mautrix-googlechat
     pkgs.curl
     pkgs.jq
+    pkgs.sqlite
     pkgs.binutils
     pkgs.gnugrep
     pkgs.gnutar

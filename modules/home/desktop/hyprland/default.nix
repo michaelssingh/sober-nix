@@ -51,6 +51,11 @@
     size = 24;
   };
 
+  programs.rofi = {
+    enable = true;
+    terminal = "${pkgs.ghostty}/bin/ghostty";
+  };
+
   wayland.windowManager.hyprland = {
     enable = true;
     configType = "hyprlang";
@@ -67,6 +72,7 @@
 
       # Environment Variables
       env = [
+        "TERMINAL,ghostty"
         "XDG_CURRENT_DESKTOP,Hyprland"
         "XDG_SESSION_TYPE,wayland"
         "XDG_SESSION_DESKTOP,Hyprland"
