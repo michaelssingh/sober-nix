@@ -1,6 +1,7 @@
 {
   lib,
   config,
+  pkgs,
   ...
 }:
 
@@ -18,6 +19,21 @@
         devices = [ "/dev/input/by-path/platform-i8042-serio-0-event-kbd" ];
         extraDefCfg = "process-unmapped-keys yes";
         config = builtins.readFile ./kanata.kbd;
+      };
+    };
+
+    # Early Boot (initrd) Kanata support for LUKS password prompt
+    boot.initrd = {
+      systemd.enable = true;
+      kernelModules = [ "uinput" ];
+      systemd.services.kanata = {
+        description = "Kanata Keyboard Remapper (initrd)";
+        wantedBy = [ "initrd.target" ];
+        before = [ "sysinit.target" ];
+        serviceConfig = {
+          ExecStart = "${pkgs.kanata}/bin/kanata --cfg ${pkgs.writeText "kanata.kbd" (builtins.readFile ./kanata.kbd)} --devices /dev/input/by-path/platform-i8042-serio-0-event-kbd --passthrough";
+          Restart = "always";
+        };
       };
     };
 

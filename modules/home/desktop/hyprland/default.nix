@@ -1,8 +1,17 @@
 {
   pkgs,
+  config,
+  lib,
   ...
 }:
 
+let
+  colors = config.sober.theme.current.colors;
+  accentRgb = lib.strings.removePrefix "#" colors.accent;
+  magentaRgb = lib.strings.removePrefix "#" colors.magenta;
+  borderRgb = lib.strings.removePrefix "#" colors.border;
+  blackRgb = lib.strings.removePrefix "#" colors.black;
+in
 {
   imports = [
     ./hyprlock.nix
@@ -152,13 +161,13 @@
         };
       };
 
-      # Layout & Aesthetics (Tokyonight Storm Theme)
+      # Layout & Aesthetics (Dynamic sober.theme Palette)
       general = {
         gaps_in = 4;
         gaps_out = 8;
         border_size = 2;
-        "col.active_border" = "rgba(7aa2f7ee) rgba(bb9af7ee) 45deg";
-        "col.inactive_border" = "rgba(1a1b26aa)";
+        "col.active_border" = "rgba(${accentRgb}ee) rgba(${magentaRgb}ee) 45deg";
+        "col.inactive_border" = "rgba(${borderRgb}aa)";
         layout = "dwindle";
       };
 
@@ -172,7 +181,7 @@
           enabled = true;
           range = 15;
           render_power = 3;
-          color = "rgba(1a1b26ee)";
+          color = "rgba(${blackRgb}ee)";
         };
 
         blur = {
