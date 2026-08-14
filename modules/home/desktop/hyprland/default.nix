@@ -66,7 +66,6 @@
 
       # Autostart applications
       exec-once = [
-        "${pkgs.waybar}/bin/waybar"
         "${pkgs.hyprpaper}/bin/hyprpaper"
         "${pkgs.hypridle}/bin/hypridle"
         "${pkgs.swaynotificationcenter}/bin/swaync"
