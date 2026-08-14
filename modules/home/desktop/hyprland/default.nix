@@ -39,6 +39,7 @@
       cursor-style = "block";
       window-padding-x = 8;
       window-padding-y = 8;
+      mouse-scroll-multiplier = 0.6;
     };
   };
 
