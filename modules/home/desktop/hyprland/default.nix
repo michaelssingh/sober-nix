@@ -73,6 +73,17 @@
         "systemctl --user import-environment WAYLAND_DISPLAY XDG_CURRENT_DESKTOP"
       ];
 
+      # Input Configuration (Fast keyboard repeat & touchpad)
+      input = {
+        repeat_delay = 250;
+        repeat_rate = 45;
+        follow_mouse = 0;
+        touchpad = {
+          natural_scroll = true;
+          tap-to-click = true;
+        };
+      };
+
       # Layout & Aesthetics (Tokyonight Storm Theme)
       general = {
         gaps_in = 4;
