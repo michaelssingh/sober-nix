@@ -65,12 +65,17 @@
         "MOZ_ENABLE_WAYLAND,1"
       ];
 
-      # Autostart applications
+      # Autostart applications & tmux sessions
       exec-once = [
+        "systemctl --user import-environment WAYLAND_DISPLAY XDG_CURRENT_DESKTOP"
+        "systemctl --user start tmux-autostart"
+        "hyprctl dispatch exec [workspace name:2: comms] 'ghostty -e attach-tmux comms'"
+        "hyprctl dispatch exec [workspace name:3: www] 'qutebrowser'"
+        "hyprctl dispatch exec [workspace name:9: sys] 'ghostty -e attach-tmux sys'"
+        "hyprctl dispatch exec [workspace name:10: hack] 'ghostty -e attach-tmux hack'"
         "${pkgs.hyprpaper}/bin/hyprpaper"
         "${pkgs.hypridle}/bin/hypridle"
         "${pkgs.swaynotificationcenter}/bin/swaync"
-        "systemctl --user import-environment WAYLAND_DISPLAY XDG_CURRENT_DESKTOP"
       ];
 
       # Input Configuration (Fast keyboard repeat & touchpad)
