@@ -25,6 +25,7 @@
   sober.services.greetd.enable = false;
 
   services.displayManager.gdm.enable = true;
+  services.displayManager.defaultSession = "hyprland";
 
   # --- HOSTNAME & NETWORKING ---
   networking = {
