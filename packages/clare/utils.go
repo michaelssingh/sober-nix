@@ -8,14 +8,22 @@ import (
 	"strings"
 )
 
+var (
+	reBr         = regexp.MustCompile(`(?i)<br\s*/?>`)
+	reTags       = regexp.MustCompile(`<[^>]*>`)
+	reSpaces     = regexp.MustCompile(` {2,}`)
+	reBlankLines = regexp.MustCompile(`\n{3,}`)
+
+	reJikanUnits = regexp.MustCompile(`(\d+)\s*(hr|min|sec|s|m|h|hours|hour|minutes|minute|seconds|second)`)
+	reDigits     = regexp.MustCompile(`\d+`)
+)
+
 func cleanHTML(input string) string {
 	if input == "" {
 		return ""
 	}
 	s := html.UnescapeString(input)
-	reBr := regexp.MustCompile(`(?i)<br\s*/?>`)
 	s = reBr.ReplaceAllString(s, "\n")
-	reTags := regexp.MustCompile(`<[^>]*>`)
 	s = reTags.ReplaceAllString(s, "")
 
 	s = strings.ReplaceAll(s, "’", "'")
@@ -26,15 +34,12 @@ func cleanHTML(input string) string {
 	s = strings.ReplaceAll(s, "—", "-")
 	s = strings.ReplaceAll(s, "\u2026", "...")
 
-	reSpaces := regexp.MustCompile(` {2,}`)
 	lines := strings.Split(s, "\n")
 	for i, line := range lines {
 		line = reSpaces.ReplaceAllString(line, " ")
 		lines[i] = strings.TrimRight(line, " \t")
 	}
 	s = strings.Join(lines, "\n")
-
-	reBlankLines := regexp.MustCompile(`\n{3,}`)
 	s = reBlankLines.ReplaceAllString(s, "\n\n")
 
 	return strings.TrimSpace(s)
@@ -82,28 +87,26 @@ func parseJikanDuration(d string) float64 {
 	}
 	d = strings.ToLower(d)
 	total := 0.0
-	r := regexp.MustCompile(`(\d+)\s*(hr|min|sec|s|m|h|hours|hour|minutes|minute|seconds|second)`)
-	matches := r.FindAllStringSubmatch(d, -1)
+	matches := reJikanUnits.FindAllStringSubmatch(d, -1)
 	if len(matches) > 0 {
 		for _, m := range matches {
-			var val float64
-			fmt.Sscanf(m[1], "%f", &val)
-			unit := m[2]
-			if strings.HasPrefix(unit, "h") {
-				total += val * 3600
-			} else if strings.HasPrefix(unit, "m") {
-				total += val * 60
-			} else if strings.HasPrefix(unit, "s") {
-				total += val
+			if val, err := strconv.ParseFloat(m[1], 64); err == nil {
+				unit := m[2]
+				if strings.HasPrefix(unit, "h") {
+					total += val * 3600
+				} else if strings.HasPrefix(unit, "m") {
+					total += val * 60
+				} else if strings.HasPrefix(unit, "s") {
+					total += val
+				}
 			}
 		}
 		return total
 	}
-	rDigits := regexp.MustCompile(`\d+`)
-	if m := rDigits.FindString(d); m != "" {
-		var val float64
-		fmt.Sscanf(m, "%f", &val)
-		return val * 60
+	if m := reDigits.FindString(d); m != "" {
+		if val, err := strconv.ParseFloat(m, 64); err == nil {
+			return val * 60
+		}
 	}
 	return 1440.0
 }
