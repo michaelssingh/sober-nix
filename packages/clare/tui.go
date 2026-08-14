@@ -1317,14 +1317,20 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if len(args) >= 2 {
 				streamURL := args[len(args)-1]
 				var extraArgs []string
+				var mediaTitle string
 				for _, arg := range args[1 : len(args)-1] {
 					if strings.HasPrefix(arg, "--audio-file=") {
 						extraArgs = append(extraArgs, arg)
+					} else if strings.HasPrefix(arg, "--force-media-title=") {
+						mediaTitle = strings.TrimPrefix(arg, "--force-media-title=")
 					}
 				}
+				if mediaTitle == "" {
+					mediaTitle = m.selectedShow.Name
+				}
 
-				debugLog("[INFO] Attempting to load next file in existing MPV via IPC...")
-				err := loadFileInMpv(streamURL, m.selectedShow.Name, m.selectedEp, m.selectedShow.MALID, extraArgs, msg.durationSeconds, msg.skipTimesJSON)
+				debugLog("[INFO] Attempting to load next file in existing MPV via IPC with title: %s...", mediaTitle)
+				err := loadFileInMpv(streamURL, mediaTitle, m.selectedEp, m.selectedShow.MALID, extraArgs, msg.durationSeconds, msg.skipTimesJSON)
 				if err == nil {
 					debugLog("[INFO] Successfully loaded next episode via IPC!")
 					reused = true
@@ -4003,6 +4009,13 @@ func (m *model) triggerAutoplayAction() tea.Cmd {
 		m.state = statePlaybackPreparing
 		m.loadingMsg = fmt.Sprintf("Autoplay: Preparing playback for Episode %s...", nextEpNo)
 		epTitle := ""
+		if len(m.episodeDetails) == 0 {
+			if cacheData, err := loadEpisodeMetadataCache(playingShow.ID, playingShow.MALID); err == nil && len(cacheData) > 0 {
+				for k, v := range cacheData {
+					m.episodeDetails[k] = v
+				}
+			}
+		}
 		if info, ok := m.episodeDetails[nextEpNo]; ok && info.Title != "" {
 			epTitle = info.Title
 		} else if strings.HasPrefix(playingShow.ID, "vidsrc:tv:") {

@@ -645,4 +645,89 @@ func TestE2EFullSuite(t *testing.T) {
 			t.Logf("✓ [Title IPC E2E] Verified title on running MPV instance via IPC socket: '%s'", titleStr)
 		}
 	})
+
+	t.Run("14_Autoplay_IPC_Title_Preservation_Verification", func(t *testing.T) {
+		if _, err := exec.LookPath("mpv"); err != nil {
+			t.Skip("mpv binary not found in PATH, skipping Autoplay IPC Title test")
+		}
+
+		m := initialModel("", "sub", "best", false)
+		m.state = statePlaybackPreparing
+		m.playbackActive = true
+		m.selectedShow = AnimeShow{
+			ID:    "vidsrc:tv:2190",
+			Name:  "South Park",
+			MALID: "2190",
+		}
+		m.playingShow = m.selectedShow
+		m.episodes = []string{"S02E01", "S02E02"}
+		m.playingEpisodes = m.episodes
+		m.playingEp = "S02E01"
+		m.episodeDetails["S02E02"] = JikanEpInfo{Title: "Chickenlover"}
+
+		// Simulate autoplay trigger
+		cmd := m.triggerAutoplayAction()
+		if cmd == nil {
+			t.Fatalf("Expected triggerAutoplayAction to return non-nil tea.Cmd for next episode S02E02")
+		}
+		msg := cmd()
+		resMsg, ok := msg.(resolvedPlaybackMsg)
+		if !ok || resMsg.err != nil {
+			t.Fatalf("Failed to resolve playback command for S02E02 autoplay: %v", resMsg.err)
+		}
+
+		// Verify --force-media-title flag in prepared cmd
+		var forceTitleFlag string
+		for _, arg := range resMsg.cmd.Args {
+			if strings.HasPrefix(arg, "--force-media-title=") {
+				forceTitleFlag = strings.TrimPrefix(arg, "--force-media-title=")
+				break
+			}
+		}
+		expectedAutoplayTitle := "South Park - Ep S02E02: Chickenlover"
+		if forceTitleFlag != expectedAutoplayTitle {
+			t.Fatalf("Prepared autoplay command title mismatch! Expected '%s', got '%s'", expectedAutoplayTitle, forceTitleFlag)
+		}
+		t.Logf("✓ [Autoplay Title E2E] Prepared autoplay command title verified: '%s'", forceTitleFlag)
+
+		// Start headless MPV
+		if err := resMsg.cmd.Start(); err != nil {
+			t.Fatalf("Failed to start headless MPV for autoplay title verification: %v", err)
+		}
+		defer func() {
+			if resMsg.cmd.Process != nil {
+				_ = resMsg.cmd.Process.Kill()
+				_ = resMsg.cmd.Wait()
+			}
+		}()
+
+		time.Sleep(600 * time.Millisecond)
+
+		nextURL := "https://hls.anidb.app/stream/test/master.m3u8"
+		loadErr := loadFileInMpv(nextURL, forceTitleFlag, "S02E02", "2190", nil, 1440.0, "[]")
+		if loadErr != nil {
+			t.Fatalf("loadFileInMpv failed over IPC socket: %v", loadErr)
+		}
+
+		time.Sleep(300 * time.Millisecond)
+
+		ipc, err := NewMPVIPCClient(getMpvSocketPath())
+		if err != nil {
+			t.Logf("⚠️ IPC connection note: %v", err)
+		} else {
+			defer ipc.Close()
+			runningTitle, err := ipc.GetProperty("media-title")
+			if err != nil {
+				runningTitle, err = ipc.GetProperty("force-media-title")
+			}
+			if err != nil {
+				t.Fatalf("Failed to query title from running MPV process after IPC loadFileInMpv: %v", err)
+			}
+			titleStr := fmt.Sprintf("%v", runningTitle)
+			if titleStr != expectedAutoplayTitle {
+				t.Fatalf("Running MPV IPC title mismatch after autoplay load! Expected '%s', got '%s'", expectedAutoplayTitle, titleStr)
+			}
+			t.Logf("✓ [Autoplay Title IPC E2E] Running MPV process confirmed title over IPC socket during autoplay: '%s'", titleStr)
+		}
+	})
 }
