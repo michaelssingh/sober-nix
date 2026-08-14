@@ -39,7 +39,7 @@
       cursor-style = "block";
       window-padding-x = 8;
       window-padding-y = 8;
-      mouse-scroll-multiplier = 0.6;
+      mouse-scroll-multiplier = 0.4;
     };
   };
 
@@ -89,6 +89,7 @@
         touchpad = {
           natural_scroll = false;
           tap-to-click = true;
+          scroll_factor = 0.4;
         };
       };
 
