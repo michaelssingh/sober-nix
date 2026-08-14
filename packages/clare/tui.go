@@ -2343,9 +2343,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						}
 					}
 					isMovie := strings.EqualFold(m.selectedShow.Type, "MOVIE") || strings.HasPrefix(m.selectedShow.ID, "vidsrc:") || strings.EqualFold(m.selectedShow.Provider, "vidsrc")
-					if _, checked := m.aniSkipReady[epItem.epNo]; !checked && m.selectedShow.MALID != "" && !isMovie {
+					if _, checked := m.aniSkipReady[epItem.epNo]; !checked && !isMovie {
 						m.aniSkipReady[epItem.epNo] = false
-						cmds = append(cmds, doCheckAniSkip(m.selectedShow.MALID, epItem.epNo))
+						targetID := m.selectedShow.MALID
+						if targetID == "" {
+							targetID = m.selectedShow.ID
+						}
+						cmds = append(cmds, doCheckAniSkip(targetID, epItem.epNo, m.selectedShow.Name))
 					}
 					prefetchEpisodeStream(m.selectedShow.ID, m.mode, epItem.epNo, m.quality)
 					idx := m.episodeList.Index()
@@ -3036,6 +3040,11 @@ func doPreparePlayback(selectedShow AnimeShow, epNo, epTitle, mode, quality stri
 			showTitle = fmt.Sprintf("%s - Ep %s", selectedShow.Name, epNo)
 		}
 
+		targetMALID := selectedShow.MALID
+		if targetMALID == "" {
+			targetMALID = selectedShow.ID
+		}
+
 		if mode == "dub" {
 			dubStreamObj, errDub := resolveStreamObject(selectedShow.ID, "dub", epNo, quality)
 			if errDub != nil {
@@ -3047,7 +3056,7 @@ func doPreparePlayback(selectedShow AnimeShow, epNo, epTitle, mode, quality stri
 					extraArgs = append(extraArgs, "--sub-file="+sub.URL)
 				}
 			}
-			cmd, tempLua, tempChapters, durationSeconds, skipTimesJSON, err = playSingleCmdWithExtra(dubStreamObj.URL, showTitle, epNo, selectedShow.ID, selectedShow.Duration, extraArgs)
+			cmd, tempLua, tempChapters, durationSeconds, skipTimesJSON, err = playSingleCmdWithExtra(dubStreamObj.URL, showTitle, epNo, targetMALID, selectedShow.Duration, extraArgs)
 		} else {
 			subStreamObj, errSub := resolveStreamObject(selectedShow.ID, "sub", epNo, quality)
 			if errSub != nil {
@@ -3059,7 +3068,7 @@ func doPreparePlayback(selectedShow AnimeShow, epNo, epTitle, mode, quality stri
 					extraArgs = append(extraArgs, "--sub-file="+sub.URL)
 				}
 			}
-			cmd, tempLua, tempChapters, durationSeconds, skipTimesJSON, err = playSingleCmdWithExtra(subStreamObj.URL, showTitle, epNo, selectedShow.ID, selectedShow.Duration, extraArgs)
+			cmd, tempLua, tempChapters, durationSeconds, skipTimesJSON, err = playSingleCmdWithExtra(subStreamObj.URL, showTitle, epNo, targetMALID, selectedShow.Duration, extraArgs)
 		}
 
 		return resolvedPlaybackMsg{cmd: cmd, tempLuaFile: tempLua, tempChaptersFile: tempChapters, durationSeconds: durationSeconds, skipTimesJSON: skipTimesJSON, err: err}
@@ -3124,9 +3133,9 @@ func tailLogFile(logChan chan string) {
 	}
 }
 
-func doCheckAniSkip(malID, epNo string) tea.Cmd {
+func doCheckAniSkip(malID, epNo string, showTitle ...string) tea.Cmd {
 	return func() tea.Msg {
-		times := fetchAniSkipTimes(malID, epNo, 1440.0)
+		times := fetchAniSkipTimes(malID, epNo, 1440.0, showTitle...)
 		return aniSkipCheckedMsg{epNo: epNo, ready: len(times) > 0}
 	}
 }

@@ -102,8 +102,10 @@ func fetchAniSkipTimes(malID string, epNo string, durationSeconds float64, showT
 	if epNo == "" {
 		return nil
 	}
+	isAniDB := strings.HasPrefix(malID, "anidb:")
 	cleanMALID := stripProviderPrefix(malID)
-	if _, err := strconv.Atoi(cleanMALID); err != nil {
+	_, parseErr := strconv.Atoi(cleanMALID)
+	if isAniDB || parseErr != nil {
 		if len(showTitle) > 0 && showTitle[0] != "" {
 			tName := showTitle[0]
 			if idx := strings.Index(tName, " - Ep "); idx > 0 {

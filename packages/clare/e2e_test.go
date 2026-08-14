@@ -156,6 +156,19 @@ func TestE2EFullSuite(t *testing.T) {
 			_ = ipc.Seek(10.0)
 			health, _ := ipc.InspectHealth()
 			t.Logf("✓ [MPV IPC E2E] Socket connection verified! Health stats: %+v", health)
+
+			titleVal, err := ipc.GetProperty("media-title")
+			if err != nil {
+				titleVal, err = ipc.GetProperty("force-media-title")
+			}
+			if err != nil {
+				t.Fatalf("Failed to query title from running AniDB MPV instance via IPC: %v", err)
+			}
+			titleStr := fmt.Sprintf("%v", titleVal)
+			if !strings.Contains(titleStr, "E2E Test Show") {
+				t.Fatalf("Running AniDB MPV IPC title mismatch! Expected 'E2E Test Show', got: '%s'", titleStr)
+			}
+			t.Logf("✓ [AniDB MPV IPC E2E] Running MPV instance confirmed title via IPC socket: '%s'", titleStr)
 		}
 	})
 
@@ -314,7 +327,13 @@ func TestE2EFullSuite(t *testing.T) {
 		}
 
 		skipTimes := fetchAniSkipTimes("5114", "1", 1440.0)
-		t.Logf("✓ [AniSkip E2E] AniSkip API returned %d skip intervals", len(skipTimes))
+		t.Logf("✓ [AniSkip E2E] AniSkip API returned %d skip intervals for MAL ID 5114", len(skipTimes))
+
+		anidbSkipTimes := fetchAniSkipTimes("anidb:18464", "1", 1440.0, "Sakamoto Days")
+		if len(anidbSkipTimes) == 0 {
+			t.Fatalf("Expected AniSkip API to return skip intervals for AniDB ID 'anidb:18464' via title resolution")
+		}
+		t.Logf("✓ [AniSkip E2E] AniDB ID 'anidb:18464' successfully resolved MAL ID and returned %d skip intervals", len(anidbSkipTimes))
 
 		_, luaFile, chapFile, _, _, err := getMpvCmd(
 			"https://example.com/test.m3u8", show.Name, "1", "5114", "24 min", nil,
