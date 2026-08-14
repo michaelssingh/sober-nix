@@ -2,10 +2,13 @@
 {
   pkgs,
   lib,
+  config,
   ...
 }:
 
 let
+  theme = config.sober.theme.current;
+  inherit (theme) colors;
   subscriptions = import ./subscriptions.nix;
 
   toNewsboatUrl =
@@ -43,14 +46,32 @@ in
 
       ignore-article "*" "link =~ \"shorts\""
 
-      color listnormal         color253 default
-      color listfocus          color234 color111 bold
-      color listnormal_unread  color147 default  bold
-      color listfocus_unread   color234 color147 bold
-      color info               color222 color235
-      color article            color253 default
+      # sober.theme (${theme.name}) Color Scheme
+      color listnormal        ${colors.fg} default
+      color listfocus         ${colors.black} ${colors.accent} bold
+      color listnormal_unread ${colors.cyan} default bold
+      color listfocus_unread  ${colors.black} ${colors.cyan} bold
+      color info              ${colors.yellow} ${colors.bg_dark}
+      color article           ${colors.fg} default
+      color background        default default
+
       bind-key j down
       bind-key k up
     '';
+  };
+
+  xdg.desktopEntries.newsboat = {
+    name = "Newsboat RSS Reader";
+    genericName = "RSS/Atom Feed Reader";
+    comment = "Terminal RSS/Atom feed reader for YouTube and Blogs";
+    exec = "newsboat";
+    terminal = true;
+    categories = [
+      "Network"
+      "News"
+      "ConsoleOnly"
+    ];
+    type = "Application";
+    icon = "newsboat";
   };
 }
