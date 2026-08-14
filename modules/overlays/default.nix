@@ -70,7 +70,10 @@
       postBuild = ''
         rm -rf /homeless-shelter 2>/dev/null || true
       '';
-      nativeBuildInputs = [ final.scdoc final.installShellFiles ];
+      nativeBuildInputs = [
+        final.scdoc
+        final.installShellFiles
+      ];
       buildInputs = [
         final.xclip
         final.wl-clipboard
@@ -90,7 +93,7 @@
     };
 
     mpv = prev.mpv.override {
-      mpv-unwrapped = final.mpv-unwrapped;
+      inherit (final) mpv-unwrapped;
       scripts = [ prev.mpvScripts.mpris ];
     };
 
@@ -107,8 +110,24 @@
       src = inputs.neomutt-src;
     });
 
-    castero = prev.castero.overrideAttrs (_old: {
+    castero = prev.castero.overrideAttrs (old: {
       doCheck = false;
+      postPatch = (old.postPatch or "") + ''
+                python -c '
+        path = "castero/config.py"
+        with open(path, "r") as f:
+            content = f.read()
+
+        target = "        with open(self._path, \"w\") as conf_file:"
+        if target in content:
+            content = content.replace(
+                "        with open(self._path, \"w\") as conf_file:\n            for line in lines:\n                conf_file.write(line)\n        conf.read(self._path)",
+                "        try:\n            with open(self._path, \"w\") as conf_file:\n                for line in lines:\n                    conf_file.write(line)\n            conf.read(self._path)\n        except OSError:\n            pass"
+            )
+            with open(path, "w") as f:
+                f.write(content)
+        '
+      '';
     });
 
     hydroxide = prev.hydroxide.overrideAttrs (_old: rec {
