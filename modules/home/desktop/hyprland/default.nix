@@ -26,6 +26,13 @@
     wl-clipboard
     brightnessctl
     playerctl
+    (pkgs.writeShellScriptBin "launch-workspaces" ''
+      hyprctl dispatch exec [workspace 2] 'ghostty -e attach-tmux comms'
+      hyprctl dispatch exec [workspace 3] 'qutebrowser'
+      hyprctl dispatch exec [workspace 9] 'ghostty -e attach-tmux sys'
+      hyprctl dispatch exec [workspace 10] 'zathura /home/michael/git/books/programming-languages/K&R.epub'
+      hyprctl dispatch exec [workspace 10] 'ghostty -e attach-tmux hack'
+    '')
   ];
 
   programs.ghostty = {
