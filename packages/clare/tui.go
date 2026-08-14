@@ -1414,6 +1414,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.mpvStatus = MpvStatus{Paused: false, Volume: 100}
 		m.recalculateSizes()
 
+		if m.selectedShow.ID != "" && m.selectedEp != "" {
+			_ = recordWatch(m.selectedShow.ID, m.selectedShow.Name, m.selectedEp)
+			m.refreshHistory()
+		}
+
 		if m.selectedShow.ID != "" {
 			m.state = stateEpisodeSelect
 		} else {

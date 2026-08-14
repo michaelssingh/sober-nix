@@ -101,12 +101,15 @@ func getUniqueHistory(history []HistoryEntry) []HistoryEntry {
 }
 
 func recordWatch(showID, showName, episode string) error {
+	if showID == "" || episode == "" {
+		return nil
+	}
 	history, err := loadHistory()
 	if err != nil {
 		history = []HistoryEntry{}
 	}
 
-	if strings.HasPrefix(showName, "AniDB Show") {
+	if strings.HasPrefix(showName, "AniDB Show") || showName == "" {
 		if cached, _, found := loadShowCache(showID); found && cached.Name != "" && !strings.HasPrefix(cached.Name, "AniDB Show") {
 			showName = cached.Name
 		}
@@ -114,7 +117,7 @@ func recordWatch(showID, showName, episode string) error {
 
 	// Update any existing history entries for this showID if showName was enriched
 	for i := range history {
-		if history[i].ShowID == showID && strings.HasPrefix(history[i].ShowName, "AniDB Show") && !strings.HasPrefix(showName, "AniDB Show") {
+		if history[i].ShowID == showID && (strings.HasPrefix(history[i].ShowName, "AniDB Show") || history[i].ShowName == "") && !strings.HasPrefix(showName, "AniDB Show") && showName != "" {
 			history[i].ShowName = showName
 		}
 	}
