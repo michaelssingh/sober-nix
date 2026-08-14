@@ -242,6 +242,12 @@
         ", XF86AudioNext, exec, ${pkgs.playerctl}/bin/playerctl next"
         ", XF86AudioPrev, exec, ${pkgs.playerctl}/bin/playerctl previous"
       ];
+
+      # Mouse Dragging (Hold Super + Left/Right Click)
+      bindm = [
+        "$mainMod, mouse:272, movewindow"
+        "$mainMod, mouse:273, resizewindow"
+      ];
     };
 
     extraConfig = ''
