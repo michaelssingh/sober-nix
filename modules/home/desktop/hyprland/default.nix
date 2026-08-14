@@ -158,7 +158,12 @@
         "$mainMod, SPACE, fullscreen, 0"
         "$mainMod, Escape, exec, hyprlock"
         "$mainMod, P, pseudo,"
-        "$mainMod SHIFT, S, exec, hyprshot -m region"
+
+        # Screenshots
+        ", Print, exec, hyprshot -m output -o ~/Pictures/Screenshots"
+        "$mainMod, Print, exec, hyprshot -m window -o ~/Pictures/Screenshots"
+        "$mainMod SHIFT, S, exec, hyprshot -m region -o ~/Pictures/Screenshots"
+        "$mainMod SHIFT, Print, exec, hyprshot -m region -o ~/Pictures/Screenshots"
 
         # Focus Navigation (Vim style + Arrows)
         "$mainMod, h, movefocus, l"
