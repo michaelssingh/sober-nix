@@ -1,6 +1,5 @@
 {
   config,
-  osConfig ? { },
   ...
 }:
 
@@ -14,13 +13,6 @@ in
   programs.qutebrowser = {
     enable = true;
     settings = {
-      content = {
-        autoplay = true;
-        media.audio_capture = true;
-        media.video_capture = true;
-        pdfjs = true;
-      };
-
       colors = {
         tabs = {
           bar.bg = colors.bg;
@@ -64,23 +56,6 @@ in
       };
 
       fonts.default_family = "FiraCode Nerd Font Mono";
-      qt.args =
-        if (osConfig.networking.hostName or "") == "ninox" then
-          [
-            "ignore-gpu-blocklist"
-            "enable-gpu-rasterization"
-            "enable-zero-copy"
-            "ozone-platform-hint=auto"
-            "enable-features=VaapiVideoDecoder,VaapiVideoEncoder,CanvasOopRasterization,OverlayScrollbar"
-          ]
-        else
-          [
-            # Smooth software rendering fallbacks for lower-powered hosts like otus
-            "disable-gpu"
-            "disable-gpu-compositing"
-            "disable-gpu-rasterization"
-            "disable-features=VaapiVideoDecoder,VaapiVideoEncoder,CanvasOopRasterization,ZeroCopy,UseChromeOSDirectVideoDecoder,DocumentPictureInPictureAPI,EyeDropper,BackgroundFetch,InstalledApp,WebPayments,WebUSB"
-          ];
     };
 
     searchEngines = {
@@ -94,7 +69,7 @@ in
         "M" = "spawn --userscript view_in_mpv";
         ",m" = "hint links spawn --userscript view_in_mpv";
         ",v" = "spawn --userscript play-smart";
-        ",pw" = "spawn --userscript qute-bitwarden";
+        ",pw" = "spawn --userscript qute-rbw";
       };
     };
   };
