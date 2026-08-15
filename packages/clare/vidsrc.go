@@ -82,12 +82,16 @@ func (p *VidSrcProvider) Search(query, mode string) ([]AnimeShow, error) {
 
 func (p *VidSrcProvider) FetchEpisodes(showID, mode string) (AnimeShow, []string, error) {
 	cleanID := strings.TrimPrefix(showID, "vidsrc:")
+	cleanID = strings.TrimPrefix(cleanID, "flikhub:")
 	parts := strings.Split(cleanID, ":")
-	if len(parts) < 2 {
-		return AnimeShow{}, nil, fmt.Errorf("invalid vidsrc show ID: %s", showID)
+	var mediaType, tmdbID string
+	if len(parts) >= 2 {
+		mediaType = parts[0]
+		tmdbID = parts[1]
+	} else {
+		mediaType = "movie"
+		tmdbID = cleanID
 	}
-	mediaType := parts[0]
-	tmdbID := parts[1]
 
 	if mediaType == "movie" {
 		tmdbMovieURL := fmt.Sprintf("https://api.themoviedb.org/3/movie/%s?api_key=%s", tmdbID, getTMDBApiKey())
@@ -232,12 +236,16 @@ func (p *VidSrcProvider) FetchEpisodes(showID, mode string) (AnimeShow, []string
 
 func (p *VidSrcProvider) ResolveStreams(showID, mode, episodeNo, quality string) ([]ResolvedStream, error) {
 	cleanID := strings.TrimPrefix(showID, "vidsrc:")
+	cleanID = strings.TrimPrefix(cleanID, "flikhub:")
 	parts := strings.Split(cleanID, ":")
-	if len(parts) < 2 {
-		return nil, fmt.Errorf("invalid vidsrc show ID: %s", showID)
+	var mediaType, tmdbID string
+	if len(parts) >= 2 {
+		mediaType = parts[0]
+		tmdbID = parts[1]
+	} else {
+		mediaType = "movie"
+		tmdbID = cleanID
 	}
-	mediaType := parts[0]
-	tmdbID := parts[1]
 
 	// Determine season from episodeNo (encoded as "S01E01" or a flat counter).
 	// For the vaplayer API we always need season + episode numbers.

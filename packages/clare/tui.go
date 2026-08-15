@@ -117,38 +117,48 @@ func (h historyItem) Title() string {
 
 func (h historyItem) Description() string {
 	ago := humanAgo(h.timestamp)
+	isMovie := isMovieMedia("", h.showID, "") || h.totalEps == 1
 	if h.isCompleted {
+		if isMovie {
+			return fmt.Sprintf("Completed Movie  ·  %s", ago)
+		}
 		if h.totalEps > 0 {
 			return fmt.Sprintf("Completed — %d episodes  ·  %s", h.totalEps, ago)
 		}
 		return fmt.Sprintf("Completed  ·  %s", ago)
 	}
 	var parts []string
-	hasExceededTotal := false
-	if h.nextEp != "" {
-		nextEpVal := parseEpisodeNumber(h.nextEp)
-		if h.totalEps > 0 && nextEpVal > float64(h.totalEps) {
-			hasExceededTotal = true
-		}
-	} else if h.lastEp != "" {
-		lastEpVal := parseEpisodeNumber(h.lastEp)
-		if h.totalEps > 0 && lastEpVal > float64(h.totalEps) {
-			hasExceededTotal = true
-		}
-	}
-
-	if strings.HasPrefix(h.showID, "vidsrc:movie") || h.totalEps == 1 {
+	if isMovie {
 		parts = append(parts, "Feature Film")
-	} else if h.nextEp != "" && h.totalEps > 0 && !hasExceededTotal {
-		parts = append(parts, fmt.Sprintf("Next: Ep %s / %d", h.nextEp, h.totalEps))
-	} else if h.nextEp != "" {
-		parts = append(parts, fmt.Sprintf("Next: Ep %s", h.nextEp))
-	} else if h.lastEp != "" {
-		parts = append(parts, fmt.Sprintf("Last: Ep %s", h.lastEp))
-	}
-	if h.progressPct >= 0 && h.totalEps > 0 && !hasExceededTotal {
-		bar := renderSmoothProgressBar(h.progressPct, 8)
-		parts = append(parts, fmt.Sprintf("[%s] %d%%", bar, int(h.progressPct*100)))
+		if h.progressPct > 0 && h.progressPct < 1.0 {
+			bar := renderSmoothProgressBar(h.progressPct, 8)
+			parts = append(parts, fmt.Sprintf("[%s] %d%%", bar, int(h.progressPct*100)))
+		}
+	} else {
+		hasExceededTotal := false
+		if h.nextEp != "" {
+			nextEpVal := parseEpisodeNumber(h.nextEp)
+			if h.totalEps > 0 && nextEpVal > float64(h.totalEps) {
+				hasExceededTotal = true
+			}
+		} else if h.lastEp != "" {
+			lastEpVal := parseEpisodeNumber(h.lastEp)
+			if h.totalEps > 0 && lastEpVal > float64(h.totalEps) {
+				hasExceededTotal = true
+			}
+		}
+
+		if h.nextEp != "" && h.totalEps > 0 && !hasExceededTotal {
+			parts = append(parts, fmt.Sprintf("Next: Ep %s / %d", h.nextEp, h.totalEps))
+		} else if h.nextEp != "" {
+			parts = append(parts, fmt.Sprintf("Next: Ep %s", h.nextEp))
+		} else if h.lastEp != "" {
+			parts = append(parts, fmt.Sprintf("Last: Ep %s", h.lastEp))
+		}
+		if h.progressPct >= 0 && h.totalEps > 0 && !hasExceededTotal {
+			bar := renderSmoothProgressBar(h.progressPct, 8)
+			parts = append(parts, fmt.Sprintf("[%s] %d%%", bar, int(h.progressPct*100)))
+		}
 	}
 	parts = append(parts, ago)
 	return strings.Join(parts, "  ·  ")
@@ -719,130 +729,163 @@ func (m *model) refreshHistory() {
 			key = u.ShowID
 		}
 
+		isMovie := isMovieMedia("", u.ShowID, u.Episode) || item.totalEps == 1
+		if isMovie {
+			item.totalEps = 1
+			item.nextEp = "1"
+		}
+
 		if positions != nil && key != "" {
 			if showState, ok := positions[key]; ok {
-				if len(showState.CompletedEpisodes) == 0 {
-					item.isCompleted = false
-				} else {
-					maxCompleted := 0.0
-					for _, ep := range showState.CompletedEpisodes {
-						if ep > maxCompleted {
-							maxCompleted = ep
-						}
-					}
-					lastEpVal := parseEpisodeNumber(item.lastEp)
-					if item.totalEps > 0 && maxCompleted <= float64(item.totalEps) && lastEpVal <= float64(item.totalEps) {
-						completed := (maxCompleted == float64(item.totalEps)) ||
-							(lastEpVal == float64(item.totalEps)) ||
-							(len(showState.CompletedEpisodes) >= item.totalEps)
-						item.isCompleted = completed
-					} else if len(showState.CompletedEpisodes) > 0 {
-						item.isCompleted = true
-					}
-				}
-
-				// Check if the last watched episode in history is completed
-				lastEpCompleted := false
-				epVal := parseEpisodeNumber(item.lastEp)
-				for _, cEp := range showState.CompletedEpisodes {
-					if cEp == epVal {
-						lastEpCompleted = true
-						break
-					}
-				}
-
-				if showState.ResumeState != nil {
-					// In-progress episode
-					nextVal := showState.ResumeState.Episode
-
-					// Find the next uncompleted episode starting from the resume state
-					for {
-						isCompleted := false
-						for _, cEp := range showState.CompletedEpisodes {
-							if cEp == nextVal {
-								isCompleted = true
-								break
-							}
-						}
-						if !isCompleted {
-							break
-						}
-						nextVal += 1.0
-					}
-
-					epStr := fmt.Sprintf("%.1f", nextVal)
-					if strings.HasSuffix(epStr, ".0") {
-						epStr = epStr[:len(epStr)-2]
-					}
-					item.nextEp = epStr
-
-					// Compute progress based on maxCompleted
-					maxEp := 0.0
+				if isMovie {
+					// Movies: check if marked completed manually (1.0 in CompletedEpisodes) or remote completed
+					isComp := u.Completed
 					for _, cEp := range showState.CompletedEpisodes {
-						if cEp > maxEp {
-							maxEp = cEp
-						}
-					}
-					currEpVal := parseEpisodeNumber(epStr)
-					if currEpVal > maxEp {
-						maxEp = currEpVal
-					}
-					if item.totalEps > 0 {
-						item.progressPct = maxEp / float64(item.totalEps)
-					}
-				} else if u.Episode != "" {
-					// Finished an episode, next sequential one up if completed, else same episode
-					var nextVal float64
-					if lastEpCompleted {
-						nextVal = epVal + 1.0
-					} else {
-						nextVal = epVal
-					}
-
-					// Find the next uncompleted episode starting from nextVal
-					for {
-						isCompleted := false
-						for _, cEp := range showState.CompletedEpisodes {
-							if cEp == nextVal {
-								isCompleted = true
-								break
-							}
-						}
-						if !isCompleted {
+						if cEp == 1.0 {
+							isComp = true
 							break
 						}
-						nextVal += 1.0
 					}
-
-					if item.totalEps > 0 {
-						if int(nextVal) <= item.totalEps || epVal >= float64(item.totalEps) {
-							if nextVal == float64(int(nextVal)) {
-								item.nextEp = fmt.Sprintf("%d", int(nextVal))
-							} else {
-								item.nextEp = fmt.Sprintf("%.1f", nextVal)
+					if showState.ResumeState != nil && showState.ResumeState.TotalSeconds > 0 {
+						item.progressPct = showState.ResumeState.PositionSeconds / showState.ResumeState.TotalSeconds
+						if item.progressPct > 1.0 {
+							item.progressPct = 1.0
+						}
+						if item.progressPct >= 0.92 {
+							isComp = true
+						}
+					} else if isComp {
+						item.progressPct = 1.0
+					} else {
+						item.progressPct = 0.0
+					}
+					item.isCompleted = isComp
+				} else {
+					if len(showState.CompletedEpisodes) == 0 {
+						item.isCompleted = false
+					} else {
+						maxCompleted := 0.0
+						for _, ep := range showState.CompletedEpisodes {
+							if ep > maxCompleted {
+								maxCompleted = ep
 							}
 						}
-						// Progress bar percentage uses max completed episode
+						lastEpVal := parseEpisodeNumber(item.lastEp)
+						if item.totalEps > 0 && maxCompleted <= float64(item.totalEps) && lastEpVal <= float64(item.totalEps) {
+							completed := (maxCompleted == float64(item.totalEps)) ||
+								(len(showState.CompletedEpisodes) >= item.totalEps)
+							item.isCompleted = completed
+						} else if len(showState.CompletedEpisodes) > 0 {
+							item.isCompleted = true
+						}
+					}
+
+					// Check if the last watched episode in history is completed
+					lastEpCompleted := false
+					epVal := parseEpisodeNumber(item.lastEp)
+					for _, cEp := range showState.CompletedEpisodes {
+						if cEp == epVal {
+							lastEpCompleted = true
+							break
+						}
+					}
+
+					if showState.ResumeState != nil {
+						// In-progress episode
+						nextVal := showState.ResumeState.Episode
+
+						// Find the next uncompleted episode starting from the resume state
+						for {
+							isCompleted := false
+							for _, cEp := range showState.CompletedEpisodes {
+								if cEp == nextVal {
+									isCompleted = true
+									break
+								}
+							}
+							if !isCompleted {
+								break
+							}
+							nextVal += 1.0
+						}
+
+						epStr := fmt.Sprintf("%.1f", nextVal)
+						if strings.HasSuffix(epStr, ".0") {
+							epStr = epStr[:len(epStr)-2]
+						}
+						item.nextEp = epStr
+
+						// Compute progress based on maxCompleted
 						maxEp := 0.0
 						for _, cEp := range showState.CompletedEpisodes {
 							if cEp > maxEp {
 								maxEp = cEp
 							}
 						}
-						item.progressPct = maxEp / float64(item.totalEps)
-					} else {
-						if nextVal == float64(int(nextVal)) {
-							item.nextEp = fmt.Sprintf("%d", int(nextVal))
+						currEpVal := parseEpisodeNumber(epStr)
+						if currEpVal > maxEp {
+							maxEp = currEpVal
+						}
+						if item.totalEps > 0 {
+							item.progressPct = maxEp / float64(item.totalEps)
+						}
+					} else if u.Episode != "" {
+						// Finished an episode, next sequential one up if completed, else same episode
+						var nextVal float64
+						if lastEpCompleted {
+							nextVal = epVal + 1.0
 						} else {
-							item.nextEp = fmt.Sprintf("%.1f", nextVal)
+							nextVal = epVal
+						}
+
+						// Find the next uncompleted episode starting from nextVal
+						for {
+							isCompleted := false
+							for _, cEp := range showState.CompletedEpisodes {
+								if cEp == nextVal {
+									isCompleted = true
+									break
+								}
+							}
+							if !isCompleted {
+								break
+							}
+							nextVal += 1.0
+						}
+
+						if item.totalEps > 0 {
+							if int(nextVal) <= item.totalEps || epVal >= float64(item.totalEps) {
+								if nextVal == float64(int(nextVal)) {
+									item.nextEp = fmt.Sprintf("%d", int(nextVal))
+								} else {
+									item.nextEp = fmt.Sprintf("%.1f", nextVal)
+								}
+							}
+							// Progress bar percentage uses max completed episode
+							maxEp := 0.0
+							for _, cEp := range showState.CompletedEpisodes {
+								if cEp > maxEp {
+									maxEp = cEp
+								}
+							}
+							item.progressPct = maxEp / float64(item.totalEps)
+						} else {
+							if nextVal == float64(int(nextVal)) {
+								item.nextEp = fmt.Sprintf("%d", int(nextVal))
+							} else {
+								item.nextEp = fmt.Sprintf("%.1f", nextVal)
+							}
 						}
 					}
 				}
 			}
 		} else {
 			// No positions data — fall back to history to set next ep heuristic.
-			// Movies (totalEps <= 1) should not automatically be marked completed just by having a history record.
-			if u.Episode != "" && item.totalEps > 1 {
+			if isMovie {
+				item.isCompleted = u.Completed
+				item.progressPct = 0.0
+				item.nextEp = "1"
+			} else if u.Episode != "" && item.totalEps > 1 {
 				epVal := parseEpisodeNumber(u.Episode)
 				nextVal := epVal + 1
 				if int(nextVal) <= item.totalEps {
@@ -1718,9 +1761,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				debugLog("[INFO] Download of %s - Episode %s completed successfully!", msg.show.Name, msg.epNo)
 			}
 		}()
-		m.telemetryLogs = append(m.telemetryLogs, fmt.Sprintf("[%s] [DOWNLOAD-START] Started downloading Episode %s", time.Now().Format("2006-01-02 15:04:05"), msg.epNo))
-		m.refreshLogsViewport()
-		m.loadingMsg = fmt.Sprintf("📥 Downloading Episode %s...", msg.epNo)
+		if isMovieMedia(msg.show.Type, msg.show.ID, msg.epNo) {
+			m.telemetryLogs = append(m.telemetryLogs, fmt.Sprintf("[%s] [DOWNLOAD-START] Started downloading %s", time.Now().Format("2006-01-02 15:04:05"), msg.show.Name))
+			m.loadingMsg = fmt.Sprintf("📥 Downloading %s...", msg.show.Name)
+		} else {
+			m.telemetryLogs = append(m.telemetryLogs, fmt.Sprintf("[%s] [DOWNLOAD-START] Started downloading %s - Episode %s", time.Now().Format("2006-01-02 15:04:05"), msg.show.Name, msg.epNo))
+			m.loadingMsg = fmt.Sprintf("📥 Downloading Episode %s...", msg.epNo)
+		}
 		m.state = stateEpisodeSelect
 		return m, nil
 
