@@ -20,7 +20,38 @@ def get_domain(url):
     domain = re.sub(r'^www\.', '', domain)
     return domain.split(':')[0]
 
+def ensure_unlocked():
+    # Check if rbw is currently unlocked
+    check = subprocess.run(['rbw', 'unlocked'], capture_output=True, text=True)
+    if check.returncode == 0:
+        return True
+
+    # Prompt for master password via Rofi password input
+    try:
+        p = subprocess.run(
+            ['rofi', '-dmenu', '-password', '-i', '-p', 'Unlock Bitwarden (rbw)'],
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        pwd = p.stdout.strip()
+        if not pwd:
+            return False
+
+        # Run rbw unlock passing password via stdin
+        res = subprocess.run(['rbw', 'unlock'], input=pwd + '\n', capture_output=True, text=True)
+        if res.returncode == 0:
+            return True
+        else:
+            send_qute_command("message-error 'Incorrect Bitwarden master password'")
+            return False
+    except subprocess.CalledProcessError:
+        return False
+
 def main():
+    if not ensure_unlocked():
+        sys.exit(0)
+
     url = os.environ.get('QUTE_URL', '')
     domain = get_domain(url)
 
