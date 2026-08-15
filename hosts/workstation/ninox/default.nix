@@ -21,6 +21,7 @@
     enable = true;
     xwayland.enable = true;
   };
+  virtualisation.waydroid.enable = true;
   security.pam.services.hyprlock = { };
   sober.services.greetd.enable = false;
 
