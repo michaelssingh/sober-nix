@@ -12,6 +12,11 @@ def send_qute_command(cmd):
             f.write(cmd + '\n')
             f.flush()
 
+def escape_fake_key(text):
+    if not text:
+        return ""
+    return text.replace('<', '<less>').replace('>', '<greater>')
+
 def get_domain(url):
     if not url:
         return ""
@@ -124,11 +129,11 @@ def main():
         if user:
             send_qute_command("fake-key <Ctrl+a>")
             send_qute_command("fake-key <BackSpace>")
-            send_qute_command(f"fake-key {user}")
+            send_qute_command(f"fake-key {escape_fake_key(user)}")
             send_qute_command("fake-key <Tab>")
         send_qute_command("fake-key <Ctrl+a>")
         send_qute_command("fake-key <BackSpace>")
-        send_qute_command(f"fake-key {password}")
+        send_qute_command(f"fake-key {escape_fake_key(password)}")
 
         # 5. Retrieve 2FA TOTP code using rbw code <name> [user]
         try:
