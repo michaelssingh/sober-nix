@@ -89,10 +89,14 @@ def main():
         
         password = subprocess.run(cmd, capture_output=True, text=True, check=True).stdout.strip()
 
-        # 4. Fill credentials into Qutebrowser via fake-key
+        # 4. Fill credentials into Qutebrowser via fake-key (clearing existing text first)
         if user:
+            send_qute_command("fake-key <Ctrl+a>")
+            send_qute_command("fake-key <BackSpace>")
             send_qute_command(f"fake-key {user}")
             send_qute_command("fake-key <Tab>")
+        send_qute_command("fake-key <Ctrl+a>")
+        send_qute_command("fake-key <BackSpace>")
         send_qute_command(f"fake-key {password}")
 
         # 5. Retrieve 2FA TOTP code using rbw code <name> [user]
