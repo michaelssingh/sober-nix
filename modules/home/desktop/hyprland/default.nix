@@ -11,6 +11,8 @@ let
   magentaRgb = lib.strings.removePrefix "#" colors.magenta;
   borderRgb = lib.strings.removePrefix "#" colors.border;
   blackRgb = lib.strings.removePrefix "#" colors.black;
+  bgDarkRgb = lib.strings.removePrefix "#" colors.bg_dark;
+  fgRgb = lib.strings.removePrefix "#" colors.fg;
 in
 {
   imports = [
@@ -271,9 +273,9 @@ in
           enabled = true;
           font_family = "FiraCode Nerd Font";
           font_size = 10;
-          text_color = "rgba(${colors.fg}ff)";
+          text_color = "rgba(${fgRgb}ff)";
           "col.active" = "rgba(${accentRgb}ee)";
-          "col.inactive" = "rgba(${colors.bg_dark}aa)";
+          "col.inactive" = "rgba(${bgDarkRgb}aa)";
           height = 20;
           render_titles = true;
         };
