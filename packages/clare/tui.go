@@ -713,10 +713,16 @@ func (m *model) refreshHistory() {
 			item.isCompleted = true
 		}
 
-		if positions != nil && malID != "" && malID != "0" {
-			if showState, ok := positions[malID]; ok {
-				// Only derive completion from episode math if not already flagged.
-				if !item.isCompleted {
+		key := malID
+		if key == "" || key == "0" {
+			key = u.ShowID
+		}
+
+		if positions != nil && key != "" {
+			if showState, ok := positions[key]; ok {
+				if len(showState.CompletedEpisodes) == 0 {
+					item.isCompleted = false
+				} else {
 					maxCompleted := 0.0
 					for _, ep := range showState.CompletedEpisodes {
 						if ep > maxCompleted {
@@ -729,6 +735,8 @@ func (m *model) refreshHistory() {
 							(lastEpVal == float64(item.totalEps)) ||
 							(len(showState.CompletedEpisodes) >= item.totalEps)
 						item.isCompleted = completed
+					} else if len(showState.CompletedEpisodes) > 0 {
+						item.isCompleted = true
 					}
 				}
 
@@ -831,8 +839,9 @@ func (m *model) refreshHistory() {
 				}
 			}
 		} else {
-			// No positions data — fall back to history to set next ep heuristic
-			if u.Episode != "" && item.totalEps > 0 {
+			// No positions data — fall back to history to set next ep heuristic.
+			// Movies (totalEps <= 1) should not automatically be marked completed just by having a history record.
+			if u.Episode != "" && item.totalEps > 1 {
 				epVal := parseEpisodeNumber(u.Episode)
 				nextVal := epVal + 1
 				if int(nextVal) <= item.totalEps {
@@ -891,8 +900,12 @@ func (m *model) toggleShowCompleted(showID string) {
 		malID = cached.MALID
 		totalEps = cached.EpCount()
 	}
-	if malID == "" || malID == "0" {
-		debugLog("toggleShowCompleted: show %s has no valid MAL ID, cannot toggle", showID)
+	key := malID
+	if key == "" || key == "0" {
+		key = showID
+	}
+	if key == "" {
+		debugLog("toggleShowCompleted: show %s has no valid ID, cannot toggle", showID)
 		return
 	}
 
@@ -901,42 +914,39 @@ func (m *model) toggleShowCompleted(showID string) {
 		positions = make(map[string]ShowState)
 	}
 
-	showState, ok := positions[malID]
+	showState, ok := positions[key]
 	if !ok {
 		showState = ShowState{
 			CompletedEpisodes: []float64{},
 		}
 	}
 
-	// Determine if completed
-	maxCompleted := 0.0
-	for _, ep := range showState.CompletedEpisodes {
-		if ep > maxCompleted {
-			maxCompleted = ep
-		}
-	}
-
 	isCompleted := false
-	if totalEps > 0 && maxCompleted <= float64(totalEps) {
-		isCompleted = (maxCompleted == float64(totalEps)) || (len(showState.CompletedEpisodes) >= totalEps)
-	} else if totalEps > 0 && maxCompleted > float64(totalEps) {
-		isCompleted = false
+	if totalEps > 0 {
+		maxCompleted := 0.0
+		for _, ep := range showState.CompletedEpisodes {
+			if ep > maxCompleted {
+				maxCompleted = ep
+			}
+		}
+		if maxCompleted <= float64(totalEps) {
+			isCompleted = (maxCompleted == float64(totalEps)) || (len(showState.CompletedEpisodes) >= totalEps)
+		}
 	} else if len(showState.CompletedEpisodes) > 0 {
 		isCompleted = true
 	}
 
 	if isCompleted {
-		// Currently completed: mark it as in-progress by clearing the max episode or everything from CompletedEpisodes
+		// Currently completed: unmark as completed
 		showState.CompletedEpisodes = []float64{}
 		showState.ResumeState = nil
-		debugLog("toggleShowCompleted: unmarking show %s (MAL %s) as completed", showID, malID)
+		debugLog("toggleShowCompleted: unmarking show %s (key %s) as completed", showID, key)
 	} else {
-		// Mark it completed: clear ResumeState and add totalEps (or a high number like 999) to CompletedEpisodes
-		targetEp := 999.0
+		// Mark completed: clear ResumeState and add targetEp
+		targetEp := 1.0
 		if totalEps > 0 {
 			targetEp = float64(totalEps)
 		}
-		// Ensure it's not already in list
 		found := false
 		for _, ep := range showState.CompletedEpisodes {
 			if ep == targetEp {
@@ -948,28 +958,31 @@ func (m *model) toggleShowCompleted(showID string) {
 			showState.CompletedEpisodes = append(showState.CompletedEpisodes, targetEp)
 		}
 		showState.ResumeState = nil
-		debugLog("toggleShowCompleted: marking show %s (MAL %s) as completed", showID, malID)
+		debugLog("toggleShowCompleted: marking show %s (key %s) as completed", showID, key)
 	}
 
-	positions[malID] = showState
+	positions[key] = showState
 	_ = savePositions(positions)
 	go SyncAllHistory()
 	m.refreshHistory()
 }
 
 func (m *model) toggleEpisodeCompleted(epNo string) {
-	if m.selectedShow.MALID == "" || m.selectedShow.MALID == "0" {
-		debugLog("toggleEpisodeCompleted: current show has no valid MAL ID, cannot toggle")
+	key := m.selectedShow.MALID
+	if key == "" || key == "0" {
+		key = m.selectedShow.ID
+	}
+	if key == "" {
+		debugLog("toggleEpisodeCompleted: current show has no valid ID, cannot toggle")
 		return
 	}
-	malID := m.selectedShow.MALID
 
 	positions, err := loadPositions()
 	if err != nil {
 		positions = make(map[string]ShowState)
 	}
 
-	showState, ok := positions[malID]
+	showState, ok := positions[key]
 	if !ok {
 		showState = ShowState{
 			CompletedEpisodes: []float64{},
@@ -996,7 +1009,7 @@ func (m *model) toggleEpisodeCompleted(epNo string) {
 		debugLog("toggleEpisodeCompleted: marked episode %s as completed", epNo)
 	}
 
-	positions[malID] = showState
+	positions[key] = showState
 	_ = savePositions(positions)
 	go SyncAllHistory()
 	m.refreshHistory()
@@ -1004,15 +1017,18 @@ func (m *model) toggleEpisodeCompleted(epNo string) {
 }
 
 func (m *model) markEpisodeCompletedGo(epNo string) {
-	if m.selectedShow.MALID == "" || m.selectedShow.MALID == "0" {
+	key := m.selectedShow.MALID
+	if key == "" || key == "0" {
+		key = m.selectedShow.ID
+	}
+	if key == "" {
 		return
 	}
-	malID := m.selectedShow.MALID
 	positions, err := loadPositions()
 	if err != nil {
 		positions = make(map[string]ShowState)
 	}
-	showState, ok := positions[malID]
+	showState, ok := positions[key]
 	if !ok {
 		showState = ShowState{
 			CompletedEpisodes: []float64{},
@@ -1032,7 +1048,7 @@ func (m *model) markEpisodeCompletedGo(epNo string) {
 		debugLog("[INFO] Go: marked episode %s as completed", epNo)
 	}
 	showState.ResumeState = nil
-	positions[malID] = showState
+	positions[key] = showState
 	_ = savePositions(positions)
 }
 
