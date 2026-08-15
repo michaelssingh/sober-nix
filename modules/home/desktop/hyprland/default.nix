@@ -374,6 +374,7 @@ in
         # Upstream Default Hyprland Scratchpad Shortcuts
         "$mainMod, S, togglespecialworkspace, magic"
         "$mainMod SHIFT, S, movetoworkspace, special:magic"
+        "$mainMod CTRL, S, movetoworkspace, current"
         # Additional Scratchpad Shortcuts
         "$mainMod, MINUS, togglespecialworkspace, scratchpad"
         "$mainMod SHIFT, MINUS, movetoworkspace, special:scratchpad"
