@@ -47,9 +47,9 @@ in
 
       # sober.theme (${theme.name}) Color Scheme
       color listnormal        cyan default
-      color listfocus         black blue bold
+      color listfocus         black color111 bold
       color listnormal_unread cyan default bold
-      color listfocus_unread  black cyan bold
+      color listfocus_unread  black color111 bold
       color info              magenta black bold
       color article           cyan default
       color background        default default
