@@ -836,6 +836,8 @@ func loadFileInMpv(streamURL, title, epNo, malID string, extraArgs []string, dur
 		}
 	}
 
+	_, _ = sendMpvCommand(conn, []interface{}{"script-message", "update-episode-info", malID, epNo, fmt.Sprintf("%f", durationSeconds), skipTimesJSON})
+
 	_, err = sendMpvCommand(conn, []interface{}{"loadfile", streamURL, "replace"})
 	if err != nil {
 		return err
@@ -861,8 +863,6 @@ func loadFileInMpv(streamURL, title, epNo, malID string, extraArgs []string, dur
 			_, _ = sendMpvCommand(conn, []interface{}{"sub-add", subPath, "select"})
 		}
 	}
-
-	_, _ = sendMpvCommand(conn, []interface{}{"script-message", "update-episode-info", malID, epNo, fmt.Sprintf("%f", durationSeconds), skipTimesJSON})
 
 	_, _ = sendMpvCommand(conn, []interface{}{"set_property", "pause", false})
 
