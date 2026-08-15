@@ -31,7 +31,7 @@ in
         if isNinox then
           "bestvideo[height<=1080]+bestaudio/best"
         else
-          "bestvideo[height<=720]+bestaudio/best";
+          "bestvideo[height<=720][vcodec^=avc1]+bestaudio/best";
       ytdl-raw-options = "cookies-from-browser=firefox";
       cache = "yes";
       demuxer-max-bytes = "150MiB";
