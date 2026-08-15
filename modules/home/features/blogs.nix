@@ -197,6 +197,39 @@ _:
           "psychology"
         ];
       }
+
+      # --- DevOps / Cloud Infrastructure / Platform Engineering Jobs ---
+      {
+        url = "https://weworkremotely.com/categories/remote-devops-sysadmin-jobs.rss";
+        tags = [
+          "jobs"
+          "devops"
+          "sysadmin"
+        ];
+      }
+      {
+        url = "https://remotive.com/remote-jobs/devops/feed";
+        tags = [
+          "jobs"
+          "devops"
+          "cloud"
+        ];
+      }
+      {
+        url = "https://jobspresso.co/category/devops/feed/";
+        tags = [
+          "jobs"
+          "devops"
+          "infrastructure"
+        ];
+      }
+      {
+        url = "https://hnrss.org/jobs";
+        tags = [
+          "jobs"
+          "tech"
+        ];
+      }
     ];
   };
 }
