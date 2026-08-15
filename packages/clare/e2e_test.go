@@ -115,6 +115,7 @@ func TestE2EFullSuite(t *testing.T) {
 			[]string{
 				"--vo=null",
 				"--ao=null",
+				"--mute=yes",
 				"--idle=no",
 				"--keep-open=no",
 				"--no-terminal",
@@ -380,6 +381,7 @@ func TestE2EFullSuite(t *testing.T) {
 			[]string{
 				"--vo=null",
 				"--ao=null",
+				"--mute=yes",
 				"--idle=no",
 				"--keep-open=no",
 				"--no-terminal",
@@ -436,6 +438,7 @@ func TestE2EFullSuite(t *testing.T) {
 			[]string{
 				"--vo=null",
 				"--ao=null",
+				"--mute=yes",
 				"--idle=no",
 				"--keep-open=no",
 				"--no-terminal",
