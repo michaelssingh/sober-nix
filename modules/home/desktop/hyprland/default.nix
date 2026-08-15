@@ -409,7 +409,6 @@ in
       windowrule = workspace 10, match:class ^(org.pwmt.zathura)$
       windowrule = float 1, match:class ^(pavucontrol)$
       windowrule = float 1, match:title ^(Picture-in-Picture)$
-      windowrule = noanim, match:class ^(com.mitchellh.ghostty)$
     '';
   };
 }
