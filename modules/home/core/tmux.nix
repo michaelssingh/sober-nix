@@ -98,6 +98,11 @@
         # URL Picker overlay (Prefix + u)
         bind-key u capture-pane -J -S - -E - \; save-buffer /tmp/tmux-url-buffer \; run-shell "${pkgs.bash}/bin/bash -c 'grep -o -E \"(https?|ftp|file)://[-A-Za-z0-9+&@#/%?=~_|!:,.;]*[-A-Za-z0-9+&@#/%=~_|]\" /tmp/tmux-url-buffer | sort -u | ${pkgs.fzf}/bin/fzf --tmux --multi | xargs -r xdg-open'"
 
+        # --- tmux-fingers Configuration ---
+        # Restrict builtin patterns to avoid false positives like dates (8/14) matching as paths
+        set -g @fingers-enabled-builtin-patterns "url,sha,ip,uuid"
+        # Hold Ctrl while pressing the hint key (Ctrl + <hint>) to launch the URL directly via xdg-open
+        set -g @fingers-ctrl-action ":open:"
       '';
   };
 
