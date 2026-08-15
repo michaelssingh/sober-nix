@@ -106,35 +106,40 @@ def main():
         
         password = subprocess.run(cmd, capture_output=True, text=True, check=True).stdout.strip()
 
-        # 4. Fill credentials into Qutebrowser via JS DOM injection (handles React/SPA forms like Welcome to the Jungle / Otta)
+        # 4. Always copy password to clipboard (so user can Ctrl+V anytime)
+        subprocess.run(['wl-copy', password], check=False)
+
+        # 5. Fill credentials into Qutebrowser via Base64-encoded JS DOM injection
+        # Base64 encoding avoids qutebrowser command line argument parsing issues with spaces and quotes
         import json
-        js_user = json.dumps(user)
-        js_pass = json.dumps(password)
+        import base64
 
-        # Clean single-line JS snippet for jseval
-        js_code = (
-            f"var u={js_user},p={js_pass};"
-            "function fill(el,v){if(!el||!v)return false;el.focus();el.value=v;"
-            "el.dispatchEvent(new Event('input',{bubbles:true}));"
-            "el.dispatchEvent(new Event('change',{bubbles:true}));return true;};"
-            "var pe=document.querySelector('input[type=\"password\"]');"
-            "var ue=(document.activeElement&&document.activeElement.tagName==='INPUT'&&document.activeElement.type!=='password')"
-            "?document.activeElement:document.querySelector('input[type=\"email\"],input[name*=\"email\"],input[name*=\"user\"],input[name*=\"login\"],input[autocomplete*=\"username\"],input[type=\"text\"]');"
-            "fill(ue,u);fill(pe,p);"
-        )
+        raw_js = f"""
+        (function() {{
+            var u = {json.dumps(user)};
+            var p = {json.dumps(password)};
 
-        # Try JS injection first (works on React/Vue/Angular SPAs)
-        send_qute_command(f"jseval -q {js_code}")
+            function fillField(el, val) {{
+                if (!el || !val) return false;
+                el.focus();
+                el.value = val;
+                el.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                el.dispatchEvent(new Event('change', {{ bubbles: true }}));
+                return true;
+            }}
 
-        # Fallback / Backup using insert-text for standard inputs
-        if user:
-            send_qute_command("fake-key <Ctrl+a>")
-            send_qute_command("fake-key <BackSpace>")
-            send_qute_command(f"insert-text {user}")
-            send_qute_command("fake-key <Tab>")
-        send_qute_command("fake-key <Ctrl+a>")
-        send_qute_command("fake-key <BackSpace>")
-        send_qute_command(f"insert-text {password}")
+            var passEl = document.querySelector('input[type="password"]');
+            var userEl = (document.activeElement && document.activeElement.tagName === 'INPUT' && document.activeElement.type !== 'password')
+                ? document.activeElement
+                : document.querySelector('input[type="email"], input[name*="email"], input[name*="user"], input[name*="login"], input[autocomplete*="username"], input[type="text"]');
+
+            fillField(userEl, u);
+            fillField(passEl, p);
+        }})();
+        """
+
+        b64_js = base64.b64encode(raw_js.encode('utf-8')).decode('utf-8')
+        send_qute_command(f"jseval -q eval(atob('{b64_js}'))")
 
         # 5. Retrieve 2FA TOTP code using rbw code <name> [user]
         try:
