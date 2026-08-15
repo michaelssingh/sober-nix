@@ -747,10 +747,14 @@ func TestPlayerResumePosition(t *testing.T) {
 		defer os.Remove(tempChaps2)
 	}
 
+	hasStartZero := false
 	for _, arg := range cmd2.Args {
-		if strings.Contains(arg, "--start=") {
-			t.Errorf("Did not expect '--start' argument for mismatched episode, got %q", arg)
+		if arg == "--start=0" {
+			hasStartZero = true
 		}
+	}
+	if !hasStartZero {
+		t.Error("Expected '--start=0' argument for episode without resume position, but none was found")
 	}
 }
 

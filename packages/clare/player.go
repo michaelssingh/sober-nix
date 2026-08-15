@@ -524,6 +524,9 @@ local skip_times_json = %q
 	if startSeconds > 0 {
 		args = append(args, fmt.Sprintf("--start=%f", startSeconds))
 		debugLog("getMpvCmd: resuming episode %s at position %f seconds", epNo, startSeconds)
+	} else {
+		args = append(args, "--start=0")
+		debugLog("getMpvCmd: starting episode %s from the beginning (--start=0)", epNo)
 	}
 
 	playURL := streamURL
