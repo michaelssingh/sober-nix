@@ -23,6 +23,7 @@
       save-watch-history = "yes";
       write-filename-in-watch-later-config = "yes";
       ytdl-format = "bestvideo[height<=720][vcodec^=avc1]+bestaudio/best";
+      ytdl-raw-options = "cookies-from-browser=firefox";
       cache = "yes";
       demuxer-max-bytes = "150MiB";
       demuxer-max-back-bytes = "75MiB";
