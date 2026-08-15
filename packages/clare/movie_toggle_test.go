@@ -5,7 +5,7 @@ import (
 )
 
 func TestMovieToggleCompleted(t *testing.T) {
-	movieShowID := "flikhub:movie:12345"
+	movieShowID := "vidsrc:movie:12345"
 
 	m := initialModel("", "sub", "best", false)
 
@@ -41,7 +41,7 @@ func TestMovieToggleCompleted(t *testing.T) {
 }
 
 func TestMovieEpisodeTitleFormatting(t *testing.T) {
-	movieShowID := "flikhub:movie:blade-runner-2049"
+	movieShowID := "vidsrc:movie:blade-runner-2049"
 
 	m := initialModel("", "sub", "best", false)
 	m.selectedShow = AnimeShow{

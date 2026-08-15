@@ -49,7 +49,7 @@ func isMovieMedia(showType, showID, epNo string) bool {
 	if strings.EqualFold(showType, "MOVIE") || strings.EqualFold(showType, string(MediaTypeMovie)) {
 		return true
 	}
-	if strings.HasPrefix(showID, "vidsrc:movie") || strings.HasPrefix(showID, "flikhub:movie") || strings.Contains(showID, ":movie:") {
+	if strings.HasPrefix(showID, "vidsrc:movie") || strings.Contains(showID, ":movie:") {
 		return true
 	}
 	if strings.EqualFold(epNo, "Movie") || strings.EqualFold(epNo, "Full Movie") {

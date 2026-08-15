@@ -431,7 +431,7 @@ local skip_times_json = %q
 		referer = "https://www.mp4upload.com/"
 	} else if strings.Contains(streamURL, "fast4speed") {
 		referer = ""
-	} else if strings.Contains(streamURL, "flikhub") || strings.Contains(streamURL, "kotocdn") || strings.Contains(streamURL, "megap") {
+	} else if strings.Contains(streamURL, "kotocdn") || strings.Contains(streamURL, "megap") {
 		referer = "https://megaplay.buzz/"
 	} else if strings.Contains(streamURL, "allanime") || strings.Contains(streamURL, "alltropic") || strings.Contains(streamURL, "ok.ru") {
 		referer = "https://youtu-chan.com/"
@@ -481,7 +481,6 @@ local skip_times_json = %q
 		strings.Contains(streamURL, "nextgen") ||
 		strings.Contains(streamURL, "vaplayer") ||
 		strings.Contains(streamURL, "kotocdn") ||
-		strings.Contains(streamURL, "flikhub") ||
 		strings.Contains(streamURL, "megap")
 
 	if isDirectHLS {
@@ -535,7 +534,7 @@ local skip_times_json = %q
 	}
 
 	playURL := streamURL
-	if strings.Contains(streamURL, "flikhub") || strings.Contains(streamURL, "kotocdn") {
+	if strings.Contains(streamURL, "kotocdn") {
 		if sanitizedFile, err := SanitizeM3U8Playlist(streamURL, map[string]string{"Referer": referer, "User-Agent": UserAgent}); err == nil && sanitizedFile != "" {
 			playURL = sanitizedFile
 			debugLog("getMpvCmd: using sanitized local m3u8 playlist file/URL: %s", playURL)
@@ -551,7 +550,7 @@ local skip_times_json = %q
 }
 
 func SanitizeM3U8Playlist(streamURL string, headers map[string]string) (string, error) {
-	if !strings.Contains(streamURL, "kotocdn") && !strings.Contains(streamURL, "flikhub") {
+	if !strings.Contains(streamURL, "kotocdn") {
 		return "", fmt.Errorf("sanitization not needed for non-ad streams")
 	}
 
@@ -659,7 +658,7 @@ func downloadCmd(streamURL, title, epNo string) *exec.Cmd {
 		referer = "https://www.mp4upload.com/"
 	} else if strings.Contains(streamURL, "fast4speed") {
 		referer = ""
-	} else if strings.Contains(streamURL, "flikhub") || strings.Contains(streamURL, "kotocdn") || strings.Contains(streamURL, "megap") {
+	} else if strings.Contains(streamURL, "kotocdn") || strings.Contains(streamURL, "megap") {
 		referer = "https://megaplay.buzz/"
 	} else if strings.Contains(streamURL, "allanime") || strings.Contains(streamURL, "alltropic") || strings.Contains(streamURL, "ok.ru") {
 		referer = "https://youtu-chan.com/"

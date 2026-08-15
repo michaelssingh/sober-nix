@@ -118,8 +118,7 @@ func (m *model) refreshEpisodeListItems() {
 		title := ""
 		desc := ""
 		isMovieMedia := strings.EqualFold(m.selectedShow.Type, "MOVIE") ||
-			strings.HasPrefix(m.selectedShow.ID, "vidsrc:movie") ||
-			strings.HasPrefix(m.selectedShow.ID, "flikhub:movie")
+			strings.HasPrefix(m.selectedShow.ID, "vidsrc:movie")
 
 		if isMovieMedia && ep == "1" {
 			title = "Full Movie"

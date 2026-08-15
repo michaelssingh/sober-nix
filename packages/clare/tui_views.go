@@ -85,28 +85,6 @@ func (m model) renderShowDetailsPanel(show AnimeShow, coverArtAnsi string, width
 	b.WriteString(strings.Join(visibleSynLines, "\n"))
 
 	content := b.String()
-	if coverArtAnsi != "" && coverArtAnsi != "Loading..." {
-		artLines := strings.Split(coverArtAnsi, "\n")
-		textLines := strings.Split(content, "\n")
-		maxL := len(artLines)
-		if len(textLines) > maxL {
-			maxL = len(textLines)
-		}
-		var joined []string
-		for i := 0; i < maxL; i++ {
-			artL := ""
-			if i < len(artLines) {
-				artL = artLines[i]
-			}
-			textL := ""
-			if i < len(textLines) {
-				textL = textLines[i]
-			}
-			joined = append(joined, fmt.Sprintf("%-20s  %s", artL, textL))
-		}
-		content = strings.Join(joined, "\n")
-	}
-
 	return borderStyle.Render(content)
 }
 

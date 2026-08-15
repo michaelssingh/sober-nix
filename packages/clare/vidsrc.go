@@ -82,7 +82,6 @@ func (p *VidSrcProvider) Search(query, mode string) ([]AnimeShow, error) {
 
 func (p *VidSrcProvider) FetchEpisodes(showID, mode string) (AnimeShow, []string, error) {
 	cleanID := strings.TrimPrefix(showID, "vidsrc:")
-	cleanID = strings.TrimPrefix(cleanID, "flikhub:")
 	parts := strings.Split(cleanID, ":")
 	var mediaType, tmdbID string
 	if len(parts) >= 2 {
@@ -236,7 +235,6 @@ func (p *VidSrcProvider) FetchEpisodes(showID, mode string) (AnimeShow, []string
 
 func (p *VidSrcProvider) ResolveStreams(showID, mode, episodeNo, quality string) ([]ResolvedStream, error) {
 	cleanID := strings.TrimPrefix(showID, "vidsrc:")
-	cleanID = strings.TrimPrefix(cleanID, "flikhub:")
 	parts := strings.Split(cleanID, ":")
 	var mediaType, tmdbID string
 	if len(parts) >= 2 {

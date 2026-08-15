@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"html"
@@ -3492,40 +3491,7 @@ func doFetchShowDetails(showID string) tea.Cmd {
 }
 
 func doFetchCoverArt(showID, urlStr string, width, height int) tea.Cmd {
-	if showID == "" || urlStr == "" {
-		return nil
-	}
-	return func() tea.Msg {
-		cacheDir := filepath.Join(os.TempDir(), "clare_cover_cache")
-		_ = os.MkdirAll(cacheDir, 0755)
-
-		hash := fmt.Sprintf("%x", sha256.Sum256([]byte(urlStr)))
-		imgPath := filepath.Join(cacheDir, hash+".jpg")
-
-		if _, err := os.Stat(imgPath); os.IsNotExist(err) {
-			client := &http.Client{Timeout: 10 * time.Second}
-			resp, err := client.Get(urlStr)
-			if err != nil || resp.StatusCode != 200 {
-				return CoverArtLoadedMsg{ShowID: showID, Ansi: ""}
-			}
-			defer resp.Body.Close()
-			out, err := os.Create(imgPath)
-			if err != nil {
-				return CoverArtLoadedMsg{ShowID: showID, Ansi: ""}
-			}
-			_, _ = io.Copy(out, resp.Body)
-			_ = out.Close()
-		}
-
-		sizeArg := fmt.Sprintf("%dx%d", width, height)
-		cmd := exec.Command("chafa", "-s", sizeArg, imgPath)
-		out, err := cmd.Output()
-		if err != nil {
-			return CoverArtLoadedMsg{ShowID: showID, Ansi: ""}
-		}
-
-		return CoverArtLoadedMsg{ShowID: showID, Ansi: string(out)}
-	}
+	return nil
 }
 
 

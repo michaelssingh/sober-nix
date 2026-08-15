@@ -28,7 +28,7 @@ func main() {
 
 	searchQuery := flag.String("s", "", "Search query for anime")
 	episodeNum := flag.String("e", "", "Episode number to play")
-	providerFlag := flag.String("p", "", "Provider to use: allanime, flikhub, etc.")
+	providerFlag := flag.String("p", "", "Provider to use: allanime, vidsrc, etc.")
 	modeFlag := flag.String("m", "sub", "Mode: sub or dub")
 	qualityFlag := flag.String("q", "best", "Quality: best, worst, 1080p, 720p, etc.")
 	downloadFlag := flag.Bool("d", false, "Download the episode instead of playing")

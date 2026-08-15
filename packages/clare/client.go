@@ -370,7 +370,7 @@ func fetchEpisodeList(showID, mode string) (AnimeShow, []string, error) {
 		// Infer provider by showID format or prefix
 		if strings.HasPrefix(showID, "anidb:") {
 			provider = "anidb"
-		} else if strings.HasPrefix(showID, "flikhub:") || strings.HasPrefix(showID, "vidsrc:") {
+		} else if strings.HasPrefix(showID, "vidsrc:") {
 			provider = "vidsrc"
 		} else if strings.HasPrefix(showID, "allanime:") {
 			provider = "allanime"
