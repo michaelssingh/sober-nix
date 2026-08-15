@@ -11,8 +11,6 @@ let
   magentaRgb = lib.strings.removePrefix "#" colors.magenta;
   borderRgb = lib.strings.removePrefix "#" colors.border;
   blackRgb = lib.strings.removePrefix "#" colors.black;
-  bgDarkRgb = lib.strings.removePrefix "#" colors.bg_dark;
-  fgRgb = lib.strings.removePrefix "#" colors.fg;
 in
 {
   imports = [
@@ -265,30 +263,6 @@ in
         layout = "dwindle";
       };
 
-      # Window Grouping & Stacking Bar
-      group = {
-        "col.border_active" = "rgba(${accentRgb}ee)";
-        "col.border_inactive" = "rgba(${borderRgb}aa)";
-        groupbar = {
-          enabled = true;
-          font_family = "FiraCode Nerd Font";
-          font_size = 10;
-          text_color = "rgba(${fgRgb}ff)";
-          "col.active" = "rgba(${accentRgb}ee)";
-          "col.inactive" = "rgba(${bgDarkRgb}aa)";
-          height = 20;
-          render_titles = true;
-        };
-      };
-
-      # Master / Scrolling Layout Settings
-      master = {
-        new_status = "master";
-        new_on_top = true;
-        mfact = 0.55;
-        orientation = "left";
-      };
-
       decoration = {
         rounding = 8;
         active_opacity = 1.0;
@@ -354,23 +328,6 @@ in
         ", Print, exec, hyprshot -m output -o ~/Pictures/Screenshots"
         "$mainMod, Print, exec, hyprshot -m window -o ~/Pictures/Screenshots"
         "$mainMod SHIFT, Print, exec, hyprshot -m region -o ~/Pictures/Screenshots"
-
-        # --- STACKING / TABBED LAYOUT (WINDOW GROUPS) ---
-        "$mainMod, G, togglegroup,"
-        "$mainMod, TAB, changegroupactive, f"
-        "$mainMod SHIFT, TAB, changegroupactive, b"
-        "$mainMod CTRL, G, moveoutofgroup,"
-        "$mainMod ALT, h, moveintogroup, l"
-        "$mainMod ALT, l, moveintogroup, r"
-        "$mainMod ALT, k, moveintogroup, u"
-        "$mainMod ALT, j, moveintogroup, d"
-
-        # --- SCROLLING / MASTER LAYOUT ---
-        "$mainMod, M, exec, hyprctl keyword general:layout master"
-        "$mainMod SHIFT, M, exec, hyprctl keyword general:layout dwindle"
-        "$mainMod CTRL, M, layoutmsg, swapwithmaster"
-        "$mainMod, R, layoutmsg, orientationnext"
-        "$mainMod, I, layoutmsg, addmaster"
 
         # --- SCRATCHPAD LAYOUT (SPECIAL WORKSPACES) ---
         # Upstream Default Hyprland Scratchpad Shortcuts
