@@ -351,7 +351,6 @@ in
         # Screenshots
         ", Print, exec, hyprshot -m output -o ~/Pictures/Screenshots"
         "$mainMod, Print, exec, hyprshot -m window -o ~/Pictures/Screenshots"
-        "$mainMod SHIFT, S, exec, hyprshot -m region -o ~/Pictures/Screenshots"
         "$mainMod SHIFT, Print, exec, hyprshot -m region -o ~/Pictures/Screenshots"
 
         # --- STACKING / TABBED LAYOUT (WINDOW GROUPS) ---
@@ -372,6 +371,10 @@ in
         "$mainMod, I, layoutmsg, addmaster"
 
         # --- SCRATCHPAD LAYOUT (SPECIAL WORKSPACES) ---
+        # Upstream Default Hyprland Scratchpad Shortcuts
+        "$mainMod, S, togglespecialworkspace, magic"
+        "$mainMod SHIFT, S, movetoworkspace, special:magic"
+        # Additional Scratchpad Shortcuts
         "$mainMod, MINUS, togglespecialworkspace, scratchpad"
         "$mainMod SHIFT, MINUS, movetoworkspace, special:scratchpad"
         "$mainMod, GRAVE, togglespecialworkspace, term"
