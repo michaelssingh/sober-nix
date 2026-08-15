@@ -1719,11 +1719,7 @@
     title = "USENIX";
     tags = [ "youtube" ];
   }
-  {
-    id = "UC7ewGcGDHSuyQMHv-wPshzQ";
-    title = "VanessaFortnite";
-    tags = [ "youtube" ];
-  }
+
   {
     id = "UCvNqQTS9o5CHFayO7i8xUJw";
     title = "VAULT";

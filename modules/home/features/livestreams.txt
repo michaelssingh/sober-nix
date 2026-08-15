@@ -10,14 +10,14 @@ BBC World Service|http://stream.live.vc.bbcmedia.co.uk/bbc_world_service
 Democracy Now!|http://streams.kpfa.org:8000/pacifica_one
 NASA Third Rock Radio|http://rfcmedia.streamguys1.com/thirdrock.mp3
 SomaFM Mission Control|http://ice1.somafm.com/missioncontrol-128-mp3
-France 24|https://static.france24.com/live/F24_EN_LO_HLS/index.m3u8
+France 24|https://www.youtube.com/@France24_en/live
 
 # Focus / Study / ADHD Audio
 SomaFM Groove Salad|http://ice1.somafm.com/groovesalad-128-mp3
 SomaFM Drone Zone|http://ice1.somafm.com/dronezone-128-mp3
 SomaFM Deep Space One|http://ice1.somafm.com/deepspaceone-128-mp3
 SomaFM DEF CON Radio|http://ice1.somafm.com/defcon-128-mp3
-Lofi Girl - Study Beats|https://www.youtube.com/watch?v=jfKfPfyJRdk
+Lofi Girl - Study Beats|https://www.youtube.com/@LofiGirl/live
 Lofi Girl - Chill Synthwave|https://www.youtube.com/watch?v=4xDzrJKXOOY
 ADHD Binaural Beats 40Hz Gamma|https://www.youtube.com/watch?v=17X2xX4q2c8
 Deep Brown Noise Focus|https://www.youtube.com/watch?v=RqzGzwTY-6w
