@@ -200,9 +200,19 @@ _:
 
       # --- DevOps / Cloud Infrastructure / Platform Engineering Jobs ---
       {
+        url = "https://himalayas.app/jobs/rss";
+        tags = [
+          "jobs"
+          "global"
+          "devops"
+          "cloud"
+        ];
+      }
+      {
         url = "https://weworkremotely.com/categories/remote-devops-sysadmin-jobs.rss";
         tags = [
           "jobs"
+          "global"
           "devops"
           "sysadmin"
         ];
@@ -211,6 +221,7 @@ _:
         url = "https://remotive.com/remote-jobs/devops/feed";
         tags = [
           "jobs"
+          "global"
           "devops"
           "cloud"
         ];
@@ -219,6 +230,7 @@ _:
         url = "https://jobspresso.co/category/devops/feed/";
         tags = [
           "jobs"
+          "global"
           "devops"
           "infrastructure"
         ];
@@ -227,6 +239,7 @@ _:
         url = "https://hnrss.org/jobs";
         tags = [
           "jobs"
+          "global"
           "tech"
         ];
       }
