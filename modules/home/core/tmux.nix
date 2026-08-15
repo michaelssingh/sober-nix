@@ -42,17 +42,17 @@
         set -as terminal-overrides ",ghostty:HLS=\E]8;%p1%s;%p2%s\E\\,foot:HLS=\E]8;%p1%s;%p2%s\E\\"
         set -g default-terminal "tmux-256color"
 
-        # --- Official Tokyo Night Tmux Styling (Ref: extras/tmux/) ---
-        set -g mode-style "fg=${colors.blue},bg=${colors.bg_highlight}"
-        set -g message-style "fg=${colors.blue},bg=${colors.bg_highlight}"
-        set -g message-command-style "fg=${colors.blue},bg=${colors.bg_highlight}"
+        # --- Unified sober.theme Tmux Styling ---
+        set -g mode-style "fg=${colors.black},bg=${colors.accent},bold"
+        set -g message-style "fg=${colors.black},bg=${colors.magenta},bold"
+        set -g message-command-style "fg=${colors.black},bg=${colors.cyan},bold"
 
         set -g pane-border-style "fg=${colors.bg_highlight}"
-        set -g pane-active-border-style "fg=${colors.blue}"
+        set -g pane-active-border-style "fg=${colors.accent}"
 
         set -g status "on"
         set -g status-justify "left"
-        set -g status-style "fg=${colors.blue},bg=${colors.bg}"
+        set -g status-style "fg=${colors.fg},bg=${colors.bg_dark}"
 
         set -g status-left-length "100"
         set -g status-right-length "100"
@@ -60,15 +60,15 @@
         set -g status-left-style NONE
         set -g status-right-style NONE
 
-        set -g status-left "#[fg=${colors.black},bg=${colors.blue},bold] #S #[fg=${colors.blue},bg=${colors.bg},nobold,nounderscore,noitalics]"
+        set -g status-left "#[fg=${colors.black},bg=${colors.magenta},bold] #S #[fg=${colors.magenta},bg=${colors.bg_dark},nobold,nounderscore,noitalics]"
 
-        set -g status-right "#[fg=${colors.bg},bg=${colors.bg},nobold,nounderscore,noitalics]#[fg=${colors.blue},bg=${colors.bg}] #{prefix_highlight} #[fg=${colors.bg_highlight},bg=${colors.bg},nobold,nounderscore,noitalics]#[fg=${colors.blue},bg=${colors.bg_highlight}] %Y-%m-%d  %H:%M #[fg=${colors.blue},bg=${colors.bg_highlight},nobold,nounderscore,noitalics]#[fg=${colors.black},bg=${colors.blue},bold] #h "
+        set -g status-right "#[fg=${colors.bg_dark},bg=${colors.bg_dark},nobold,nounderscore,noitalics]#[fg=${colors.cyan},bg=${colors.bg_dark}] #{prefix_highlight} #[fg=${colors.bg_visual},bg=${colors.bg_dark},nobold,nounderscore,noitalics]#[fg=${colors.fg},bg=${colors.bg_visual}] %Y-%m-%d  %H:%M #[fg=${colors.accent},bg=${colors.bg_visual},nobold,nounderscore,noitalics]#[fg=${colors.black},bg=${colors.accent},bold] #h "
 
-        setw -g window-status-activity-style "underscore,fg=${colors.fg_dark},bg=${colors.bg}"
+        setw -g window-status-activity-style "underscore,fg=${colors.cyan},bg=${colors.bg_dark}"
         setw -g window-status-separator ""
-        setw -g window-status-style "NONE,fg=${colors.fg_dark},bg=${colors.bg}"
-        setw -g window-status-format "#[fg=${colors.bg},bg=${colors.bg},nobold,nounderscore,noitalics]#[default] #I  #W #F #[fg=${colors.bg},bg=${colors.bg},nobold,nounderscore,noitalics]"
-        setw -g window-status-current-format "#[fg=${colors.bg},bg=${colors.bg_highlight},nobold,nounderscore,noitalics]#[fg=${colors.blue},bg=${colors.bg_highlight},bold] #I  #W #F #[fg=${colors.bg_highlight},bg=${colors.bg},nobold,nounderscore,noitalics]"
+        setw -g window-status-style "NONE,fg=${colors.fg_dark},bg=${colors.bg_dark}"
+        setw -g window-status-format "#[fg=${colors.bg_dark},bg=${colors.bg_dark},nobold,nounderscore,noitalics]#[default] #I  #W #F #[fg=${colors.bg_dark},bg=${colors.bg_dark},nobold,nounderscore,noitalics]"
+        setw -g window-status-current-format "#[fg=${colors.bg_dark},bg=${colors.bg_visual},nobold,nounderscore,noitalics]#[fg=${colors.cyan},bg=${colors.bg_visual},bold] #I  #W #F #[fg=${colors.bg_visual},bg=${colors.bg_dark},nobold,nounderscore,noitalics]"
 
         # --- Keybindings ---
         bind-key C-a send-prefix
