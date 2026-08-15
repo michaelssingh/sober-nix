@@ -1,6 +1,11 @@
 { pkgs, ... }:
 
 {
+  # Disable kernel ALSA power save to prevent DAC power down / speaker popping
+  boot.extraModprobeConfig = ''
+    options snd_hda_intel power_save=0 power_save_controller=N
+  '';
+
   # --- 1. Sound (Pipewire) ---
   security.rtkit.enable = true;
   services.pipewire = {
@@ -9,6 +14,26 @@
     alsa.support32Bit = true;
     pulse.enable = true;
     jack.enable = true;
+
+    wireplumber = {
+      enable = true;
+      extraConfig = {
+        "10-disable-suspend" = {
+          "monitor.alsa.rules" = [
+            {
+              matches = [
+                { "node.name" = "~alsa_output.*"; }
+              ];
+              actions = {
+                update-props = {
+                  "session.suspend-timeout-seconds" = 0;
+                };
+              };
+            }
+          ];
+        };
+      };
+    };
 
     extraConfig.pipewire."99-input-agc-denoise" = {
       "context.modules" = [
