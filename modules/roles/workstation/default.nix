@@ -19,6 +19,8 @@
             "source.props" = {
               "node.name" = "echo_cancelled_source";
               "node.description" = "Microphone (AGC & Noise Cancellation)";
+              "priority.driver" = 2000;
+              "priority.session" = 2000;
             };
             "aec.args" = {
               "webrtc.gain_control" = true;
