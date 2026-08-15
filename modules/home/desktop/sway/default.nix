@@ -4,7 +4,7 @@
     ./components/main.nix
     ./components/terminal.nix
     ./components/launcher.nix
-    ./components/mako.nix
+    ../mako.nix
     ../waybar.nix
   ];
 

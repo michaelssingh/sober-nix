@@ -17,7 +17,7 @@ in
     ./hyprlock.nix
     ./hypridle.nix
     ./hyprpaper.nix
-    ./swaync.nix
+    ../mako.nix
     ../waybar.nix
   ];
 
@@ -28,7 +28,8 @@ in
     hypridle
     hyprpicker
     hyprshot
-    swaynotificationcenter
+    mako
+    libnotify
     rofi
     grim
     slurp
@@ -238,7 +239,7 @@ in
         "hyprctl dispatch exec [workspace 10] 'zathura \"/home/michael/git/books/programming-languages/K&R.epub\"'"
         "hyprctl dispatch exec [workspace 10] 'ghostty -e attach-tmux hack'"
         "${pkgs.hypridle}/bin/hypridle"
-        "${pkgs.swaynotificationcenter}/bin/swaync"
+        "${pkgs.mako}/bin/mako"
       ];
 
       # Input Configuration (Fast keyboard repeat & touchpad matching Sway)
@@ -316,8 +317,8 @@ in
         "$mainMod, Q, killactive,"
         "$mainMod SHIFT, E, exit,"
         "$mainMod, D, exec, rofi -show drun"
-        "$mainMod, C, exec, swaync-client -t -sw"
-        "$mainMod SHIFT, N, exec, swaync-client -rs"
+        "$mainMod, C, exec, makoctl dismiss --all"
+        "$mainMod SHIFT, N, exec, makoctl restore"
         "$mainMod, F, togglefloating,"
         "$mainMod, SPACE, fullscreen, 0"
         "$mainMod, Escape, exec, hyprlock"
