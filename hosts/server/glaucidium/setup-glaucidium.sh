@@ -81,7 +81,7 @@ sudo ipset create vpn_bypass hash:ip 2>/dev/null || true
 
 sudo bash -c "cat << 'EOF' > /usr/local/bin/update-vpn-bypass.sh
 #!/bin/bash
-DOMAINS=\"imgur.com i.imgur.com reddit.com www.reddit.com v.redd.it i.redd.it anidb.net api.anidb.net proton.me mail.proton.me account.proton.me api.protonmail.ch protonmail.com\"
+DOMAINS=\"imgur.com i.imgur.com reddit.com www.reddit.com v.redd.it i.redd.it anidb.net api.anidb.net proton.me mail.proton.me account.proton.me api.protonmail.ch protonmail.com textnow.com www.textnow.com textnow.me api.textnow.me\"
 for domain in \$DOMAINS; do
   ips=\$(host -t A \$domain 1.1.1.1 2>/dev/null | grep \"has address\" | awk '{print \$NF}')
   for ip in \$ips; do
