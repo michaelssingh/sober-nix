@@ -263,6 +263,30 @@ in
         layout = "dwindle";
       };
 
+      # Window Grouping & Stacking Bar
+      group = {
+        "col.border_active" = "rgba(${accentRgb}ee)";
+        "col.border_inactive" = "rgba(${borderRgb}aa)";
+        groupbar = {
+          enabled = true;
+          font_family = "FiraCode Nerd Font";
+          font_size = 10;
+          text_color = "rgba(${colors.fg}ff)";
+          "col.active" = "rgba(${accentRgb}ee)";
+          "col.inactive" = "rgba(${colors.bg_dark}aa)";
+          height = 20;
+          render_titles = true;
+        };
+      };
+
+      # Master / Scrolling Layout Settings
+      master = {
+        new_status = "master";
+        new_on_top = true;
+        mfact = 0.55;
+        orientation = "left";
+      };
+
       decoration = {
         rounding = 8;
         active_opacity = 1.0;
@@ -300,6 +324,7 @@ in
           "border, 1, 1, liner"
           "fade, 1, 3, default"
           "workspaces, 1, 3, wind, slide"
+          "specialWorkspace, 1, 3, winIn, slidevert"
         ];
       };
 
@@ -328,6 +353,29 @@ in
         "$mainMod, Print, exec, hyprshot -m window -o ~/Pictures/Screenshots"
         "$mainMod SHIFT, S, exec, hyprshot -m region -o ~/Pictures/Screenshots"
         "$mainMod SHIFT, Print, exec, hyprshot -m region -o ~/Pictures/Screenshots"
+
+        # --- STACKING / TABBED LAYOUT (WINDOW GROUPS) ---
+        "$mainMod, G, togglegroup,"
+        "$mainMod, TAB, changegroupactive, f"
+        "$mainMod SHIFT, TAB, changegroupactive, b"
+        "$mainMod CTRL, G, moveoutofgroup,"
+        "$mainMod ALT, h, moveintogroup, l"
+        "$mainMod ALT, l, moveintogroup, r"
+        "$mainMod ALT, k, moveintogroup, u"
+        "$mainMod ALT, j, moveintogroup, d"
+
+        # --- SCROLLING / MASTER LAYOUT ---
+        "$mainMod, M, exec, hyprctl keyword general:layout master"
+        "$mainMod SHIFT, M, exec, hyprctl keyword general:layout dwindle"
+        "$mainMod CTRL, M, layoutmsg, swapwithmaster"
+        "$mainMod, R, layoutmsg, orientationnext"
+        "$mainMod, I, layoutmsg, addmaster"
+
+        # --- SCRATCHPAD LAYOUT (SPECIAL WORKSPACES) ---
+        "$mainMod, MINUS, togglespecialworkspace, scratchpad"
+        "$mainMod SHIFT, MINUS, movetoworkspace, special:scratchpad"
+        "$mainMod, GRAVE, togglespecialworkspace, term"
+        "$mainMod SHIFT, GRAVE, movetoworkspace, special:term"
 
         # Focus Navigation (Vim style + Arrows)
         "$mainMod, h, movefocus, l"
