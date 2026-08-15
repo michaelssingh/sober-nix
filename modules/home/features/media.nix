@@ -40,7 +40,7 @@ in
       name = "mpv-queue";
       runtimeInputs = [
         socat
-        mpv
+        libnotify
         coreutils
       ];
       text = ''
