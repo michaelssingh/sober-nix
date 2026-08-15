@@ -334,7 +334,7 @@ in
         "$mainMod, M, exec, hyprctl keyword general:layout master"
         "$mainMod SHIFT, M, exec, hyprctl keyword general:layout dwindle"
         "$mainMod ALT, M, layoutmsg, swapwithmaster"
-        "$mainMod, V, togglesplit,"
+        "$mainMod, V, layoutmsg, togglesplit"
 
         # Screenshots
         ", Print, exec, hyprshot -m output -o ~/Pictures/Screenshots"
