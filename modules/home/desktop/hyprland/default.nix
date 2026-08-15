@@ -376,13 +376,6 @@ in
         # Upstream Default Hyprland Scratchpad Shortcuts
         "$mainMod, S, togglespecialworkspace, magic"
         "$mainMod SHIFT, S, movetoworkspace, special:magic"
-        "$mainMod, T, movetoworkspace, e+0"
-        "$mainMod CTRL, S, movetoworkspace, e+0"
-        # Additional Scratchpad Shortcuts
-        "$mainMod, MINUS, togglespecialworkspace, scratchpad"
-        "$mainMod SHIFT, MINUS, movetoworkspace, special:scratchpad"
-        "$mainMod, GRAVE, togglespecialworkspace, term"
-        "$mainMod SHIFT, GRAVE, movetoworkspace, special:term"
 
         # Focus Navigation (Vim style + Arrows)
         "$mainMod, h, movefocus, l"
