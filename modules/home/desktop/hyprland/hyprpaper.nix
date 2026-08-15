@@ -10,7 +10,10 @@ in
       ipc = "on";
       splash = false;
       preload = [ "${wallpaper}" ];
-      wallpaper = [ ",${wallpaper}" ];
+      wallpaper = [
+        ",${wallpaper}"
+        "eDP-1,${wallpaper}"
+      ];
     };
   };
 }

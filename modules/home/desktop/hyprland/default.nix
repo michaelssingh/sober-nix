@@ -230,13 +230,13 @@ in
       exec-once = [
         "hyprctl setcursor rose-pine-hyprcursor 24"
         "systemctl --user import-environment WAYLAND_DISPLAY XDG_CURRENT_DESKTOP"
+        "systemctl --user start hyprpaper"
         "systemctl --user start tmux-autostart"
         "hyprctl dispatch exec [workspace 2] 'ghostty -e attach-tmux comms'"
         "hyprctl dispatch exec [workspace 3] 'qutebrowser'"
         "hyprctl dispatch exec [workspace 9] 'ghostty -e attach-tmux sys'"
         "hyprctl dispatch exec [workspace 10] 'zathura \"/home/michael/git/books/programming-languages/K&R.epub\"'"
         "hyprctl dispatch exec [workspace 10] 'ghostty -e attach-tmux hack'"
-        "${pkgs.hyprpaper}/bin/hyprpaper"
         "${pkgs.hypridle}/bin/hypridle"
         "${pkgs.swaynotificationcenter}/bin/swaync"
       ];
