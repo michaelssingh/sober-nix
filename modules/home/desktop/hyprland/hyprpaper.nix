@@ -7,12 +7,6 @@ let
     "${animeDir}/edgerunners_moon.jpg"
     "${animeDir}/edgerunners_dark.png"
     "${animeDir}/edgerunners_cyan.png"
-    "${animeDir}/clare_dark.png"
-    "${animeDir}/clare_night.png"
-    "${animeDir}/akudama_neon.png"
-    "${animeDir}/akudama_dark.png"
-    "${animeDir}/fmab_dark.png"
-    "${animeDir}/fmab_blue.png"
   ];
   initialWallpaper = "${animeDir}/user_lucy.jpg";
 
