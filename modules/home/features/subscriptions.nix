@@ -312,11 +312,6 @@
     ];
   }
   {
-    id = "UC7BjFZywGHiqWdEF7SnQ7hQ";
-    title = "Google Open Source";
-    tags = [ "tech" ];
-  }
-  {
     id = "UC7HcWhSetq6nTlpMXPHKz_A";
     title = "Continuous Delivery Foundation";
     tags = [ "tech" ];

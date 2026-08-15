@@ -21,15 +21,6 @@ _:
         ];
       }
       {
-        url = "https://www.usenix.org/conferences/rss";
-        tags = [
-          "tech"
-          "papers"
-          "osdi"
-          "nsdi"
-        ];
-      }
-      {
         url = "https://research.google/blog/rss/";
         tags = [
           "tech"
@@ -134,14 +125,6 @@ _:
         tags = [
           "tech"
           "distributed-systems"
-        ];
-      }
-      {
-        url = "https://cloud.google.com/blog/products/devops-sre/feed";
-        tags = [
-          "tech"
-          "sre"
-          "cloud"
         ];
       }
       {
