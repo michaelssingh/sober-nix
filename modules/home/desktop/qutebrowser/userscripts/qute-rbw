@@ -29,7 +29,7 @@ def main():
         res = subprocess.run(['rbw', 'list'], capture_output=True, text=True, check=True)
         entries = [e.strip() for e in res.stdout.strip().split('\n') if e.strip()]
     except Exception as e:
-        send_qute_command(f"message-error 'rbw failed: {e}'")
+        send_qute_command(f"message-error 'rbw list failed: {e}'")
         sys.exit(1)
 
     if not entries:
@@ -66,18 +66,15 @@ def main():
     try:
         password = subprocess.run(['rbw', 'get', selected_entry], capture_output=True, text=True, check=True).stdout.strip()
         
+        # Try fetching username field directly from rbw entry
         user = ""
-        if '/' in selected_entry:
+        user_res = subprocess.run(['rbw', 'get', selected_entry, '--field', 'username'], capture_output=True, text=True)
+        if user_res.returncode == 0 and user_res.stdout.strip():
+            user = user_res.stdout.strip()
+        elif '/' in selected_entry:
             user = selected_entry.split('/')[-1]
         elif '@' in selected_entry:
             user = selected_entry.split('@')[0]
-        else:
-            try:
-                user_res = subprocess.run(['rbw', 'get', selected_entry, '--field', 'username'], capture_output=True, text=True)
-                if user_res.returncode == 0 and user_res.stdout.strip():
-                    user = user_res.stdout.strip()
-            except Exception:
-                pass
 
         # 4. Fill into Qutebrowser via fake-key
         if user:
@@ -85,16 +82,13 @@ def main():
             send_qute_command("fake-key <Tab>")
         send_qute_command(f"fake-key {password}")
 
-        # 5. Check if TOTP code exists and copy to clipboard
-        try:
-            code_res = subprocess.run(['rbw', 'code', selected_entry], capture_output=True, text=True)
-            if code_res.returncode == 0 and code_res.stdout.strip():
-                totp = code_res.stdout.strip()
-                subprocess.run(['wl-copy', totp], check=False)
-                send_qute_command(f"message-info 'Logged in as {user or selected_entry} (2FA TOTP {totp} copied to clipboard!)'")
-            else:
-                send_qute_command(f"message-info 'Logged in as {user or selected_entry}'")
-        except Exception:
+        # 5. Check 2FA TOTP code and copy to clipboard
+        code_res = subprocess.run(['rbw', 'code', selected_entry], capture_output=True, text=True)
+        if code_res.returncode == 0 and code_res.stdout.strip():
+            totp = code_res.stdout.strip()
+            subprocess.run(['wl-copy', totp], check=False)
+            send_qute_command(f"message-info 'Logged in as {user or selected_entry} (2FA TOTP {totp} copied to clipboard!)'")
+        else:
             send_qute_command(f"message-info 'Logged in as {user or selected_entry}'")
 
     except Exception as e:
