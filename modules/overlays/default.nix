@@ -126,6 +126,16 @@
             )
             with open(path, "w") as f:
                 f.write(content)
+
+        path_menu = "castero/menu.py"
+        with open(path_menu, "r") as f:
+            mcontent = f.read()
+        mcontent = mcontent.replace(
+            "            if self._active:\n                attr = curses.color_pair(2)\n            else:\n                attr = curses.color_pair(4)",
+            "            attr = curses.color_pair(4) | curses.A_BOLD"
+        )
+        with open(path_menu, "w") as f:
+            f.write(mcontent)
         '
       '';
     });
