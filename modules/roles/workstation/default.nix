@@ -9,6 +9,27 @@
     alsa.support32Bit = true;
     pulse.enable = true;
     jack.enable = true;
+
+    extraConfig.pipewire."99-input-agc-denoise" = {
+      "context.modules" = [
+        {
+          name = "libpipewire-module-echo-cancel";
+          args = {
+            "monitor.mode" = true;
+            "source.props" = {
+              "node.name" = "echo_cancelled_source";
+              "node.description" = "Microphone (AGC & Noise Cancellation)";
+            };
+            "aec.args" = {
+              "webrtc.gain_control" = true;
+              "webrtc.extended_filter" = true;
+              "webrtc.noise_suppression" = true;
+              "webrtc.voice_detection" = true;
+            };
+          };
+        }
+      ];
+    };
   };
 
   # --- 2. Graphics (Hardware Acceleration) ---
