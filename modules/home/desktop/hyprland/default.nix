@@ -103,6 +103,97 @@ in
   programs.rofi = {
     enable = true;
     terminal = "${pkgs.ghostty}/bin/ghostty";
+    theme =
+      let
+        inherit (config.lib.formats.rasi) mkLiteral;
+      in
+      {
+        "*" = {
+          bg = mkLiteral "${colors.bg_dark}ee";
+          bg-alt = mkLiteral "${colors.bg_visual}";
+          fg = mkLiteral "${colors.fg}";
+          fg-alt = mkLiteral "${colors.fg_dark}";
+          accent = mkLiteral "${colors.accent}";
+          border-color = mkLiteral "${colors.accent}";
+
+          background-color = mkLiteral "transparent";
+          text-color = mkLiteral "@fg";
+          margin = 0;
+          padding = 0;
+          spacing = 0;
+        };
+
+        "window" = {
+          width = mkLiteral "45%";
+          border = mkLiteral "2px";
+          border-radius = mkLiteral "12px";
+          border-color = mkLiteral "@accent";
+          background-color = mkLiteral "@bg";
+          padding = mkLiteral "16px";
+        };
+
+        "mainbox" = {
+          background-color = mkLiteral "transparent";
+          children = map mkLiteral [
+            "inputbar"
+            "listview"
+          ];
+        };
+
+        "inputbar" = {
+          background-color = mkLiteral "@bg-alt";
+          border-radius = mkLiteral "8px";
+          padding = mkLiteral "8px 12px";
+          margin = mkLiteral "0 0 12px 0";
+          children = map mkLiteral [
+            "prompt"
+            "entry"
+          ];
+        };
+
+        "prompt" = {
+          background-color = mkLiteral "transparent";
+          text-color = mkLiteral "@accent";
+          padding = mkLiteral "0 8px 0 0";
+        };
+
+        "entry" = {
+          background-color = mkLiteral "transparent";
+          text-color = mkLiteral "@fg";
+          placeholder-color = mkLiteral "@fg-alt";
+        };
+
+        "listview" = {
+          background-color = mkLiteral "transparent";
+          lines = 8;
+          columns = 1;
+          spacing = mkLiteral "4px";
+        };
+
+        "element" = {
+          background-color = mkLiteral "transparent";
+          text-color = mkLiteral "@fg";
+          border-radius = mkLiteral "6px";
+          padding = mkLiteral "8px 12px";
+        };
+
+        "element selected" = {
+          background-color = mkLiteral "@accent";
+          text-color = mkLiteral "${colors.black}";
+        };
+
+        "element-text" = {
+          background-color = mkLiteral "transparent";
+          text-color = mkLiteral "inherit";
+          vertical-align = mkLiteral "0.5";
+        };
+
+        "element-icon" = {
+          background-color = mkLiteral "transparent";
+          size = mkLiteral "24px";
+          margin = mkLiteral "0 10px 0 0";
+        };
+      };
   };
 
   wayland.windowManager.hyprland = {
