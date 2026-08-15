@@ -56,6 +56,9 @@ in
       };
 
       fonts.default_family = "FiraCode Nerd Font Mono";
+      qt.args = [
+        "disable-gpu-compositing"
+      ];
     };
 
     searchEngines = {
