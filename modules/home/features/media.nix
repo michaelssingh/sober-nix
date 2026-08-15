@@ -64,10 +64,14 @@ in
           # Already running: just append the target
           if [ -n "$TARGET" ]; then
             echo "{ \"command\": [\"loadfile\", \"$TARGET\", \"append-play\"] }" | socat -t 1 - "$SOCKET"
+            notify-send -a "MPV" "Enqueued Video" "Appended stream to active MPV queue" -t 3000 2>/dev/null || true
           fi
         else
-          # Not running: start fresh
+          # Not running or stale socket: start fresh
           rm -f "$SOCKET"
+          if [ -n "$TARGET" ]; then
+            notify-send -a "MPV" "Opening Video" "Loading stream in MPV..." -t 3000 2>/dev/null || true
+          fi
           # Launch detached
           nohup mpv --idle=yes --input-ipc-server="$SOCKET" --force-window=yes --really-quiet "''${args[@]}" "$TARGET" >/dev/null 2>&1 </dev/null &
           
