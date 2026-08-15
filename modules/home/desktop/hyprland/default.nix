@@ -90,6 +90,7 @@ in
       mouse-scroll-multiplier = 0.4;
       window-decoration = false;
       confirm-close-surface = false;
+      resize-overlay = "never";
     };
   };
 
@@ -308,6 +309,11 @@ in
         preserve_split = true;
       };
 
+      misc = {
+        animate_manual_resizes = false;
+        animate_mouse_windowdragging = false;
+      };
+
       # Keybindings
       bind = [
         # Core Shortcuts
@@ -403,6 +409,7 @@ in
       windowrule = workspace 10, match:class ^(org.pwmt.zathura)$
       windowrule = float 1, match:class ^(pavucontrol)$
       windowrule = float 1, match:title ^(Picture-in-Picture)$
+      windowrule = noanim, match:class ^(com.mitchellh.ghostty)$
     '';
   };
 }
