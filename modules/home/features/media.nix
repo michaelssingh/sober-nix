@@ -135,7 +135,7 @@ in
 
       [colors]
       color_foreground = ${if theme.isDark then "cyan" else "blue"}
-      color_background = transparent
+      color_background = ${if theme.isDark then "black" else "white"}
       color_foreground_alt = ${if theme.isDark then "black" else "white"}
       color_background_alt = ${if theme.isDark then "blue" else "cyan"}
       color_foreground_dim = ${if theme.isDark then "black" else "white"}
