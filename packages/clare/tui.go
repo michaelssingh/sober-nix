@@ -3039,8 +3039,9 @@ func doPreparePlayback(selectedShow AnimeShow, epNo, epTitle, mode, quality stri
 			return resolvedPlaybackMsg{cmd: cmd, err: nil}
 		}
 
+		isMovie := isMovieMedia(selectedShow.Type, selectedShow.ID, epNo)
 		resolvedEpTitle := epTitle
-		if resolvedEpTitle == "" && epNo != "" && !strings.EqualFold(epNo, "Movie") {
+		if !isMovie && resolvedEpTitle == "" && epNo != "" {
 			// 1. Try disk cache
 			if cacheData, err := loadEpisodeMetadataCache(selectedShow.ID, selectedShow.MALID); err == nil && len(cacheData) > 0 {
 				if info, ok := cacheData[epNo]; ok && info.Title != "" {
@@ -3101,10 +3102,12 @@ func doPreparePlayback(selectedShow AnimeShow, epNo, epTitle, mode, quality stri
 		}
 
 		showTitle := selectedShow.Name
-		if resolvedEpTitle != "" {
-			showTitle = fmt.Sprintf("%s - Ep %s: %s", selectedShow.Name, epNo, resolvedEpTitle)
-		} else if epNo != "" && !strings.EqualFold(epNo, "Movie") {
-			showTitle = fmt.Sprintf("%s - Ep %s", selectedShow.Name, epNo)
+		if !isMovie {
+			if resolvedEpTitle != "" {
+				showTitle = fmt.Sprintf("%s - Ep %s: %s", selectedShow.Name, epNo, resolvedEpTitle)
+			} else if epNo != "" {
+				showTitle = fmt.Sprintf("%s - Ep %s", selectedShow.Name, epNo)
+			}
 		}
 
 		targetMALID := selectedShow.MALID

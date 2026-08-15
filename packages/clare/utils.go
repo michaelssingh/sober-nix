@@ -45,9 +45,32 @@ func cleanHTML(input string) string {
 	return strings.TrimSpace(s)
 }
 
-func formatMediaTitle(title, epNo string) string {
+func isMovieMedia(showType, showID, epNo string) bool {
+	if strings.EqualFold(showType, "MOVIE") || strings.EqualFold(showType, string(MediaTypeMovie)) {
+		return true
+	}
+	if strings.HasPrefix(showID, "vidsrc:movie") {
+		return true
+	}
+	if strings.EqualFold(epNo, "Movie") || strings.EqualFold(epNo, "Full Movie") {
+		return true
+	}
+	return false
+}
+
+func formatMediaTitle(title, epNo string, showTypeAndID ...string) string {
 	if title == "" {
 		return "Clare Media"
+	}
+	var showType, showID string
+	if len(showTypeAndID) > 0 {
+		showType = showTypeAndID[0]
+	}
+	if len(showTypeAndID) > 1 {
+		showID = showTypeAndID[1]
+	}
+	if isMovieMedia(showType, showID, epNo) {
+		return title
 	}
 	if strings.Contains(title, " - Ep ") || strings.Contains(title, " - S") {
 		return title

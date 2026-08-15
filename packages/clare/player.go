@@ -454,7 +454,7 @@ local skip_times_json = %q
 		}
 	}
 
-	mediaTitle := formatMediaTitle(title, epNo)
+	mediaTitle := formatMediaTitle(title, epNo, "", malID)
 
 	args := []string{
 		"--tls-verify=no",
@@ -859,7 +859,7 @@ func loadFileInMpv(streamURL, title, epNo, malID string, extraArgs []string, dur
 		debugLog("loadFileInMpv: loaded next episode %s from the beginning (seek 0.0s)", epNo)
 	}
 
-	fullTitle := formatMediaTitle(title, epNo)
+	fullTitle := formatMediaTitle(title, epNo, "", malID)
 	_, _ = sendMpvCommand(conn, []interface{}{"set_property", "force-media-title", fullTitle})
 
 	for _, arg := range extraArgs {

@@ -651,8 +651,8 @@ func TestMockTUI(t *testing.T) {
 		t.Error("Expected showCompleted to be true after pressing 'c'")
 	}
 
-	// Pressing "s" or "/" switches state to stateSearchInput
-	msg = tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'s'}}
+	// Pressing "s" or "/" or "2" switches state to stateSearchInput
+	msg = tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'/'}}
 	updated, _ = mUpdated.Update(msg)
 	mUpdated = updated.(model)
 	if mUpdated.state != stateSearchInput {
@@ -1391,6 +1391,33 @@ func TestProviderVidSrc(t *testing.T) {
 	} else {
 		t.Logf("✓ VidSrc TV S02E01 stream preflight 200 OK verified!")
 	}
+}
+
+func TestMovieTitleFormatting(t *testing.T) {
+	// Blade Runner 2049 (Movie ID vidsrc:movie:335984, Type MOVIE)
+	t1 := formatMediaTitle("Blade Runner 2049", "1", "MOVIE", "vidsrc:movie:335984")
+	if t1 != "Blade Runner 2049" {
+		t.Fatalf("Expected 'Blade Runner 2049', got '%s'", t1)
+	}
+
+	// The Odyssey (Movie)
+	t2 := formatMediaTitle("The Odyssey", "1", "MOVIE")
+	if t2 != "The Odyssey" {
+		t.Fatalf("Expected 'The Odyssey', got '%s'", t2)
+	}
+
+	// EpNo = "Movie"
+	t3 := formatMediaTitle("The Matrix", "Movie")
+	if t3 != "The Matrix" {
+		t.Fatalf("Expected 'The Matrix', got '%s'", t3)
+	}
+
+	// Standard TV show (South Park S02E01) should still retain episode formatting
+	t4 := formatMediaTitle("South Park", "S02E01", "TV", "vidsrc:tv:2190")
+	if t4 != "South Park - S02E01" {
+		t.Fatalf("Expected 'South Park - S02E01', got '%s'", t4)
+	}
+	t.Logf("✓ [Movie Title Test] All movie and TV title formatting assertions verified!")
 }
 
 func TestAniDBInvalidIDRejection(t *testing.T) {
