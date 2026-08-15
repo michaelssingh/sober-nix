@@ -24,75 +24,95 @@ def main():
     url = os.environ.get('QUTE_URL', '')
     domain = get_domain(url)
 
-    # 1. Fetch list of entries from rbw
+    # 1. Fetch entries from rbw with fields name and user
+    items = [] # List of tuples: (name, user, display_str)
     try:
-        res = subprocess.run(['rbw', 'list'], capture_output=True, text=True, check=True)
-        entries = [e.strip() for e in res.stdout.strip().split('\n') if e.strip()]
+        if domain:
+            res = subprocess.run(['rbw', 'search', '--fields', 'name,user', domain], capture_output=True, text=True)
+            lines = [l for l in res.stdout.strip().split('\n') if l.strip()]
+        else:
+            lines = []
+
+        if not lines:
+            res = subprocess.run(['rbw', 'list', '--fields', 'name,user'], capture_output=True, text=True, check=True)
+            lines = [l for l in res.stdout.strip().split('\n') if l.strip()]
+
+        for line in lines:
+            parts = line.split('\t')
+            name = parts[0].strip()
+            user = parts[1].strip() if len(parts) > 1 else ""
+            if name:
+                display = f"{name}  |  {user}" if user else name
+                items.append((name, user, display))
+
     except Exception as e:
-        send_qute_command(f"message-error 'rbw list failed: {e}'")
+        send_qute_command(f"message-error 'rbw failed: {e}'")
         sys.exit(1)
 
-    if not entries:
+    if not items:
         send_qute_command("message-error 'No Bitwarden entries found in rbw'")
         sys.exit(1)
 
-    # 2. Filter entries by domain matching
-    matching = [e for e in entries if domain and domain.lower() in e.lower()]
-    if not matching:
-        matching = entries
-
-    selected_entry = None
-    if len(matching) == 1:
-        selected_entry = matching[0]
+    # 2. Select entry
+    selected_item = None
+    if len(items) == 1:
+        selected_item = items[0]
     else:
-        # Use rofi to prompt selection
-        rofi_input = '\n'.join(matching)
+        # Prompt via rofi showing entry name and username
+        rofi_input = '\n'.join([item[2] for item in items])
         try:
             p = subprocess.run(
-                ['rofi', '-dmenu', '-i', '-p', f'Bitwarden ({domain})'],
+                ['rofi', '-dmenu', '-i', '-p', f'Bitwarden ({domain or "All"})'],
                 input=rofi_input,
                 capture_output=True,
                 text=True,
                 check=True
             )
-            selected_entry = p.stdout.strip()
+            choice = p.stdout.strip()
+            for item in items:
+                if item[2] == choice:
+                    selected_item = item
+                    break
         except subprocess.CalledProcessError:
             sys.exit(0) # User cancelled rofi
 
-    if not selected_entry:
+    if not selected_item:
         sys.exit(0)
 
-    # 3. Get username & password for entry
-    try:
-        password = subprocess.run(['rbw', 'get', selected_entry], capture_output=True, text=True, check=True).stdout.strip()
-        
-        # Try fetching username field directly from rbw entry
-        user = ""
-        user_res = subprocess.run(['rbw', 'get', selected_entry, '--field', 'username'], capture_output=True, text=True)
-        if user_res.returncode == 0 and user_res.stdout.strip():
-            user = user_res.stdout.strip()
-        elif '/' in selected_entry:
-            user = selected_entry.split('/')[-1]
-        elif '@' in selected_entry:
-            user = selected_entry.split('@')[0]
+    name, user, _ = selected_item
 
-        # 4. Fill into Qutebrowser via fake-key
+    # 3. Retrieve password using rbw get <name> [user]
+    try:
+        cmd = ['rbw', 'get', name]
+        if user:
+            cmd.append(user)
+        
+        password = subprocess.run(cmd, capture_output=True, text=True, check=True).stdout.strip()
+
+        # 4. Fill credentials into Qutebrowser via fake-key
         if user:
             send_qute_command(f"fake-key {user}")
             send_qute_command("fake-key <Tab>")
         send_qute_command(f"fake-key {password}")
 
-        # 5. Check 2FA TOTP code and copy to clipboard
-        code_res = subprocess.run(['rbw', 'code', selected_entry], capture_output=True, text=True)
-        if code_res.returncode == 0 and code_res.stdout.strip():
-            totp = code_res.stdout.strip()
-            subprocess.run(['wl-copy', totp], check=False)
-            send_qute_command(f"message-info 'Logged in as {user or selected_entry} (2FA TOTP {totp} copied to clipboard!)'")
-        else:
-            send_qute_command(f"message-info 'Logged in as {user or selected_entry}'")
+        # 5. Retrieve 2FA TOTP code using rbw code <name> [user]
+        try:
+            code_cmd = ['rbw', 'code', name]
+            if user:
+                code_cmd.append(user)
+            
+            code_res = subprocess.run(code_cmd, capture_output=True, text=True)
+            if code_res.returncode == 0 and code_res.stdout.strip():
+                totp = code_res.stdout.strip()
+                subprocess.run(['wl-copy', totp], check=False)
+                send_qute_command(f"message-info 'Logged in as {user or name} (2FA TOTP {totp} copied to clipboard!)'")
+            else:
+                send_qute_command(f"message-info 'Logged in as {user or name}'")
+        except Exception:
+            send_qute_command(f"message-info 'Logged in as {user or name}'")
 
     except Exception as e:
-        send_qute_command(f"message-error 'Failed to get credentials from rbw: {e}'")
+        send_qute_command(f"message-error 'Failed to get password from rbw: {e}'")
 
 if __name__ == '__main__':
     main()
