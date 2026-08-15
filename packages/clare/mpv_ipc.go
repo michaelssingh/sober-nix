@@ -125,3 +125,55 @@ func (c *MPVIPCClient) InspectHealth() (VideoHealthStats, error) {
 	}
 	return stats, nil
 }
+
+// WaitForPlaybackToStart polls the IPC socket until MPV begins playing the media content or deadline expires.
+func (c *MPVIPCClient) WaitForPlaybackToStart(timeout time.Duration) (float64, error) {
+	deadline := time.Now().Add(timeout)
+	var lastErr error
+	for time.Now().Before(deadline) {
+		if val, err := c.GetProperty("time-pos"); err == nil && val != nil {
+			if pos, ok := val.(float64); ok && pos >= 0 {
+				return pos, nil
+			}
+		} else {
+			lastErr = err
+		}
+
+		if val, err := c.GetProperty("playback-time"); err == nil && val != nil {
+			if pos, ok := val.(float64); ok && pos >= 0 {
+				return pos, nil
+			}
+		} else {
+			lastErr = err
+		}
+
+		if val, err := c.GetProperty("duration"); err == nil && val != nil {
+			if dur, ok := val.(float64); ok && dur > 0 {
+				return 0.0, nil
+			}
+		}
+
+		if val, err := c.GetProperty("demuxer-cache-duration"); err == nil && val != nil {
+			if dur, ok := val.(float64); ok && dur > 0 {
+				return 0.0, nil
+			}
+		}
+
+		if val, err := c.GetProperty("media-title"); err == nil && val != nil {
+			titleStr := fmt.Sprintf("%v", val)
+			if titleStr != "" {
+				if idle, err := c.GetProperty("idle-active"); err == nil && idle != nil {
+					if idleBool, ok := idle.(bool); !idleBool && ok {
+						return 0.0, nil
+					}
+				}
+			}
+		}
+
+		time.Sleep(200 * time.Millisecond)
+	}
+	if lastErr != nil {
+		return 0.0, fmt.Errorf("timeout waiting for playback to start (last error: %v)", lastErr)
+	}
+	return 0.0, fmt.Errorf("timeout waiting for playback to start after %v", timeout)
+}

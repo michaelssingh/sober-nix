@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -109,7 +110,16 @@ func TestE2EFullSuite(t *testing.T) {
 			t.Skip("mpv binary not found in PATH, skipping live MPV IPC test")
 		}
 
-		streamURL := "https://hls.anidb.app/stream/test/master.m3u8"
+		socketPath := filepath.Join(t.TempDir(), "mpv.sock")
+		t.Setenv("CLARE_MPV_SOCK", socketPath)
+
+		p := &AniDBProvider{}
+		anidbStreams, err := p.ResolveStreams("anidb:4556", "sub", "1", "best")
+		streamURL := "https://hls.anidb.app/stream/B2V-LPvOAhipMt9rZxeRccGoBPLnQyY6ASqiHfNhIFyc_u-yGsEIWCKv7hQIfX-z/master.m3u8"
+		if err == nil && len(anidbStreams) > 0 {
+			streamURL = anidbStreams[0].URL
+		}
+
 		cmd, luaFile, chapFile, _, _, err := getMpvCmd(
 			streamURL, "E2E Test Show - Ep 1: The Legendary Hit Man", "1", "58939", "24 min",
 			[]string{
@@ -124,8 +134,6 @@ func TestE2EFullSuite(t *testing.T) {
 		if err != nil {
 			t.Fatalf("getMpvCmd failed: %v", err)
 		}
-
-		socketPath := getMpvSocketPath()
 
 		defer func() {
 			if luaFile != "" {
@@ -146,31 +154,43 @@ func TestE2EFullSuite(t *testing.T) {
 			}
 		}()
 
-		time.Sleep(500 * time.Millisecond)
-
-		ipc, err := NewMPVIPCClient(socketPath)
-		if err != nil {
-			t.Logf("⚠️ MPV IPC Socket connect note (%s): %v", socketPath, err)
-		} else {
-			defer ipc.Close()
-
-			_ = ipc.Seek(10.0)
-			health, _ := ipc.InspectHealth()
-			t.Logf("✓ [MPV IPC E2E] Socket connection verified! Health stats: %+v", health)
-
-			titleVal, err := ipc.GetProperty("media-title")
-			if err != nil {
-				titleVal, err = ipc.GetProperty("force-media-title")
+		var ipc *MPVIPCClient
+		connDeadline := time.Now().Add(3 * time.Second)
+		for time.Now().Before(connDeadline) {
+			if client, err := NewMPVIPCClient(socketPath); err == nil {
+				ipc = client
+				break
 			}
-			if err != nil {
-				t.Fatalf("Failed to query title from running AniDB MPV instance via IPC: %v", err)
-			}
-			titleStr := fmt.Sprintf("%v", titleVal)
-			if !strings.Contains(titleStr, "The Legendary Hit Man") {
-				t.Fatalf("Running AniDB MPV IPC title mismatch! Expected 'The Legendary Hit Man', got: '%s'", titleStr)
-			}
-			t.Logf("✓ [AniDB MPV IPC E2E] Running MPV instance confirmed full episode title via IPC socket: '%s'", titleStr)
+			time.Sleep(150 * time.Millisecond)
 		}
+
+		if ipc == nil {
+			t.Fatalf("Failed to connect to AniDB MPV IPC socket at %s", socketPath)
+		}
+		defer ipc.Close()
+
+		_ = ipc.Seek(10.0)
+		health, _ := ipc.InspectHealth()
+		t.Logf("✓ [MPV IPC E2E] Socket connection verified! Health stats: %+v", health)
+
+		titleVal, err := ipc.GetProperty("media-title")
+		if err != nil {
+			titleVal, err = ipc.GetProperty("force-media-title")
+		}
+		if err != nil {
+			t.Fatalf("Failed to query title from running AniDB MPV instance via IPC: %v", err)
+		}
+		titleStr := fmt.Sprintf("%v", titleVal)
+		if !strings.Contains(titleStr, "The Legendary Hit Man") {
+			t.Fatalf("Running AniDB MPV IPC title mismatch! Expected 'The Legendary Hit Man', got: '%s'", titleStr)
+		}
+		t.Logf("✓ [AniDB MPV IPC E2E] Running MPV instance confirmed full episode title via IPC socket: '%s'", titleStr)
+
+		pos, err := ipc.WaitForPlaybackToStart(10 * time.Second)
+		if err != nil {
+			t.Fatalf("AniDB MPV failed to start playback: %v", err)
+		}
+		t.Logf("✓ [AniDB Playback E2E] AniDB MPV playback successfully confirmed active! Position: %.2fs", pos)
 	})
 
 	t.Run("05_Full_TUI_Interactive_User_Flow", func(t *testing.T) {
@@ -370,32 +390,31 @@ func TestE2EFullSuite(t *testing.T) {
 			t.Skip("mpv binary not found in PATH, skipping Movie MPV test")
 		}
 
-		p := &VidSrcProvider{}
-		movieStreams, err := p.ResolveStreams("vidsrc:movie:603", "sub", "1", "best")
-		if err != nil || len(movieStreams) == 0 {
-			t.Fatalf("VidSrc movie stream resolution failed: %v", err)
+		socketPath := filepath.Join(t.TempDir(), "mpv.sock")
+		t.Setenv("CLARE_MPV_SOCK", socketPath)
+
+		movieShow := AnimeShow{
+			ID:    "vidsrc:movie:603",
+			Name:  "The Matrix",
+			Type:  "MOVIE",
+			MALID: "603",
+		}
+		playCmd := doPreparePlayback(movieShow, "1", "The Matrix", "sub", "best", false)
+		playMsg := playCmd()
+		pResMsg, ok := playMsg.(resolvedPlaybackMsg)
+		if !ok || pResMsg.err != nil || pResMsg.cmd == nil {
+			t.Fatalf("doPreparePlayback failed for Movie: %v", pResMsg.err)
 		}
 
-		cmd, luaFile, _, _, _, err := getMpvCmd(
-			movieStreams[0].URL, "The Matrix", "Movie", "vidsrc:movie:603", "136 min",
-			[]string{
-				"--vo=null",
-				"--ao=null",
-				"--mute=yes",
-				"--idle=no",
-				"--keep-open=no",
-				"--no-terminal",
-			},
+		cmd := pResMsg.cmd
+		cmd.Args = append(cmd.Args,
+			"--vo=null",
+			"--ao=null",
+			"--mute=yes",
+			"--idle=no",
+			"--keep-open=no",
+			"--no-terminal",
 		)
-		if err != nil || cmd == nil {
-			t.Fatalf("Failed to build Movie MPV command: %v", err)
-		}
-
-		defer func() {
-			if luaFile != "" {
-				_ = os.Remove(luaFile)
-			}
-		}()
 
 		if err := cmd.Start(); err != nil {
 			t.Fatalf("Failed to start headless Movie MPV command (%s): %v", mpvPath, err)
@@ -407,17 +426,46 @@ func TestE2EFullSuite(t *testing.T) {
 			}
 		}()
 
-		time.Sleep(600 * time.Millisecond)
-
-		socketPath := getMpvSocketPath()
-		ipc, err := NewMPVIPCClient(socketPath)
-		if err != nil {
-			t.Logf("⚠️ Movie MPV IPC Socket connect note: %v", err)
-		} else {
-			defer ipc.Close()
-			health, _ := ipc.InspectHealth()
-			t.Logf("✓ [Movie E2E] Headless MPV successfully launched and verified via IPC! Health: %+v", health)
+		socketPath = getMpvSocketPath()
+		var ipc *MPVIPCClient
+		// Retry connecting to IPC socket for up to 3 seconds until MPV initializes socket listener
+		connDeadline := time.Now().Add(3 * time.Second)
+		for time.Now().Before(connDeadline) {
+			if client, err := NewMPVIPCClient(socketPath); err == nil {
+				ipc = client
+				break
+			}
+			time.Sleep(150 * time.Millisecond)
 		}
+
+		if ipc == nil {
+			t.Fatalf("Failed to connect to Movie MPV IPC socket at %s", socketPath)
+		}
+		defer ipc.Close()
+
+		health, _ := ipc.InspectHealth()
+		t.Logf("✓ [Movie E2E] Headless MPV successfully launched and verified via IPC! Health: %+v", health)
+
+		// 1. Query running MPV instance via IPC to verify media-title property for movie
+		titleVal, err := ipc.GetProperty("media-title")
+		if err != nil {
+			titleVal, err = ipc.GetProperty("force-media-title")
+		}
+		if err != nil {
+			t.Fatalf("Failed to query title from running Movie MPV instance via IPC: %v", err)
+		}
+		titleStr := fmt.Sprintf("%v", titleVal)
+		if !strings.Contains(titleStr, "The Matrix") {
+			t.Fatalf("Running Movie MPV IPC title mismatch! Expected 'The Matrix', got: '%s'", titleStr)
+		}
+		t.Logf("✓ [Movie IPC E2E] Running MPV instance verified movie title over IPC socket: '%s'", titleStr)
+
+		// 2. Wait until MPV connects to stream, demuxes media, and playback actively begins
+		pos, err := ipc.WaitForPlaybackToStart(10 * time.Second)
+		if err != nil {
+			t.Fatalf("Movie MPV failed to start playback: %v", err)
+		}
+		t.Logf("✓ [Movie Playback E2E] Movie MPV playback successfully confirmed active! Position: %.2fs", pos)
 	})
 
 	t.Run("10_VidSrc_TV_Show_Headless_MPV_Playback_And_IPC", func(t *testing.T) {
@@ -426,33 +474,30 @@ func TestE2EFullSuite(t *testing.T) {
 			t.Skip("mpv binary not found in PATH, skipping TV Show MPV test")
 		}
 
-		p := &VidSrcProvider{}
-		tvStreams, err := p.ResolveStreams("vidsrc:tv:2190", "sub", "S02E01", "best")
-		if err != nil || len(tvStreams) == 0 {
-			t.Fatalf("VidSrc TV S02E01 stream resolution failed: %v", err)
+		socketPath := filepath.Join(t.TempDir(), "mpv.sock")
+		t.Setenv("CLARE_MPV_SOCK", socketPath)
+
+		tvShow := AnimeShow{
+			ID:    "vidsrc:tv:2190",
+			Name:  "South Park",
+			MALID: "2190",
+		}
+		playCmd := doPreparePlayback(tvShow, "S02E01", "Terrance and Phillip in Not Without My Anus", "sub", "best", false)
+		playMsg := playCmd()
+		pResMsg, ok := playMsg.(resolvedPlaybackMsg)
+		if !ok || pResMsg.err != nil || pResMsg.cmd == nil {
+			t.Fatalf("doPreparePlayback failed for TV Show: %v", pResMsg.err)
 		}
 
-		tvTitle := "South Park - Ep S02E01: Terrance and Phillip in Not Without My Anus"
-		cmd, luaFile, _, _, _, err := getMpvCmd(
-			tvStreams[0].URL, tvTitle, "S02E01", "vidsrc:tv:2190", "22 min",
-			[]string{
-				"--vo=null",
-				"--ao=null",
-				"--mute=yes",
-				"--idle=no",
-				"--keep-open=no",
-				"--no-terminal",
-			},
+		cmd := pResMsg.cmd
+		cmd.Args = append(cmd.Args,
+			"--vo=null",
+			"--ao=null",
+			"--mute=yes",
+			"--idle=no",
+			"--keep-open=no",
+			"--no-terminal",
 		)
-		if err != nil || cmd == nil {
-			t.Fatalf("Failed to build TV Show MPV command: %v", err)
-		}
-
-		defer func() {
-			if luaFile != "" {
-				_ = os.Remove(luaFile)
-			}
-		}()
 
 		if err := cmd.Start(); err != nil {
 			t.Fatalf("Failed to start headless TV Show MPV command (%s): %v", mpvPath, err)
@@ -464,31 +509,45 @@ func TestE2EFullSuite(t *testing.T) {
 			}
 		}()
 
-		time.Sleep(600 * time.Millisecond)
-
-		socketPath := getMpvSocketPath()
-		ipc, err := NewMPVIPCClient(socketPath)
-		if err != nil {
-			t.Logf("⚠️ TV Show MPV IPC Socket connect note: %v", err)
-		} else {
-			defer ipc.Close()
-			health, _ := ipc.InspectHealth()
-			t.Logf("✓ [TV Show E2E] Headless MPV successfully launched and verified via IPC! Health: %+v", health)
-
-			// Query running MPV instance via IPC to verify media-title property is active
-			titleVal, err := ipc.GetProperty("media-title")
-			if err != nil {
-				titleVal, err = ipc.GetProperty("force-media-title")
+		socketPath = getMpvSocketPath()
+		var ipc *MPVIPCClient
+		connDeadline := time.Now().Add(3 * time.Second)
+		for time.Now().Before(connDeadline) {
+			if client, err := NewMPVIPCClient(socketPath); err == nil {
+				ipc = client
+				break
 			}
-			if err != nil {
-				t.Fatalf("Failed to query title from running MPV instance via IPC: %v", err)
-			}
-			titleStr := fmt.Sprintf("%v", titleVal)
-			if !strings.Contains(titleStr, "South Park") || !strings.Contains(titleStr, "Terrance and Phillip") {
-				t.Fatalf("Running MPV IPC title mismatch! Expected show & ep name, got: '%s'", titleStr)
-			}
-			t.Logf("✓ [TV Show IPC E2E] Running MPV instance verified title over IPC socket: '%s'", titleStr)
+			time.Sleep(150 * time.Millisecond)
 		}
+
+		if ipc == nil {
+			t.Fatalf("Failed to connect to TV Show MPV IPC socket at %s", socketPath)
+		}
+		defer ipc.Close()
+
+		health, _ := ipc.InspectHealth()
+		t.Logf("✓ [TV Show E2E] Headless MPV successfully launched and verified via IPC! Health: %+v", health)
+
+		// Query running MPV instance via IPC to verify media-title property is active
+		titleVal, err := ipc.GetProperty("media-title")
+		if err != nil {
+			titleVal, err = ipc.GetProperty("force-media-title")
+		}
+		if err != nil {
+			t.Fatalf("Failed to query title from running MPV instance via IPC: %v", err)
+		}
+		titleStr := fmt.Sprintf("%v", titleVal)
+		if !strings.Contains(titleStr, "South Park") || !strings.Contains(titleStr, "Terrance and Phillip") {
+			t.Fatalf("Running MPV IPC title mismatch! Expected show & ep name, got: '%s'", titleStr)
+		}
+		t.Logf("✓ [TV Show IPC E2E] Running MPV instance verified title over IPC socket: '%s'", titleStr)
+
+		// Wait until MPV connects to stream, demuxes media, and playback actively begins
+		pos, err := ipc.WaitForPlaybackToStart(10 * time.Second)
+		if err != nil {
+			t.Fatalf("TV Show MPV failed to start playback: %v", err)
+		}
+		t.Logf("✓ [TV Show Playback E2E] TV Show MPV playback successfully confirmed active! Position: %.2fs", pos)
 	})
 
 	t.Run("11_Full_TUI_VidSrc_Movie_And_TV_Interactive_User_Flow", func(t *testing.T) {
@@ -564,6 +623,9 @@ func TestE2EFullSuite(t *testing.T) {
 	})
 
 	t.Run("13_TV_And_Anime_Episode_Title_Assertion", func(t *testing.T) {
+		socketPath := filepath.Join(t.TempDir(), "mpv.sock")
+		t.Setenv("CLARE_MPV_SOCK", socketPath)
+
 		// 1. Verify TMDB Season Details fetch populates actual episode names for TV shows
 		seasonCmd := doFetchTmdbSeasonDetails("vidsrc:tv:2190", 2)
 		seasonMsg := seasonCmd()
@@ -653,6 +715,9 @@ func TestE2EFullSuite(t *testing.T) {
 		if _, err := exec.LookPath("mpv"); err != nil {
 			t.Skip("mpv binary not found in PATH, skipping Autoplay IPC Title test")
 		}
+
+		socketPath := filepath.Join(t.TempDir(), "mpv.sock")
+		t.Setenv("CLARE_MPV_SOCK", socketPath)
 
 		m := initialModel("", "sub", "best", false)
 		m.state = statePlaybackPreparing
