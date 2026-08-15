@@ -140,8 +140,8 @@ in
       color_background_alt = ${if theme.isDark then "blue" else "cyan"}
       color_foreground_dim = green
       color_foreground_status = cyan
-      color_foreground_heading = yellow
-      color_foreground_dividers = magenta
+      color_foreground_heading = magenta
+      color_foreground_dividers = cyan
 
       [playback]
       seek_distance_forward = 30

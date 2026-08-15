@@ -50,8 +50,8 @@ in
       color listfocus         black blue bold
       color listnormal_unread cyan default bold
       color listfocus_unread  black cyan bold
-      color info              yellow black
-      color article           default default
+      color info              magenta black bold
+      color article           cyan default
       color background        default default
 
       bind-key j down
