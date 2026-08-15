@@ -138,7 +138,7 @@ in
       color_background = transparent
       color_foreground_alt = ${if theme.isDark then "black" else "white"}
       color_background_alt = ${if theme.isDark then "blue" else "cyan"}
-      color_foreground_dim = green
+      color_foreground_dim = ${if theme.isDark then "black" else "white"}
       color_foreground_status = cyan
       color_foreground_heading = yellow
       color_foreground_dividers = magenta
