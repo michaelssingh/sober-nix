@@ -106,7 +106,27 @@ def main():
         
         password = subprocess.run(cmd, capture_output=True, text=True, check=True).stdout.strip()
 
-        # 4. Fill credentials into Qutebrowser via insert-text (clearing existing text first)
+        # 4. Fill credentials into Qutebrowser via JS DOM injection (handles React/SPA forms like Welcome to the Jungle / Otta)
+        import json
+        js_user = json.dumps(user)
+        js_pass = json.dumps(password)
+
+        # Clean single-line JS snippet for jseval
+        js_code = (
+            f"var u={js_user},p={js_pass};"
+            "function fill(el,v){if(!el||!v)return false;el.focus();el.value=v;"
+            "el.dispatchEvent(new Event('input',{bubbles:true}));"
+            "el.dispatchEvent(new Event('change',{bubbles:true}));return true;};"
+            "var pe=document.querySelector('input[type=\"password\"]');"
+            "var ue=(document.activeElement&&document.activeElement.tagName==='INPUT'&&document.activeElement.type!=='password')"
+            "?document.activeElement:document.querySelector('input[type=\"email\"],input[name*=\"email\"],input[name*=\"user\"],input[name*=\"login\"],input[autocomplete*=\"username\"],input[type=\"text\"]');"
+            "fill(ue,u);fill(pe,p);"
+        )
+
+        # Try JS injection first (works on React/Vue/Angular SPAs)
+        send_qute_command(f"jseval -q {js_code}")
+
+        # Fallback / Backup using insert-text for standard inputs
         if user:
             send_qute_command("fake-key <Ctrl+a>")
             send_qute_command("fake-key <BackSpace>")
