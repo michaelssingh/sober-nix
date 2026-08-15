@@ -1,7 +1,12 @@
 {
+  osConfig ? { },
   pkgs,
   ...
 }:
+let
+  hostname = osConfig.networking.hostName or "";
+  isNinox = hostname == "ninox";
+in
 {
   programs.mpv = {
     enable = true;
@@ -22,7 +27,11 @@
       save-position-on-quit = "yes";
       save-watch-history = "yes";
       write-filename-in-watch-later-config = "yes";
-      ytdl-format = "bestvideo[height<=720][vcodec^=avc1]+bestaudio/best";
+      ytdl-format =
+        if isNinox then
+          "bestvideo[height<=1080]+bestaudio/best"
+        else
+          "bestvideo[height<=720]+bestaudio/best";
       ytdl-raw-options = "cookies-from-browser=firefox";
       cache = "yes";
       demuxer-max-bytes = "150MiB";
