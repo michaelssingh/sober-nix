@@ -33,8 +33,12 @@ func (m *model) refreshEpisodeListItems() {
 	nextEp := ""
 	var showState *ShowState
 	positions, _ := loadPositions()
-	if positions != nil && m.selectedShow.MALID != "" && m.selectedShow.MALID != "0" {
-		if sState, ok := positions[m.selectedShow.MALID]; ok {
+	key := m.selectedShow.MALID
+	if key == "" || key == "0" {
+		key = m.selectedShow.ID
+	}
+	if positions != nil && key != "" {
+		if sState, ok := positions[key]; ok {
 			showState = &sState
 			maxCompleted := 0.0
 			for _, ep := range sState.CompletedEpisodes {
@@ -113,7 +117,13 @@ func (m *model) refreshEpisodeListItems() {
 		isNext := ep == nextEp
 		title := ""
 		desc := ""
-		if info, ok := m.episodeDetails[ep]; ok {
+		isMovieMedia := strings.EqualFold(m.selectedShow.Type, "MOVIE") ||
+			strings.HasPrefix(m.selectedShow.ID, "vidsrc:movie") ||
+			strings.HasPrefix(m.selectedShow.ID, "flikhub:movie")
+
+		if isMovieMedia && ep == "1" {
+			title = "Full Movie"
+		} else if info, ok := m.episodeDetails[ep]; ok {
 			if strings.HasPrefix(strings.ToUpper(ep), "S") && strings.Contains(strings.ToUpper(ep), "E") {
 				var s, e int
 				if _, err := fmt.Sscanf(strings.ToUpper(ep), "S%02dE%02d", &s, &e); err == nil {
@@ -140,9 +150,7 @@ func (m *model) refreshEpisodeListItems() {
 			}
 			desc = strings.Join(tags, " | ")
 		} else {
-			if (strings.EqualFold(m.selectedShow.Type, "MOVIE") || strings.HasPrefix(m.selectedShow.ID, "vidsrc:movie")) && ep == "1" {
-				title = "Full Movie"
-			} else if strings.HasPrefix(strings.ToUpper(ep), "S") && strings.Contains(strings.ToUpper(ep), "E") {
+			if strings.HasPrefix(strings.ToUpper(ep), "S") && strings.Contains(strings.ToUpper(ep), "E") {
 				var s, e int
 				if _, err := fmt.Sscanf(strings.ToUpper(ep), "S%02dE%02d", &s, &e); err == nil {
 					title = fmt.Sprintf("Season %d, Episode %d", s, e)

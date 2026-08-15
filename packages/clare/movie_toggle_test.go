@@ -11,7 +11,7 @@ func TestMovieToggleCompleted(t *testing.T) {
 
 	mockShow := AnimeShow{
 		ID:    movieShowID,
-		Name:  "Test Sci-Fi Movie",
+		Name:  "Blade Runner 2049",
 		Type:  "MOVIE",
 		MALID: "",
 	}
@@ -37,5 +37,36 @@ func TestMovieToggleCompleted(t *testing.T) {
 	st = pos[movieShowID]
 	if len(st.CompletedEpisodes) > 0 {
 		t.Fatalf("expected movie %s to be unmarked, got completed_episodes: %v", movieShowID, st.CompletedEpisodes)
+	}
+}
+
+func TestMovieEpisodeTitleFormatting(t *testing.T) {
+	movieShowID := "flikhub:movie:blade-runner-2049"
+
+	m := initialModel("", "sub", "best", false)
+	m.selectedShow = AnimeShow{
+		ID:    movieShowID,
+		Name:  "Blade Runner 2049",
+		Type:  "MOVIE",
+		MALID: "",
+	}
+	m.episodes = []string{"1"}
+	m.episodeDetails = map[string]JikanEpInfo{
+		"1": {Title: "Time to Die"},
+	}
+
+	m.refreshEpisodeListItems()
+
+	if len(m.episodeItems) == 0 {
+		t.Fatalf("expected episode items to be populated")
+	}
+
+	epItem, ok := m.episodeItems[0].(episodeItem)
+	if !ok {
+		t.Fatalf("expected item to be episodeItem")
+	}
+
+	if epItem.title != "Full Movie" {
+		t.Fatalf("expected movie title to be 'Full Movie', got %q", epItem.title)
 	}
 }
