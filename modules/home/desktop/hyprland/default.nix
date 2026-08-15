@@ -306,12 +306,6 @@ in
 
       dwindle = {
         preserve_split = true;
-        smart_split = true;
-      };
-
-      master = {
-        new_status = "master";
-        mfact = 0.55;
       };
 
       # Keybindings
@@ -329,12 +323,6 @@ in
         "$mainMod, SPACE, fullscreen, 0"
         "$mainMod, Escape, exec, hyprlock"
         "$mainMod, P, pseudo,"
-
-        # Layout Switching & Controls
-        "$mainMod, M, exec, hyprctl keyword general:layout master"
-        "$mainMod SHIFT, M, exec, hyprctl keyword general:layout dwindle"
-        "$mainMod ALT, M, layoutmsg, swapwithmaster"
-        "$mainMod, V, layoutmsg, togglesplit"
 
         # Screenshots
         ", Print, exec, hyprshot -m output -o ~/Pictures/Screenshots"
