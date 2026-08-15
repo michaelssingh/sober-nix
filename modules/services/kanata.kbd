@@ -85,16 +85,16 @@
   _    _    _    _    _    _    _    _    _    _    _    _    _
   _    _    _    _    _    _    _    _    _    _    _    _    _    _
   _    _    _    _    _    _    _    bspc del  _    _    _    _    _
-  _    _    _    _    _    _    C-w  C-w  C-k  C-k  _ _ _
-  _    _    _    _    _    _    C-u @del_ln_f _ _ _ _
+  _    _    _    _    _    _    C-bspc C-bspc C-del C-del _ _ _
+  _    _    _    _    _    _    @del_ln_b @del_ln_f _ _ _ _
   _    _    _              _              _    _
 )
 
 (deflayer e-mode
   _    _    _    _    _    _    _    _    _    _    _    _    _
   _    _    _    _    _    _    _    _    _    _    _    _    _    _
-  _    _    _    _    _    _    _    C-b  C-f  _    _    _    _    _
-  _    _    _    _    _    _    C-a  M-b  M-f  C-e  _  _    _
+  _    _    _    _    _    _    _    left rght _    _    _    _    _
+  _    _    _    _    _    _    home C-left C-rght end _  _    _
   _    _    _    _    _    _    ret  ret  _    _    _    _
   _    _    _              _              _    _
 )
