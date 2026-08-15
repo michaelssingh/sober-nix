@@ -218,7 +218,16 @@ _:
         ];
       }
       {
-        url = "https://remotive.com/remote-jobs/devops/feed";
+        url = "https://weworkremotely.com/categories/remote-back-end-programming-jobs.rss";
+        tags = [
+          "jobs"
+          "global"
+          "backend"
+          "infrastructure"
+        ];
+      }
+      {
+        url = "https://remotive.com/remote-jobs/feed";
         tags = [
           "jobs"
           "global"
@@ -227,20 +236,65 @@ _:
         ];
       }
       {
-        url = "https://jobspresso.co/category/devops/feed/";
-        tags = [
-          "jobs"
-          "global"
-          "devops"
-          "infrastructure"
-        ];
-      }
-      {
         url = "https://hnrss.org/jobs";
         tags = [
           "jobs"
           "global"
           "tech"
+        ];
+      }
+      {
+        url = "https://hnrss.org/whoishiring/jobs";
+        tags = [
+          "jobs"
+          "global"
+          "tech"
+          "whoishiring"
+        ];
+      }
+      {
+        url = "https://lobste.rs/t/job.rss";
+        tags = [
+          "jobs"
+          "global"
+          "infrastructure"
+          "devops"
+        ];
+      }
+      {
+        url = "https://nodesk.co/remote-jobs/index.xml";
+        tags = [
+          "jobs"
+          "global"
+          "devops"
+          "tech"
+        ];
+      }
+      {
+        url = "https://authenticjobs.com/feed/";
+        tags = [
+          "jobs"
+          "global"
+          "devops"
+          "tech"
+        ];
+      }
+      {
+        url = "https://sreweekly.com/feed/";
+        tags = [
+          "jobs"
+          "global"
+          "sre"
+          "devops"
+        ];
+      }
+      {
+        url = "https://golangprojects.com/rss.xml";
+        tags = [
+          "jobs"
+          "global"
+          "golang"
+          "infrastructure"
         ];
       }
     ];
