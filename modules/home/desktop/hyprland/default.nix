@@ -238,7 +238,6 @@ in
         "hyprctl dispatch exec [workspace 9] 'ghostty -e attach-tmux sys'"
         "hyprctl dispatch exec [workspace 10] 'zathura \"/home/michael/git/books/programming-languages/K&R.epub\"'"
         "hyprctl dispatch exec [workspace 10] 'ghostty -e attach-tmux hack'"
-        "${pkgs.hypridle}/bin/hypridle"
         "${pkgs.mako}/bin/mako"
       ];
 
