@@ -4,13 +4,14 @@ let
   animeDir = ../../core/theme/themes/wallpapers/anime;
   wallpapers = [
     "${animeDir}/user_lucy.jpg"
-    "${animeDir}/clare.jpg"
-    "${animeDir}/akudama_drive.jpg"
-    "${animeDir}/fmab.jpg"
-    "${animeDir}/moon_kiss.jpg"
-    "${animeDir}/eyes.jpg"
-    "${animeDir}/oxocarbon.jpg"
-    "${animeDir}/edgerunners_orig.png"
+    "${animeDir}/clare.png"
+    "${animeDir}/clare_action.png"
+    "${animeDir}/akudama_drive.png"
+    "${animeDir}/akudama_courier.png"
+    "${animeDir}/fmab.png"
+    "${animeDir}/fmab_circle.png"
+    "${animeDir}/edgerunners_lucy.jpg"
+    "${animeDir}/edgerunners_moon.jpg"
   ];
   initialWallpaper = "${animeDir}/user_lucy.jpg";
 
