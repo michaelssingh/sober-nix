@@ -33,7 +33,7 @@ in
       email = emailPersonal;
       base_url = "https://vault.bitwarden.com";
       identity_url = "https://identity.bitwarden.com";
-      pinentry = pkgs.pinentry-tty;
+      pinentry = pkgs.pinentry-rofi;
     };
   };
 
@@ -42,7 +42,7 @@ in
     createDirectories = true;
     setSessionVariables = true;
     extraConfig = {
-      SCREENSHOTS = "${config.home.homeDirectory}/pictures/screenshots";
+      SCREENSHOTS = "${config.home.homeDirectory}/Pictures/Screenshots";
     };
   };
 
