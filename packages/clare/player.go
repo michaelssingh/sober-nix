@@ -5,6 +5,7 @@ import (
 	"bytes"
 	_ "embed"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io"
 	"net"
@@ -469,6 +470,10 @@ local skip_times_json = %q
 		keepOpenFlag,
 	}
 
+	if isRunningInTest() {
+		args = append(args, "--mute=yes")
+	}
+
 	isDirectHLS := strings.Contains(streamURL, "m3u8") ||
 		strings.Contains(streamURL, "vidsrc") ||
 		strings.Contains(streamURL, "cloudorchestranova") ||
@@ -868,8 +873,23 @@ func loadFileInMpv(streamURL, title, epNo, malID string, extraArgs []string, dur
 	}
 
 	_, _ = sendMpvCommand(conn, []interface{}{"set_property", "pause", false})
+	if isRunningInTest() {
+		_, _ = sendMpvCommand(conn, []interface{}{"set_property", "mute", true})
+	}
 
 	return nil
+}
+
+func isRunningInTest() bool {
+	if strings.HasSuffix(os.Args[0], ".test") || os.Getenv("CLARE_TESTING") == "1" || flag.Lookup("test.v") != nil {
+		return true
+	}
+	for _, arg := range os.Args {
+		if strings.HasPrefix(arg, "-test.") {
+			return true
+		}
+	}
+	return false
 }
 
 
