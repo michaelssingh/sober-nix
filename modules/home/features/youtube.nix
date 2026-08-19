@@ -44,6 +44,7 @@ in
       bind-key o open-in-browser
 
       ignore-article "*" "link =~ \"shorts\""
+      ignore-article "https://himalayas.app/jobs/rss" "title !~ \"devops|DevOps|DEVOPS|platform|Platform|sre|SRE|infrastructure|Infrastructure|sysadmin|SysAdmin|cloud|Cloud|kubernetes|Kubernetes|systems|Systems|nix|Nix|NIX|linux|Linux\""
 
       # sober.theme (${theme.name}) Color Scheme
       color listnormal        cyan default
