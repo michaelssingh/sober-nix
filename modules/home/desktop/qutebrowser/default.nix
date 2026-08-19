@@ -11,10 +11,12 @@ in
   home.file.".local/share/qutebrowser/userscripts".source =
     config.lib.file.mkOutOfStoreSymlink "/home/michael/git/sober-nix/modules/home/desktop/qutebrowser/userscripts";
 
-  home.file.".local/share/qutebrowser/qtwebengine_dictionaries/en-US.dic".source =
-    "${pkgs.hunspellDicts.en_US}/share/hunspell/en_US.dic";
-  home.file.".local/share/qutebrowser/qtwebengine_dictionaries/en-US.aff".source =
-    "${pkgs.hunspellDicts.en_US}/share/hunspell/en_US.aff";
+  home.file.".local/share/qutebrowser/qtwebengine_dictionaries/en-US-10-0.bdic".source =
+    pkgs.fetchurl
+      {
+        url = "https://redirector.gvt1.com/edgedl/chrome/dict/en-US-10-0.bdic";
+        sha256 = "sha256-dCX1AdYUbLG/BRUYzjZZLElEF4ViCj0tqSHRYNqWFOw=";
+      };
 
   programs.qutebrowser = {
     enable = true;
